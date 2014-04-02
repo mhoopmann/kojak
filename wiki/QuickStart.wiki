@@ -30,8 +30,9 @@ Step-by-step instructions to analyzing your mzXML or mzML data. Detailed instruc
     * _Example:  output_file = C:\Data\MyProject\DataFile1-results.txt_
     * _Example:  percolator_file = C:\Data\MyProject\DataFile1-percolator.txt_
   d. Change _ database _ to the amino acid sequence database you want to use.
-    * _Example:  database = !C:\FASTA\MyDatabase.fasta_
+    * _Example: {{{ database = C:\FASTA\MyDatabase.fasta }}} _
   e. Set other parameters as necessary. Parameters and descriptions can be found on the Parameters page.
+  
   f. Save _Kojak.conf_ and exit the text editor.
 
 == Step 3: Run Kojak ==
