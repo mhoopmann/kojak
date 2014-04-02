@@ -15,3 +15,7 @@ Add your content here.
 || enrichment || Number || 0.0-1.0 || Value between 0 and 1 to describe 18O atom percent excess (APE). For example, 0.25 equals 25 APE. Set to 0 to disable enrichment. ||
 || instrument || Number || 0 or 1 || Code to describe the instrument that was used to collect the spectra. 0 = Orbitrap, 1 = FTICR. ||
 || MS_data_file || Text || n/a || Name of the data file to be analyzed. Accepted formats are mzXML, mzML, Thermo RAW (on Windows with vendor drivers installed). It is recommended to include the path in the name of the file. ||
+|| MS1_centroid || Number || 0 or 1 || Describes how peaks are stored in the precursor (MS1) scans. Set to 0 if peaks are profile. Set to 1 if peaks are centroided. ||
+|| MS2_centroid || Number || 0 or 1 || Describes how peaks are stored in the fragmentation (MS2 or MS/MS) scans. Set to 0 if peaks are profile. Set to 1 if peaks are centroided. ||
+|| output_file || Text || n/a || Name of the file for Kojak non-validated results. It is recommended to include the path in the name of the file. ||
+|| percolator_file || Text || n/a || Name of the file for Kojak results that are formatted for validation with [Percolator]. It is recommended to include the path in the name of the file. ||
