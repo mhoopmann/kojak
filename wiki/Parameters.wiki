@@ -1,0 +1,14 @@
+#summary Description of parameters to tune Kojak performance.
+#labels Featured,Phase-Deploy,Parameters
+
+= Introduction =
+
+Add your content here.
+
+
+= Details =
+
+|| *Parameter* || *Value* || *Range* || *Description* ||
+|| cross_link_mass || Number || 1.0-5000.0 || Additional mass added to two cross-linked peptides during the database search. If data contain multiple cross-linkers, use multiple cross_link_mass lines in the configuration file, one per mass.||
+|| database || Text || n/a || The name of the fasta file containing the amino acid protein sequences (and decoy sequences) to be searched. It is recommended to include the path in the name of the file. ||
+|| decoy_filter || Text || n/a || A short, case-sensitive string of characters that appears in the name of every decoy protein sequence in the database. The default value is the word _random_ ||
