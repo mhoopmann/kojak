@@ -7,7 +7,7 @@ Step-by-step instructions to analyzing your mzXML or mzML data. Detailed instruc
 
 = Related Topics =
 
-[Paramaters]
+[Parameters]
 
 ----
 
