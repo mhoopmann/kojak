@@ -3,8 +3,7 @@
 
 = Introduction =
 
-Add your content here.
-
+This page describes in more detail the parameters used to tune the performance of Kojak. Parameters are stored in an ASCII text configuration file. An example configuration file can be found here.
 
 = Details =
 
