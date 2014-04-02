@@ -49,4 +49,4 @@ Step-by-step instructions to analyzing your mzXML or mzML data. Detailed instruc
     * _Example: {{{ cd C:\Data\MyProject }}} _
   b. Execute the Percolator application
     * _Example: {{{ C:\Percolator\Percolator.exe -j DataFile1-percolator.txt > DataFile1-validated.txt }}} _
-  c. View your _ DataFile1-validated.txt _ results file in any text editor or spreadsheet application (such as Excel).
+  c. View your _ {{{ DataFile1-validated.txt }}} _ results file in any text editor or spreadsheet application (such as Excel).
