@@ -2,7 +2,9 @@
 
 = Introduction =
 
-Add your content here.
+Kojak uses the Percolator algorithm to validate peptide spectrum matches and assign a q-value to all search identifications. The q-value can be used to apply a false discovery rate (FDR) cutoff. Percolator is not maintained on this site. It can be obtained for free at: http://sourceforge.net/projects/percolator/files/
+
+Additional Percolator information is found at: http://per-colator.com/
 
 
 = Details =
