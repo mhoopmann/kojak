@@ -7,9 +7,10 @@ Kojak uses the Percolator algorithm to validate peptide spectrum matches and ass
 Additional Percolator information is found at: http://per-colator.com/
 
 
-= Details =
+= Installation =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+This section is a work in progress.
+
+= Use =
+
+This section is also a work in progress.
