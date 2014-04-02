@@ -13,9 +13,14 @@ Add your content here.
 || database || Text || n/a || The name of the fasta file containing the amino acid protein sequences (and decoy sequences) to be searched. It is recommended to include the path in the name of the file. ||
 || decoy_filter || Text || n/a || A short, case-sensitive string of characters that appears in the name of every decoy protein sequence in the database. The default value is the word _random_ ||
 || enrichment || Number || 0.0-1.0 || Value between 0 and 1 to describe 18O atom percent excess (APE). For example, 0.25 equals 25 APE. Set to 0 to disable enrichment. ||
+|| fixed_modification || Text and Number || n/a || Specify an amino acid character and modification mass separated by white space. For example: C 57.02146 will add that mass to all occurrences of cysteine in the sequence database. If multiple fixed modification masses are desired, use multiple fixed_modification declarations. ||
 || instrument || Number || 0 or 1 || Code to describe the instrument that was used to collect the spectra. 0 = Orbitrap, 1 = FTICR. ||
+|| modification || Text and Number || n/a || Specify an amino acid character and variable modification mass separated by white space. For example: M 15.9949 will search methionine residues *with and without* this modification mass. If multiple variable modification masses are desired, use multiple fixed_modification declarations. Multiple variable modification masses can be applied to the same residue. ||
 || MS_data_file || Text || n/a || Name of the data file to be analyzed. Accepted formats are mzXML, mzML, Thermo RAW (on Windows with vendor drivers installed). It is recommended to include the path in the name of the file. ||
 || MS1_centroid || Number || 0 or 1 || Describes how peaks are stored in the precursor (MS1) scans. Set to 0 if peaks are profile. Set to 1 if peaks are centroided. ||
+|| MS1_resolution || Number || 0-500000 || Describes the estimated resolution of precursor scan (MS1) peaks at 400 m/z. ||
 || MS2_centroid || Number || 0 or 1 || Describes how peaks are stored in the fragmentation (MS2 or MS/MS) scans. Set to 0 if peaks are profile. Set to 1 if peaks are centroided. ||
+|| MS2_resolution || Number || 0-500000 || Describes the estimated resolution of fragmentation scan (MS2 or MS/MS) peaks at 400 m/z. ||
+|| mono_link_mass || Number || 1.0-5000.0 || Additional mass added to single peptides during the database search. If data contain multiple mono-link masses, use multiple mono_link_mass lines in the configuration file, one per mass.||
 || output_file || Text || n/a || Name of the file for Kojak non-validated results. It is recommended to include the path in the name of the file. ||
 || percolator_file || Text || n/a || Name of the file for Kojak results that are formatted for validation with [Percolator]. It is recommended to include the path in the name of the file. ||
