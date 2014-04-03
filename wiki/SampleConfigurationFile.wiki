@@ -3,7 +3,7 @@
 {{{
 # Kojak version 1.0 parameter file
 # Please see online documentation at: 
-# http://
+# https://code.google.com/p/kojak-ms/wiki/Parameters
 
 # All parameters are separated from their values by an equals sign ('=')
 # Anything after a '#' will be ignored for the remainder of the line.
