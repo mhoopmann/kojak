@@ -1,13 +1,22 @@
-#summary One-sentence summary of this page.
+#summary Organized table of all wiki pages - Start here!
+#labels Featured
 
-= Introduction =
+= Table of Contents =
 
-Add your content here.
+== Installation ==
+ * Download ready-to-use Kojak application.
+ * Compile your own Kojak copy from source.
 
+== Running a Kojak Analysis ==
+ * Quick Start tutorial.
+ * Parameter explanations.
 
-= Details =
+== Interpreting Results ==
+ * Details of Percolator validation.
+ * Understanding Kojak output.
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+== Help & Miscellaneous ==
+ * Citing Kojak.
+ * Support Message Board.
+ * Reporting Bugs.
+ * Contact Information.
