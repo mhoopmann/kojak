@@ -1,13 +1,18 @@
-#summary One-sentence summary of this page.
+#summary Instructions to obtain your copy of Kojak.
+
+= Navigation =
+ * [TableOfContents Return to Table of Contents]
 
 = Introduction =
 
-Add your content here.
+Kojak is provided as a pre-compiled binary (or application). Please select the appropriate download from the links below that match your operating system. Kojak is free.
 
+If your system is not included in the list, let us know on the message board. Also, Kojak can be compiled for your system from the source tree.
 
-= Details =
+= Select Your Operating System =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+== Windows 32-bit and 64-bit ==
+ * Download link available soon.
+
+== Linux 64-bit ==
+ * Download link available soon.
