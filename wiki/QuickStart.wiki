@@ -1,13 +1,13 @@
 #summary Quick Start Guide
 #labels Featured,Phase-Deploy
 
+= Navigation =
+ * [TableOfContents Return to Table of Contents]
+ * [Parameters Jump to Parameters]
+
 = Introduction =
 
 Step-by-step instructions to analyzing your mzXML or mzML data. Detailed instructions can be found on other pages in this wiki (links soon).
-
-= Related Topics =
-
-[Parameters]
 
 ----
 
