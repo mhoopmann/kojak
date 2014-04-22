@@ -2,6 +2,7 @@
 
 = Navigation =
  * [TableOfContents Return to Table of Contents]
+ * [Installation Jump to Installation]
 
 = Introduction =
 
