@@ -4,12 +4,12 @@
 = Table of Contents =
 
 == Installation ==
- * Download ready-to-use Kojak application.
+ * [Downloads Download] ready-to-use Kojak application.
  * Compile your own Kojak copy from source.
 
 == Running a Kojak Analysis ==
  * Quick Start tutorial.
- * Parameter explanations.
+ * [Parameters Parameter explanations].
 
 == Interpreting Results ==
  * Details of Percolator validation.
