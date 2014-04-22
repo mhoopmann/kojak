@@ -12,7 +12,7 @@
  * [Parameters Parameter explanations].
 
 == Interpreting Results ==
- * Details of Percolator validation.
+ * [Percolator Using Percolator] for validation.
  * Understanding Kojak output.
 
 == Help & Miscellaneous ==
