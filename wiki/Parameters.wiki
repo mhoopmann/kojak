@@ -1,6 +1,9 @@
 #summary Description of parameters to tune Kojak performance.
 #labels Featured,Phase-Deploy,Parameters
 
+= Navigation =
+ * [TableOfContents Return to Table of Contents]
+
 = Introduction =
 
 This page describes in more detail the parameters used to tune the performance of Kojak. Parameters are stored in an ASCII text configuration file. An example configuration file can be found [SampleConfigurationFile here].
