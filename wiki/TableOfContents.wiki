@@ -8,7 +8,7 @@
  * Compile your own Kojak copy from source.
 
 == Running a Kojak Analysis ==
- * Quick Start tutorial.
+ * [QuickStart Quick Start tutorial].
  * [Parameters Parameter explanations].
 
 == Interpreting Results ==
