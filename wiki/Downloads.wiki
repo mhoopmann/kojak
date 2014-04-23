@@ -13,7 +13,7 @@ If your system is not included in the list, let us know on the message board. Al
 = Select Your Operating System =
 
 == Windows 32-bit and 64-bit ==
- * Download link available soon.
+ * https://drive.google.com/file/d/0ByyfOdPaY1xkT1pRbUsyMEU4S2s/edit?usp=sharing
 
 == Linux 64-bit ==
  * Download link available soon.
