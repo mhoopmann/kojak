@@ -13,4 +13,6 @@ This section is a work in progress.
 
 = Use =
 
-This section is also a work in progress.
+This section is also a work in progress, but try:
+
+percolator -j your_Kojak_percolatorInput_file > your_desired_output_filename.txt
