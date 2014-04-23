@@ -17,7 +17,7 @@ Step-by-step instructions to analyzing your mzXML or mzML data. Detailed instruc
     * _Example: {{{ C:\Data\MyProject\ }}} _
   b. Copy or link your data to this directory.
     * _Exmaple: {{{ C:\Data\MyProject\DataFile1.mzML }}} _
-  c. Create a copy of the [ConfigurationFile Kojak configuration file] in this directory.
+  c. Create a copy of the [SampleConfigurationFile Kojak configuration file] in this directory.
     * _Example: {{{ C:\Data\MyProject\Kojak.conf }}} _
 
 == Step 2: Edit your configuration file ==
