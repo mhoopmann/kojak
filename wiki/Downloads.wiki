@@ -1,19 +1,21 @@
 #summary Instructions to obtain your copy of Kojak.
 
-= Navigation =
+= Downloads =
+
+== Navigation ==
  * [TableOfContents Return to Table of Contents]
  * [Installation Jump to Installation]
 
-= Introduction =
+== Introduction ==
 
 Kojak is provided as a pre-compiled binary (or application). Please select the appropriate download from the links below that match your operating system. Kojak is free.
 
 If your system is not included in the list, let us know on the message board. Also, Kojak can be compiled for your system from the source tree.
 
-= Select Your Operating System =
+== Select Your Operating System ==
 
-== Windows 32-bit and 64-bit ==
+=== Windows 32-bit and 64-bit ===
  * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkRGVDS1ZlNWpIcDA Kojak for Windows]
 
-== Linux 64-bit ==
+=== Linux 64-bit ===
  * Download link available soon.
