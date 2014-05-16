@@ -6,6 +6,8 @@ Kojak uses the Percolator algorithm to validate peptide spectrum matches and ass
 
 Additional Percolator information is found at: http://per-colator.com/
 
+*SPECIAL NOTE: Please use Percolator version 2.04 to analyze Kojak results. Newer versions are not compatible (yet - updates soon!)*
+
 
 = Installation =
 
