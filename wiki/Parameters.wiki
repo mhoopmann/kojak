@@ -30,6 +30,7 @@ This page describes in more detail the parameters used to tune the performance o
 || mono_link_mass || Number || 1.0-5000.0 || Additional mass added to single peptides during the database search. If data contain multiple mono-link masses, use multiple mono_link_mass lines in the configuration file, one per mass.||
 || output_file || Text || n/a || Name of the file for Kojak non-validated results. It is recommended to include the path in the name of the file. ||
 || percolator_file || Text || n/a || Name of the file for Kojak results that are formatted for validation with [Percolator]. It is recommended to include the path in the name of the file. ||
+|| percolator_version || Number || n/a || Version of [Percolator] you will be using. Different versions of Percolator have different input requirements. Kojak will determine those for you based on this supplied number. ||
 || ppm_tolerance_frag || Number || 0.1-5000.0 || Tolerance used when matching peptide sequences to observed MS2 fragment ions. Unit is parts-per-million (PPM). ||
 || ppm_tolerance_pre || Number || 0.1-500.0 || Tolerance used when determining which peptides to search for a given MS2 spectrum based on its precursor ion mass. Unit is parts-per-million (PPM). ||
 || relaxed_analysis || Number || 0 or 1 || If set to 1 turns on *Relaxed Analysis Mode*. Set to 0 to use *Full Search Mode*. These modes are described elsewhere. It is recommended to use Relaxed Analysis Mode for all searches with a database size of 100 or more sequences. ||
