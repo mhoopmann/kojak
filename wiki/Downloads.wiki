@@ -18,4 +18,4 @@ If your system is not included in the list, let us know on the message board. Al
  * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkVkdPTG9yRlYxa3M Kojak for Windows]
 
 === Linux 64-bit ===
- * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkQnB2NDdveHFsOG8/edit Kojak for Linux 64-bit]
+ * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkQnB2NDdveHFsOG8 Kojak for Linux 64-bit]
