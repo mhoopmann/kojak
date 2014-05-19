@@ -19,30 +19,30 @@ KOJAK = KParams.o KAnalysis.o KData.o KDB.o KPrecursor.o KSpectrum.o KIons.o
 
 #Make statements
 kojak : Kojak.cpp $(KOJAK)
-        $(CC) $(FLAGS) $(INCLUDE) $(KOJAK) Kojak.cpp $(LIBPATH) $(LIBS) -o kojak
+	$(CC) $(FLAGS) $(INCLUDE) $(KOJAK) Kojak.cpp $(LIBPATH) $(LIBS) -o kojak
 
 clean:
-        rm *.o kojak
+	rm *.o kojak
 
 
 #Hardklor objects
 KParams.o : KParams.cpp
-        $(CC) $(FLAGS) $(INCLUDE) KParams.cpp -c
+	$(CC) $(FLAGS) $(INCLUDE) KParams.cpp -c
 
 KAnalysis.o : KAnalysis.cpp
-        $(CC) $(FLAGS) $(INCLUDE) KAnalysis.cpp -c
+	$(CC) $(FLAGS) $(INCLUDE) KAnalysis.cpp -c
 
 KData.o : KData.cpp
-        $(CC) $(FLAGS) $(INCLUDE) KData.cpp -c
+	$(CC) $(FLAGS) $(INCLUDE) KData.cpp -c
 
 KDB.o : KDB.cpp
-        $(CC) $(FLAGS) $(INCLUDE) KDB.cpp -c
+	$(CC) $(FLAGS) $(INCLUDE) KDB.cpp -c
 
 KPrecursor.o : KPrecursor.cpp
-        $(CC) $(FLAGS) $(INCLUDE) KPrecursor.cpp -c
+	$(CC) $(FLAGS) $(INCLUDE) KPrecursor.cpp -c
 
 KSpectrum.o : KSpectrum.cpp
-        $(CC) $(FLAGS) $(INCLUDE) KSpectrum.cpp -c
+	$(CC) $(FLAGS) $(INCLUDE) KSpectrum.cpp -c
 
 KIons.o : KIons.cpp
-        $(CC) $(FLAGS) $(INCLUDE) KIons.cpp -c
+	$(CC) $(FLAGS) $(INCLUDE) KIons.cpp -c
