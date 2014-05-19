@@ -9,10 +9,11 @@
 # Anything after a '#' will be ignored for the remainder of the line.
 
 # Data input files: include full path if not in current working directory
-database	=	target-and-reverse.fasta
-MS_data_file	=	Data1.mzML
-output_file	=	Data1.txt
-percolator_file	=	Data1-percolator.txt
+database		=	target-and-reverse.fasta
+MS_data_file		=	Data1.mzML
+output_file		=	Data1.txt
+percolator_file		=	Data1-percolator.txt
+percolator_version	=	2.04 
 
 # Parameters used to described the data being input to PepLynx
 enrichment	=	0	#Values between 0 and 1 to describe 18O APE. For example, 0.25 equals 25 APE.
