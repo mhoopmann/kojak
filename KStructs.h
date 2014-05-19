@@ -1,6 +1,9 @@
 #ifndef _KSTRUCTS_H
 #define _KSTRUCTS_H
 
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
