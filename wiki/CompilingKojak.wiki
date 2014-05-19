@@ -1,0 +1,33 @@
+#summary Instructions for downloading and compiling Kojak source.
+
+= Downloads =
+
+== Navigation ==
+ * [TableOfContents Return to Table of Contents]
+ * [Downloads Jump to Downloads]
+
+== Introduction ==
+
+Kojak is provided open source for free. Advanced users may wish to compile the source code for their custom system, or modify it for their own purposes. Below are instructions for installation on a Linux-based system using the command-line. It is assumed that SVN software is already installed on the system. Kojak can also be compiled for other operating systems/development environments including, but not limited to, Microsoft Visual Studio for Windows. Specific development environment instructions are outside the scope of this document, as it is assumed users of those environments are already familiar with them.
+
+
+== Details ==
+
+=== Step 1: Check out the Kojak repository ===
+Check out the repository on the [https://code.google.com/p/kojak-ms/source/checkout Source] page. Follow the provided instructions.
+
+=== Step 2: Check out the supporting software libraries ===
+a. [https://code.google.com/p/hardklor/source/checkout] Hardklor - used for spectral processing functions.
+b. [https://code.google.com/p/mstoolkit/source/checkout] MSToolkit - used to support multiple file formats.
+
+=== Step 3: Build support software ===
+Both Hardklor and MSToolkit come with Makefiles. Open the Makefiles to set any required paths and make as you would with any software. For example:
+{{{
+MSToolkit> make
+}}}
+
+=== Step 4: Update paths in the Kojak Makefile ===
+Open Makefile with any text editor. Edit 'LIBPATH' to the location of your MSToolkit and Hardklor repositories. Edit 'INCLUDE' to the location of the headers files for each support software.
+
+=== Step 5: Make Kojak ===
+Type 'make' from the command line.
