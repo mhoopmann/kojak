@@ -18,10 +18,12 @@ Check out the repository on the [https://code.google.com/p/kojak-ms/source/check
 
 === Step 2: Check out the supporting software libraries ===
 a. [https://code.google.com/p/hardklor/source/checkout Hardklor] - used for spectral processing functions.
+
 b. [https://code.google.com/p/mstoolkit/source/checkout MSToolkit] - used to support multiple file formats.
 
 === Step 3: Build support software ===
 Both Hardklor and MSToolkit come with Makefiles. Open the Makefiles to set any required paths and make as you would with any software. For example:
+
 {{{
 MSToolkit> make
 }}}
