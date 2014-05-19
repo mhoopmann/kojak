@@ -15,8 +15,16 @@ This section is a work in progress.
 
 = Use =
 
-This section is also a work in progress, but try:
+Detailed usage of Percolator is documented on the [http://per-colator.com/ Percolator web page]. Below is the typical usage statements for validating Kojak output.
+
+If you use Percolator version 2.04 and older:
 
 {{{
 percolator -j your_Kojak_percolatorInput_file > your_desired_output_filename.txt
+}}}
+
+For Percolator versions 2.05 and newer:
+
+{{{
+percolator your_Kojak_percolatorInput_file > your_desired_output_filename.txt
 }}}
