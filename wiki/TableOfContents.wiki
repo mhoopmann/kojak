@@ -5,7 +5,7 @@
 
 == Installation ==
  * [Downloads Download] ready-to-use Kojak application.
- * [CompileKojak Compile] your own Kojak copy from source.
+ * [CompilingKojak Compile] your own Kojak copy from source.
 
 == Running a Kojak Analysis ==
  * [QuickStart Quick Start tutorial].
