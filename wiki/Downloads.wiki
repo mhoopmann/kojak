@@ -15,7 +15,7 @@ If your system is not included in the list, let us know on the message board. Al
 == Select Your Operating System ==
 
 === Windows 32-bit and 64-bit ===
- * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkVkdPTG9yRlYxa3M Kojak for Windows]
+ * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkTGlBVUYtX1RoaGc Kojak for Windows]
 
 === Linux 64-bit ===
- * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkQnB2NDdveHFsOG8 Kojak for Linux 64-bit]
+ * [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkYV81ZG1jVmJNYmc Kojak for Linux 64-bit]
