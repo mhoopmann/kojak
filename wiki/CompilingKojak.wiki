@@ -25,22 +25,22 @@ Both of these software tools have their own source repositories, applications, a
 
 
 === Step 3: Build support software ===
-Both MSToolkit and Hardklor come with Makefiles. Compile MSToolkit first. For example:
+Both MSToolkit and Hardklor come with Makefiles. Compile MSToolkit first. Go into the MSToolkit directory and execute the Makefile. For example:
 
 {{{
 MSToolkit> make
 }}}
 
-When MSToolkit has finished building, compile Hardklor. Open the Makefile first and set the path to the MSToolkit folder. 
+When MSToolkit has finished building, compile Hardklor. To do so, change to the Hardklor directory. Open the Makefile first and set the path to your MSToolkit directory. 
 
 {{{
 LIBPATH = /yourpath/MSToolkit
 }}}
 
-Save the Makefile. Then make Hardklor by typing make on the command line.
+Save the Makefile. Then make Hardklor by typing 'make' on the command line.
 
 === Step 4: Update paths in the Kojak Makefile ===
-Open Makefile with any text editor. Edit 'MSTOOLKITPATH' and 'HARDKLORPATH' to the location of your MSToolkit and Hardklor repositories:
+Navigate to your Kojak directory. Open Makefile with any text editor. Edit 'MSTOOLKITPATH' and 'HARDKLORPATH' to the location of your MSToolkit and Hardklor directories:
 
 {{{
 MSTOOLKITPATH = /yourpath/MSToolkit
