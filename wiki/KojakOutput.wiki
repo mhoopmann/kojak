@@ -1,0 +1,16 @@
+#summary How to interpret results from Kojak
+
+= Interpreting Kojak Results =
+
+== Navigation ==
+ * [TableOfContents Return to Table of Contents]
+
+
+== Overview ==
+
+Kojak produces two output files: 1) a summarized list of PSMs and scores for all spectra, and 2) an optional list of PSMs formatted for further analysis using [Percolator Percolator]. Both output files are presented in ASCII text and are tab-delimited. They can alternately be opened in most spreadsheet software (such as Microsoft Excel) for easy viewing.
+
+== Output File #1: Kojak PSMs and Scores ==
+
+
+== Output File #2: Percolator Input File ==
