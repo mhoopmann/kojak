@@ -15,7 +15,7 @@ Additional Percolator information is found at: http://per-colator.com/
 
 == Installation ==
 
-Percolator comes as pre-compiled binaries or source code. We recommend using the binaries. Instructions for compiling the code are beyond the scope of this document.
+Percolator comes as pre-compiled binaries or source code. We recommend using the binaries. Instructions for compiling the souce code are beyond the scope of this document.
 
 == Use ==
 
