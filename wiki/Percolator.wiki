@@ -19,7 +19,7 @@ Percolator comes as pre-compiled binaries or source code. We recommend using the
 
 == Use ==
 
-Percolator operates from the command line. To facilitate using Percolator, Kojak produces an optional [KojakOutput Kojak Percolator-ready output file]. The results from Percolator are displayed on the screen and can be captured by piping to a text file.
+Percolator operates from the command line. To facilitate using Percolator, Kojak produces an optional [KojakOutput Percolator-ready output file]. The results from Percolator are displayed on the screen and can be captured by piping to a text file.
 
 Detailed usage of Percolator is documented on the [http://per-colator.com/ Percolator web page]. Below is the typical usage statements for validating Kojak output.
 
