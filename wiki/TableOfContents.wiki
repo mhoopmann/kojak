@@ -13,7 +13,7 @@
 
 == Interpreting Results ==
  * [Percolator Using Percolator] for validation.
- * Understanding Kojak output.
+ * Understanding [Kojak Output Kojak output].
 
 == Help & Miscellaneous ==
  * Citing Kojak.
