@@ -21,6 +21,8 @@ a. [https://code.google.com/p/mstoolkit/source/checkout MSToolkit] - used to sup
 
 b. [https://code.google.com/p/hardklor/source/checkout Hardklor] - used for spectral processing functions.
 
+Both of these software tools have their own source repositories, applications, and instructions for use. For compiling Kojak from source, they simply need to be compiled on the system you are using.
+
 
 === Step 3: Build support software ===
 Both MSToolkit and Hardklor come with Makefiles. Compile MSToolkit first. For example:
@@ -29,11 +31,13 @@ Both MSToolkit and Hardklor come with Makefiles. Compile MSToolkit first. For ex
 MSToolkit> make
 }}}
 
-When MSToolkit has finished building, compile Hardklor. Open the Makefile first and set the path to the MSToolkit folder. Then make Hardklor.
+When MSToolkit has finished building, compile Hardklor. Open the Makefile first and set the path to the MSToolkit folder. 
 
 {{{
-Hardklor> make
+LIBPATH = /yourpath/MSToolkit
 }}}
+
+Save the Makefile. Then make Hardklor by typing make on the command line.
 
 === Step 4: Update paths in the Kojak Makefile ===
 Open Makefile with any text editor. Edit 'MSTOOLKITPATH' and 'HARDKLORPATH' to the location of your MSToolkit and Hardklor repositories:
