@@ -17,19 +17,33 @@ Kojak is provided open source for free. Advanced users may wish to compile the s
 Check out the repository on the [https://code.google.com/p/kojak-ms/source/checkout Source] page. Follow the provided instructions.
 
 === Step 2: Check out the supporting software libraries ===
-a. [https://code.google.com/p/hardklor/source/checkout Hardklor] - used for spectral processing functions.
+a. [https://code.google.com/p/mstoolkit/source/checkout MSToolkit] - used to support multiple file formats.
 
-b. [https://code.google.com/p/mstoolkit/source/checkout MSToolkit] - used to support multiple file formats.
+b. [https://code.google.com/p/hardklor/source/checkout Hardklor] - used for spectral processing functions.
+
 
 === Step 3: Build support software ===
-Both Hardklor and MSToolkit come with Makefiles. Open the Makefiles to set any required paths and make as you would with any software. For example:
+Both MSToolkit and Hardklor come with Makefiles. Compile MSToolkit first. For example:
 
 {{{
 MSToolkit> make
 }}}
 
+When MSToolkit has finished building, compile Hardklor. Open the Makefile first and set the path to the MSToolkit folder. Then make Hardklor.
+
+{{{
+Hardklor> make
+}}}
+
 === Step 4: Update paths in the Kojak Makefile ===
-Open Makefile with any text editor. Edit 'LIBPATH' to the location of your MSToolkit and Hardklor repositories. Edit 'INCLUDE' to the location of the headers files for each support software.
+Open Makefile with any text editor. Edit 'MSTOOLKITPATH' and 'HARDKLORPATH' to the location of your MSToolkit and Hardklor repositories:
+
+{{{
+MSTOOLKITPATH = /yourpath/MSToolkit
+HARDKLORPATH = /yourpath/Hardklor
+}}}
+
+Save the changes in the Makefile.
 
 === Step 5: Make Kojak ===
 Type 'make' from the command line.
