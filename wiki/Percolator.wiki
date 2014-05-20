@@ -1,6 +1,10 @@
 #summary Details on obtaining and using Percolator for cross-link validation.
 
-= Introduction =
+== Navigation ==
+ * [TableOfContents Return to Table of Contents]
+ * [KojakOutput Jump to Understanding Kojak Output]
+
+== Introduction ==
 
 Kojak uses the Percolator algorithm to validate peptide spectrum matches and assign a q-value to all search identifications. The q-value can be used to apply a false discovery rate (FDR) cutoff. Percolator is not maintained on this site. It can be obtained for free at: http://sourceforge.net/projects/percolator/files/
 
@@ -9,11 +13,13 @@ Additional Percolator information is found at: http://per-colator.com/
 *SPECIAL NOTE: Kojak now supports formatting Percolator input to work with different versions of Percolator. Please set the percolator_version parameter in your Kojak configuration file to the version of Percolator that you use.*
 
 
-= Installation =
+== Installation ==
 
-This section is a work in progress.
+Percolator comes as pre-compiled binaries or source code. We recommend using the binaries. Instructions for compiling the code are beyond the scope of this document.
 
-= Use =
+== Use ==
+
+Percolator operates from the command line. To facilitate using Percolator, Kojak produces an optional [KojakOutput Kojak Percolator-ready output file]. The results from Percolator are displayed on the screen and can be captured by piping to a text file.
 
 Detailed usage of Percolator is documented on the [http://per-colator.com/ Percolator web page]. Below is the typical usage statements for validating Kojak output.
 
