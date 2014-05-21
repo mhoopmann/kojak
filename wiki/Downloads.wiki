@@ -12,7 +12,7 @@ Kojak is provided as a pre-compiled binary (or application). Please select the a
 
 If your system is not included in the list, let us know on the message board. Also, Kojak can be compiled for your system from the source tree.
 
-* The Kojak manuscript is currently in review. To protect this process, the files are currently password protected. Reviewers can anonymously download the binaries (no tracking is performed) and unlock the application with the second author's last name, all lower-case letters. The password protection will be removed upon publication of the manuscript. *
+* The Kojak manuscript is currently in review. To protect this process, the files are currently password-locked. Reviewers can anonymously download the binaries (no tracking is performed) and unlock the application with the second author's last name, all lower-case letters. The password protection will be removed upon publication of the manuscript. *
 
 == Select Your Operating System ==
 
