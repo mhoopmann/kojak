@@ -20,4 +20,4 @@ If your system is not included in the list, let us know on the message board. Al
  * Version 1.0: [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkY0V0MnhRSHk5LXM Kojak for Windows]
 
 === Linux 64-bit ===
- * Version 1.0: [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkWjhndW5wUkNqWjg Kojak for Linux 64-bit]
+ * Version 1.0: [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkN3paa1hPbkc5OUE Kojak for Linux 64-bit]
