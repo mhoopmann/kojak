@@ -66,7 +66,7 @@ void KParams::parse(char* cmd) {
 
   char *tok;
 
-	char param[32];
+  char param[32];
   char tmpstr[256];
   char value[256];
   char value2[256];
@@ -83,7 +83,7 @@ void KParams::parse(char* cmd) {
 
 	//if we have only white space, exit here
 	strcpy(tmpstr,cmd);
-	tok=strtok(tmpstr," \t\n");
+	tok=strtok(tmpstr," \t\n\r");
 	if(tok==NULL) return;
 
 	//Check if we have a parameter (has '=' in it) or lots of random text.
@@ -96,10 +96,10 @@ void KParams::parse(char* cmd) {
 	
   //Process parameters
 	//Read parameter into param name (before = sign) and value (after = sign)
-	tok=strtok(cmd," \t=\n");
+	tok=strtok(cmd," \t=\n\r");
 	if(tok==NULL) return;
 	strcpy(param,tok);
-	tok=strtok(NULL," \t=\n");
+	tok=strtok(NULL," \t=\n\r");
 	if(tok==NULL) {
 		warn(param,0);
 		return;
@@ -109,7 +109,7 @@ void KParams::parse(char* cmd) {
   
   //get second parameter for modification
 	if(strcmp(param,"modification")==0 || strcmp(param,"fixed_modification")==0) {
-		tok=strtok(NULL," \t=\n");
+		tok=strtok(NULL," \t=\n\r");
     if(tok==NULL) {
 		  warn(param,0);
 		  return;
