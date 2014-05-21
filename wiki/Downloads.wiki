@@ -12,10 +12,12 @@ Kojak is provided as a pre-compiled binary (or application). Please select the a
 
 If your system is not included in the list, let us know on the message board. Also, Kojak can be compiled for your system from the source tree.
 
+* The Kojak manuscript is currently in review. The algorithm remains free and open, but is currently password protected. Reviewers can unlock the application with the second author's last name, all lower-case letters.  *
+
 == Select Your Operating System ==
 
 === Windows 32-bit and 64-bit ===
- * Version 1.0: [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkTGlBVUYtX1RoaGc Kojak for Windows]
+ * Version 1.0: [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkY0V0MnhRSHk5LXM Kojak for Windows]
 
 === Linux 64-bit ===
- * Version 1.0: [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkYV81ZG1jVmJNYmc Kojak for Linux 64-bit]
+ * Version 1.0: [https://drive.google.com/uc?export=download&id=0ByyfOdPaY1xkWjhndW5wUkNqWjg Kojak for Linux 64-bit]
