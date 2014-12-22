@@ -55,39 +55,43 @@ KIons::~KIons(){
   pep2=NULL;
 }
 
+KIonSet& KIons::operator[ ](const int& i){
+  return sets[i];
+}
+
+KIonSet* KIons::at(const int& i){
+  return &sets[i];
+}
+
+
 void KIons::addFixedMod(char mod, double mass){
   aaMass[mod]+=mass;
 }
 
-void KIons::addMod(char mod, double mass){
-  aaMod[mod].mass[aaMod[mod].count++]=mass;
+void KIons::addMod(char mod, bool xl, double mass){
+  aaMod[mod].mod[aaMod[mod].count].xl=xl;
+  aaMod[mod].mod[aaMod[mod].count++].mass=mass;
 }
 
-void KIons::buildIons(double linkMass, int link){
+void KIons::buildIons(){
 	
   int b;
 	int i;
   int j;
   int y;
-	double mMass;
-  double totalMass;
   double fragMass;
 
   //set up boundaries
-  ionCount=pep1Len-1;
+  ionCount=sets[0].len;
   b=0;
   y=ionCount-1;
 
-  totalMass=pep1Mass+linkMass;
-
 	//b- & y-ions from first peptide
-  mMass=0;
+  fragMass=0;
 	for(i=0;i<ionCount;i++){
-    mMass+=aaMass[pep1[i]];
-    if(i>=link) fragMass=mMass+linkMass;
-    else fragMass = mMass;
-    bIons[0][b] = fragMass;
-    yIons[0][y] = (totalMass-fragMass);
+    fragMass+=aaMass[pep1[i]];
+    sets[0].bIons[0][b] = fragMass;
+    sets[0].yIons[0][y] = (pep1Mass-fragMass);
     b++;
     y--;
 	}
@@ -95,8 +99,8 @@ void KIons::buildIons(double linkMass, int link){
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
     for(j=1;j<6;j++){
-      bIons[j][i] = ((bIons[0][i]+1.007276466*j)/j);
-      yIons[j][i] = ((yIons[0][i]+1.007276466*j)/j);
+      sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
+      sets[0].yIons[j][i] = ((sets[0].yIons[0][i]+1.007276466*j)/j);
     }
   }
 
@@ -104,6 +108,7 @@ void KIons::buildIons(double linkMass, int link){
 
 void KIons::buildLoopIons(double linkMass, int link1, int link2){
 	
+  int a1,a2;
   int b;
 	int i;
   int j;
@@ -115,21 +120,30 @@ void KIons::buildLoopIons(double linkMass, int link1, int link2){
 
   //set up boundaries
   len = pep1Len-1;
-  ionCount=pep1Len-1-(link2-link1);
+  if(link2>link1) {//Link2 must be larger than link1
+    a1=link1;
+    a2=link2;
+  } else {
+    a1=link2;
+    a2=link1;
+  }
+  ionCount=pep1Len-1-(a2-a1); 
   b=0;
   y=ionCount-1;
 
+  //update sets mass:
+  sets[0].mass+=linkMass;
   totalMass=pep1Mass+linkMass;
 
 	//b- & y-ions from first peptide
   mMass=0;
 	for(i=0;i<len;i++){
     mMass+=aaMass[pep1[i]];
-    if(i>=link1 && i<link2) continue;
-    else if(i>=link2) fragMass=mMass+linkMass;
+    if(i>=a1 && i<a2) continue;
+    else if(i>=a2) fragMass=mMass+linkMass;
     else fragMass = mMass;
-    bIons[0][b] = fragMass;
-    yIons[0][y] = (totalMass-fragMass);
+    sets[0].bIons[0][b] = fragMass;
+    sets[0].yIons[0][y] = (totalMass-fragMass);
     b++;
     y--;
 	}
@@ -137,192 +151,8 @@ void KIons::buildLoopIons(double linkMass, int link1, int link2){
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
     for(j=1;j<6;j++){
-      bIons[j][i] = ((bIons[0][i]+1.007276466*j)/j);
-      yIons[j][i] = ((yIons[0][i]+1.007276466*j)/j);
-    }
-  }
-
-}
-
-double KIons::buildModIons(double linkMass, int link){
-
-  int b;
-  int i;
-  int j;
-  int y;
-  int modCount;
-	double mMass;
-  double fragMass;
-  double modMass;
-  double totalMass;
-  bool bMatch;
-  kModPos mp;
-
-  ionCount=pep1Len-1;
-  totalMass=pep1Mass+linkMass;
-
-  while(modQueue.size()>0){
-    
-    bMatch=true;
-
-    mp=modQueue[modQueue.size()-1];
-    modQueue.pop_back();
-
-    modMass=mp.modMass;
-    modCount=mp.modCount;
-    mMass=mp.mass;
-
-    if(mp.pos==-1) {
-      modList[0]=0;
-      if(aaMod['@'].count>mp.mod){
-        modList[0]=aaMod['@'].mass[mp.mod];
-        modMass+=aaMod['@'].mass[mp.mod++];
-        modCount++;
-        modQueue.push_back(mp);
-      }
-      mp.pos=0;
-    }
-
-    //set position for each ion series
-    b=mp.pos;
-    y=ionCount-mp.pos-1;
-
-  	//calc b- and y-ion masses;
-    while(b<ionCount){
-      modList[b+1]=0;
-      mp.mass=mMass;
-      mp.modMass=modMass;
-      mp.modCount=modCount;
-      mMass+=aaMass[pep1[b]];
-      if(b==mp.pos && aaMod[pep1[b]].count>mp.mod){
-        modList[b+1]=aaMod[pep1[b]].mass[mp.mod];
-        modMass+=aaMod[pep1[b]].mass[mp.mod++];
-        mp.pos=b;
-        modQueue.push_back(mp);
-        modCount++;
-        if(modCount>maxModCount){
-          bMatch=false;
-          break;
-        }
-      } else if(b>mp.pos && aaMod[pep1[b]].count>0){
-        
-        mp.mod=1;
-        mp.pos=b;
-        modQueue.push_back(mp);
-
-        modList[b+1]=aaMod[pep1[b]].mass[0];
-        modMass+=aaMod[pep1[b]].mass[0];
-        modCount++;
-        if(modCount>maxModCount){
-          bMatch=false;
-          break;
-        }
-      }
-
-      //record the b- and y-ions making note if we include the linker mass
-      fragMass=mMass+modMass;
-		  if(b>=link) fragMass+=linkMass;
-      bIons[0][b] = fragMass;
-      tyIons[y] = (totalMass-fragMass);
-
-      b++;
-      y--; 
-	  }
-
-    if(!bMatch) continue;
-    if(modMass==0) return 0;
-
-    for(i=0;i<ionCount;i++){
-      yIons[0][i]=tyIons[i]+modMass;
-      for(j=1;j<6;j++){
-        bIons[j][i] = ((bIons[0][i]+1.007276466*j)/j);
-        yIons[j][i] = ((yIons[0][i]+1.007276466*j)/j);
-      }
-    }
-    return totalMass+modMass;
-
-  }
-
-  return 0;
-
-}
-
-void KIons::buildNCIons(){
-	
-  int b;
-	int i;
-  int j;
-  int y;
-  int p1;
-  int p2;
-	double mMass;
-  double totalMass;
-
-  double b1[512];
-  double b2[512];
-  double y1[512];
-  double y2[512];
-
-  //set up boundaries
-  ionCount=pep1Len-1;
-  b=0;
-  y=ionCount-1;
-
-  totalMass=pep1Mass;
-
-	//b- & y-ions from first peptide
-  mMass=0;
-	for(i=0;i<ionCount;i++){
-    mMass+=aaMass[pep1[i]];
-    b1[b] = mMass;
-    y1[y] = (totalMass-mMass);
-    b++;
-    y--;
-  }
-
-  //If the two peptides are different
-  p1=ionCount;
-  p2=pep2Len-1;
-  b=0;
-  y=p2-1;
-
-  totalMass=pep2Mass;
-
-  //b- & y-ions from first peptide
-  mMass=0;
-  for(i=0;i<p2;i++){
-    mMass+=aaMass[pep2[i]];
-    b2[b] = mMass;
-    y2[y] = (totalMass-mMass);
-    b++;
-    y--;
-  }
-
-  //Merge two series in order
-  i=0;
-  j=0;
-  ionCount=0;
-  while(i<p1 && j<p2){
-    if(b1[i]<b2[j]) bIons[0][ionCount++]=b1[i++];
-    else bIons[0][ionCount++]=b2[j++];
-  }
-  while(i<p1) bIons[0][ionCount++]=b1[i++];
-  while(j<p2) bIons[0][ionCount++]=b2[j++];
-  i=0;
-  j=0;
-  b=0;
-  while(i<p1 && j<p2){
-    if(y1[i]<y2[j]) yIons[0][b++]=y1[i++];
-    else yIons[0][b++]=y2[j++];
-  }
-  while(i<p1) yIons[0][b++]=y1[i++];
-  while(j<p2) yIons[0][b++]=y2[j++];
-
-  //propagate remaining charge states
-  for(i=0;i<ionCount;i++){
-    for(j=1;j<6;j++){
-      bIons[j][i] = ((bIons[0][i]+1.007276466*j)/j);
-      yIons[j][i] = ((yIons[0][i]+1.007276466*j)/j);
+      sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
+      sets[0].yIons[j][i] = ((sets[0].yIons[0][i]+1.007276466*j)/j);
     }
   }
 
@@ -337,7 +167,7 @@ void KIons::buildSingletIons(int link){
 	double mMass;
 
   //set up boundaries
-  ionCount=pep1Len-1;
+  ionCount=sets[0].len; //pep1Len-1;
   b=0;
   y=ionCount-1;
 
@@ -346,97 +176,131 @@ void KIons::buildSingletIons(int link){
 	for(i=0;i<ionCount;i++){
     mMass+=aaMass[pep1[i]];
     if(i>=link) { //negative mass indicates that the ion needs a modmass as well
-      yIons[0][y--] = pep1Mass-mMass;
-      bIons[0][b++] = -mMass;
+      sets[0].yIons[0][y--] = pep1Mass-mMass;
+      sets[0].bIons[0][b++] = -mMass;
     } else {
-      yIons[0][y--] = -(pep1Mass-mMass);
-      bIons[0][b++] = mMass;
+      sets[0].yIons[0][y--] = -(pep1Mass-mMass);
+      sets[0].bIons[0][b++] = mMass;
     }
 	}
 
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
     for(j=1;j<6;j++){
-      if(bIons[0][i]<0) bIons[j][i] = ((bIons[0][i]-1.007276466*j)/j);
-      else bIons[j][i] = ((bIons[0][i]+1.007276466*j)/j);
-      if(yIons[0][i]<0) yIons[j][i] = ((yIons[0][i]-1.007276466*j)/j);
-      else yIons[j][i] = ((yIons[0][i]+1.007276466*j)/j);
+      if(sets[0].bIons[0][i]<0) sets[0].bIons[j][i] = ((sets[0].bIons[0][i]-1.007276466*j)/j);
+      else sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
+      if(sets[0].yIons[0][i]<0) sets[0].yIons[j][i] = ((sets[0].yIons[0][i]-1.007276466*j)/j);
+      else sets[0].yIons[j][i] = ((sets[0].yIons[0][i]+1.007276466*j)/j);
     }
   }
 
 }
 
-void KIons::buildXIons(double linkMass, int link1, int link2){
-	
-  int b;
-	int i;
-  int j;
-  int y;
-	double mMass1;
-  double mMass2;
-  double totalMass;
-  double fragMass1;
-  double fragMass2;
+void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
+  int i,j,k,n;
 
-  //Need to check total ion count and return a false if it exceeds array sizes
+  for(i=start;i<pep1Len-1;i++){
 
-	//Calc totalMass
-	totalMass = pep1Mass + pep2Mass + linkMass;
+    //don't modify site where the cross-linker is bound.
+    if(i==link) continue;
 
-  //clear ion series for each charge state
-  ionCount = pep1Len+pep2Len-2;
-  b=0;
-  y=ionCount-1;
+    //Check if amino acid is on the modification list
+    for(j=0;j<aaMod[pep1[i]].count;j++){
 
-  i=0;
-  j=0;
-  mMass1=aaMass[pep1[i]];
-  mMass2=aaMass[pep2[j]];
-  if(i>=link1) fragMass1=mMass1+linkMass+pep2Mass;
-  else fragMass1=mMass1;
-  if(j>=link2) fragMass2=mMass2+linkMass+pep1Mass;
-  else fragMass2=mMass2;
-  
-  while(i<pep1Len || j<pep2Len){
-    if(fragMass1<fragMass2){
-      bIons[0][b] = fragMass1;
-      yIons[0][y] = (totalMass-fragMass1);
-      i++;
-      b++;
-      y--;
-      if(i<pep1Len){
-        mMass1+=aaMass[pep1[i]];
-        if(i>=link1) fragMass1=mMass1+linkMass+pep2Mass;
-        else fragMass1=mMass1;
-      } else {
-        fragMass1+=1000.0;
+      //skip mods not allowed on this peptide
+      if(xl && !aaMod[pep1[i]].mod[j].xl) continue;
+
+      //Add masses
+      KIonSet s=sets[index];
+
+      for(k=i;k<ionCount;k++){
+        for(n=1;n<6;n++){
+          if(s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.bIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+        }
       }
-    } else {
-      bIons[0][b] = fragMass2;
-      yIons[0][y] = (totalMass-fragMass2);
-      j++;
-      b++;
-      y--;
-
-      if(j<pep2Len){
-        mMass2+=aaMass[pep2[j]];
-        if(j>=link2) fragMass2=mMass2+linkMass+pep1Mass;
-        else fragMass2=mMass2;
-      } else {
-        fragMass2+=1000.0;
+      for(k=ionCount-i;k<ionCount;k++){
+        for(n=1;n<6;n++){
+          if(s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.yIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+        }
       }
-    }
-  }
+      s.mods[i]=aaMod[pep1[i]].mod[j].mass;
+      s.mass+=aaMod[pep1[i]].mod[j].mass;
+      s.difMass+=aaMod[pep1[i]].mod[j].mass;
 
-  for(i=0;i<ionCount;i++){
-    for(j=1;j<6;j++){
-      bIons[j][i] = ((bIons[0][i]+1.007276466*j)/j);
-      yIons[j][i] = ((yIons[0][i]+1.007276466*j)/j);
+      //Add to list
+      sets.push_back(s);
+
+      //solve another one
+      if(depth+1<maxModCount) modIonsRec(i+1,link,(int)(sets.size())-1,depth+1,xl);
     }
   }
 
 }
 
+void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth, bool xl){
+  int i,j,k,n;
+  int a,b; //first and second link positions
+  int pos;
+
+  //always order the links from first to second position
+  if(link<link2){
+    a=link;
+    b=link2;
+  } else {
+    a=link2;
+    b=link;
+  }
+
+  for(i=start;i<pep1Len-1;i++){
+
+    //don't modify site where the cross-linker is bound.
+    if(i==a || i==b) continue;
+
+    if(i<a) pos=i;
+    else if(i<b) pos=a;
+    else pos=i-b+a;
+
+    //Check if amino acid is on the modification list
+    for(j=0;j<aaMod[pep1[i]].count;j++){
+
+      //skip mods not allowed on this peptide
+      if(xl && !aaMod[pep1[i]].mod[j].xl) continue;
+
+      //Add masses
+      KIonSet s=sets[index];
+      for(k=pos;k<ionCount;k++){
+        for(n=1;n<6;n++){
+          if(s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.bIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+        }
+      }
+      for(k=ionCount-pos;k<ionCount;k++){
+        for(n=1;n<6;n++){
+          if(s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.yIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+        }
+      }
+      s.mods[i]=aaMod[pep1[i]].mod[j].mass;
+      s.mass+=aaMod[pep1[i]].mod[j].mass;
+      s.difMass+=aaMod[pep1[i]].mod[j].mass;
+
+      //Add to list
+      sets.push_back(s);
+
+      //solve another one
+      if(depth+1<maxModCount) modLoopIonsRec(i+1,link,link2,(int)(sets.size())-1,depth+1,xl);
+    }
+  }
+
+}
+
+void KIons::reset(){
+  sets.clear();
+  KIonSet k(pep1Len,pep1Mass);
+  sets.push_back(k);
+}
 
 double KIons::getModMass(int index){
   return modMassArray[index];
@@ -464,6 +328,10 @@ void KIons::getPeptide(bool bPepOne, char *seq){
   }
 }
 
+int KIons::getPeptideLen(){
+  return pep1Len;
+}
+
 void KIons::getPeptideMods(vector<kPepMod>& v){
   unsigned int i;
   kPepMod m;
@@ -480,20 +348,6 @@ void KIons::getPeptideMods(vector<kPepMod>& v){
   }
 }
 
-void KIons::modMasses(double mass, int index, int count){
-
-  int i,j;
-  for(i=index;i<128;i++){
-    if(aaMod[i].count==0) continue;
-    if(i==64 && count>0) continue;
-    for(j=0;j<aaMod[i].count;j++){
-      modMassArray.push_back(mass+aaMod[i].mass[j]);
-      //printf("%.6lf\n",mass+aaMod[i].mass[j]);
-      if(count+1<maxModCount) modMasses(mass+aaMod[i].mass[j],i,count+1);
-    }
-  }
-}
-
 void KIons::setMaxModCount(int i){
   maxModCount=i;
 }
@@ -504,19 +358,9 @@ void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass){
     pep1Len=len;
     pep1Mass=mass;
 
-    //Find better location for this block?
-    if(modList!=NULL) delete [] modList;
-    modList = new double[len];
-    for(int i=0;i<len;i++) modList[i]=0;
-
-    kModPos mp;
-    modQueue.clear();
-    mp.mass=0;
-    mp.mod=0;
-    mp.pos=-1;
-    mp.modMass=0;
-    mp.modCount=0;
-    modQueue.push_back(mp);
+    sets.clear();
+    KIonSet k(pep1Len,pep1Mass);
+    sets.push_back(k);
 
   } else {
     pep2=seq;
@@ -524,6 +368,10 @@ void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass){
     pep2Mass=mass;
   }
 
+}
+
+int KIons::size(){
+  return (int)sets.size();
 }
 
 /*============================

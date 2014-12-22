@@ -23,42 +23,43 @@ limitations under the License.
 
 using namespace std;
 
-typedef struct specPoint{
-  double mass;
-  float intensity;
-} specPoint;
-
 class KSpectrum {
 
 public:
 
   //Constructors & Destructors
-  KSpectrum(int i);
+  KSpectrum(int i, double bs, double os);
   KSpectrum(const KSpectrum& p);
   ~KSpectrum();
 
   //Operators
   KSpectrum&  operator=(const KSpectrum& p);
-  specPoint&  operator[](const int& i);
+  kSpecPoint&  operator[](const int& i);
 
   //Data Members
-  kSparseMatrix*       xCorrSparseArray;
-  
+  kSparseMatrix*  xCorrSparseArray;
+  int             xCorrSparseArraySize;
+  char**          kojakSparseArray;
+  int             kojakBins;
+
   //Accessors
+  double              getBinOffset        ();
   int                 getCharge           ();
   double              getInvBinSize       ();
   float               getMaxIntensity     ();
   double              getMZ               ();
   kPrecursor&         getPrecursor        (int i);
+  kPrecursor*         getPrecursor2       (int i);
   float               getRTime            ();
   int                 getScanNumber       ();
   kScoreCard&         getScoreCard        (int i);
+  int                 getSingletCount     ();
   kSingletScoreCard&  getSingletScoreCard (int i);
   int                 size                ();
   int                 sizePrecursor       ();
 
   //Modifiers
-  void addPoint         (specPoint& s);
+  void addPoint         (kSpecPoint& s);
   void addPrecursor     (kPrecursor& p);
   void clear            ();
   void setCharge        (int i);
@@ -72,11 +73,12 @@ public:
   void  checkScore        (kScoreCard& s);
   void  checkSingletScore (kSingletScoreCard& s);
   void  sortMZ            ();
-  void  xCorrScore        ();
+  void  xCorrScore        (bool b);
 
 private:
 
   //Data members
+  double                binOffset;
   double                binSize;
   int                   charge;
   double                invBinSize;
@@ -85,17 +87,21 @@ private:
   vector<kPrecursor>*   precursor;
   float                 rTime;
   int                   scanNumber;
-  vector<specPoint>*    spec;
+  int                   singletCount;
+  kSingletScoreCard*    singletFirst;   //pointer to start of linked list
+  kSingletScoreCard*    singletLast;    //pointer to end of linked list
+  int                   singletMax;
+  vector<kSpecPoint>*   spec;
   kScoreCard            topHit[20];
-  kSingletScoreCard*    topSinglet;
-  int                   topCount;
   int                   xCorrArraySize;
-  int                   xCorrSparseArraySize;
+  
 
   //Functions
   void BinIons      (kPreprocessStruct *pPre);
   void CometXCorr   ();
-  void MakeCorrData (double *pdTempRawData, kPreprocessStruct *pPre);
+  void MakeCorrData (double *pdTempRawData, kPreprocessStruct *pPre, double scale);
+
+  void kojakXCorr   ();
 
   //Utilities
   static int compareIntensity (const void *p1,const void *p2);

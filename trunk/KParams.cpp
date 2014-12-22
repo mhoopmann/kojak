@@ -68,13 +68,14 @@ void KParams::parse(char* cmd) {
 
   char param[32];
   char tmpstr[256];
-  char value[256];
-  char value2[256];
+
+  int i;
 
   kMass m;
+  kLinker x;
 
   string tstr;
-  vector<string> vs;
+  vector<string> values;
 
   //Pre-process entire line to remove characters that should not be read
 	//Replace first # with a terminator
@@ -93,7 +94,6 @@ void KParams::parse(char* cmd) {
     return;
   }
 
-	
   //Process parameters
 	//Read parameter into param name (before = sign) and value (after = sign)
 	tok=strtok(cmd," \t=\n\r");
@@ -104,121 +104,202 @@ void KParams::parse(char* cmd) {
 		warn(param,0);
 		return;
   } else {
-    strcpy(value,tok);
-  }
-  
-  //get second parameter for modification
-	if(strcmp(param,"modification")==0 || strcmp(param,"fixed_modification")==0) {
-		tok=strtok(NULL," \t=\n\r");
-    if(tok==NULL) {
-		  warn(param,0);
-		  return;
-    } else {
-      strcpy(value2,tok);
+    while(tok!=NULL){
+      tstr=tok;
+      values.push_back(tstr);
+      tok=strtok(NULL," \t=\n\r");
     }
   }
 
 	//Look up parameter and assign the value
-	if(strcmp(param,"cross_link_mass")==0){
-    params->xLink->push_back(atof(value));
+  if(strcmp(param,"cross_link")==0){
+    //check first site
+    i=atoi(&values[0][0]);
+    if(params->setA==0) {
+      params->setA=i;
+      x.siteA=1;
+    } else if(params->setA==i) {
+      x.siteA=1;
+    } else if(params->setB==0) {
+      params->setB=i;
+      x.siteA=2;
+    } else if(params->setB==i) {
+      x.siteA=2;
+    } else {
+      printf("Error in cross_link parameter(s)\n");
+      exit(-5);
+    }
+    //check second site
+    i=atoi(&values[1][0]);
+    if(params->setA==0) {
+      params->setA=i;
+      x.siteB=1;
+    } else if(params->setA==i) {
+      x.siteB=1;
+    } else if(params->setB==0) {
+      params->setB=i;
+      x.siteB=2;
+    } else if(params->setB==i) {
+      x.siteB=2;
+    } else {
+      printf("Error in cross_link parameter(s)\n");
+      exit(-5);
+    }
+    x.mass=atof(&values[2][0]);
+    x.mono=0;
+    params->xLink->push_back(x);
 
 	} else if(strcmp(param,"database")==0){
-    strcpy(params->dbFile,value);
+    strcpy(params->dbFile,&values[0][0]);
 
   } else if(strcmp(param,"diagnostic")==0){
-    params->diagnostic=atoi(value);
+    params->diagnostic=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"decoy_filter")==0){
-    strcpy(params->decoy,value);
+    strcpy(params->decoy,&values[0][0]);
  
   } else if(strcmp(param,"enrichment")==0){
-    params->enrichment=atof(value);
+    params->enrichment=atof(&values[0][0]);
+
+  } else if(strcmp(param,"enzyme")==0){
+    strcpy(params->enzyme,&values[0][0]);
 
   } else if(strcmp(param,"fixed_modification")==0){
-    m.index=(int)value[0];
-    m.mass=atof(value2);
+    m.index=(int)values[0][0];
+    m.mass=atof(&values[1][0]);
     params->fMods->push_back(m);
 
+	} else if(strcmp(param,"fragment_bin_offset")==0){
+    params->binOffset=1.0-atof(&values[0][0]);
+
+	} else if(strcmp(param,"fragment_bin_size")==0){
+    params->binSize=atof(&values[0][0]);
+
 	} else if(strcmp(param,"instrument")==0){
-    params->instrument=atoi(value);
+    params->instrument=atoi(&values[0][0]);
     if(params->instrument<0 || params->instrument>1){
       warn("Value out of range for instrument. Defaulting to 1=Orbitrap",2);
       params->instrument=1;
     }
 
 	} else if(strcmp(param,"max_miscleavages")==0){
-    params->miscleave=atoi(value);
+    params->miscleave=atoi(&values[0][0]);
 
   } else if(strcmp(param,"max_mods_per_peptide")==0){
-    params->maxMods=atoi(value);
+    params->maxMods=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"max_peptide_mass")==0){
-    params->maxPepMass=atof(value);
+    params->maxPepMass=atof(&values[0][0]);
 
   } else if(strcmp(param,"max_spectrum_peaks")==0){
-    params->maxPeaks=atoi(value);
+    params->maxPeaks=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"min_peptide_mass")==0){
-    params->minPepMass=atof(value);
+    params->minPepMass=atof(&values[0][0]);
 
   } else if(strcmp(param,"modification")==0){
-    m.index=(int)value[0];
-    m.mass=atof(value2);
+    m.xl=false;
+    m.index=(int)values[0][0];
+    m.mass=atof(&values[1][0]);
     params->mods->push_back(m);
 
-	} else if(strcmp(param,"mono_link_mass")==0){
-		params->mLink->push_back(atof(value));
+  } else if(strcmp(param,"mono_link")==0){
+    m.xl=true;
+    m.mass=atof(&values[1][0]);
+    i=atoi(&values[0][0]);
+    if(i==1){
+      m.index=75;
+      params->mods->push_back(m);
+      m.index=64;
+      params->mods->push_back(m);
+    } else if(i==2){
+      m.index=68;
+      params->mods->push_back(m);
+      m.index=69;
+      params->mods->push_back(m);
+      m.index=35;
+      params->mods->push_back(m);
+    } else if(i==3){
+      m.index=67;
+      params->mods->push_back(m);
+    }
+
+    /*
+    i=atoi(&values[0][0]);
+    if(params->setA==0) {
+      params->setA=i;
+      x.siteA=1;
+    } else if(params->setA==i) {
+      x.siteA=1;
+    } else if(params->setB==0) {
+      params->setB=i;
+      x.siteA=2;
+    } else if(params->setB==i) {
+      x.siteA=2;
+    } else {
+      printf("Error in mono_link parameter(s)\n");
+      exit(-5);
+    }
+    x.mass=atof(&values[1][0]);
+    x.mono=1;
+    params->mLink->push_back(x);
+    */
 
 	} else if(strcmp(param,"MS_data_file")==0){
-    strcpy(params->msFile,value);
+    strcpy(params->msFile,&values[0][0]);
 
   } else if(strcmp(param,"MS1_centroid")==0){
-    params->ms1Centroid=atoi(value);
+    params->ms1Centroid=atoi(&values[0][0]);
 
   } else if(strcmp(param,"MS2_centroid")==0){
-    params->ms2Centroid=atoi(value);
+    params->ms2Centroid=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"MS1_resolution")==0){
-    params->ms1Resolution=atoi(value);
+    params->ms1Resolution=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"MS2_resolution")==0){
-		params->ms2Resolution=atoi(value);
+		params->ms2Resolution=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"output_file")==0){
-    strcpy(params->outFile,value);
+    strcpy(params->outFile,&values[0][0]);
 
 	} else if(strcmp(param,"percolator_file")==0){
-    strcpy(params->percolator,value);
+    strcpy(params->percolator,&values[0][0]);
 
   } else if(strcmp(param,"percolator_version")==0){
-    params->percVersion=atof(value);
-
-	} else if(strcmp(param,"ppm_tolerance_frag")==0){
-    params->ppmFragment=atof(value);
+    params->percVersion=atof(&values[0][0]);
 
 	} else if(strcmp(param,"ppm_tolerance_pre")==0){
-    params->ppmPrecursor=atof(value);
+    params->ppmPrecursor=atof(&values[0][0]);
 
   } else if(strcmp(param,"prefer_precursor_pred")==0){
-    params->preferPrecursor=atoi(value);
+    params->preferPrecursor=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"relaxed_analysis")==0){
-    params->relaxedAnalysis=atoi(value);
+    params->relaxedAnalysis=atoi(&values[0][0]);
 
   } else if(strcmp(param,"search_dimers")==0){
-    params->dimers=atoi(value);
+    params->dimers=atoi(&values[0][0]);
 
   } else if(strcmp(param,"spectrum_processing")==0) {
-    params->specProcess=atoi(value);
+    params->specProcess=atoi(&values[0][0]);
+
+  } else if(strcmp(param,"threads")==0) {
+    params->threads=atoi(&values[0][0]);
+    if(params->threads<1) {
+      printf("Invalid threads parameter. Setting to 1\n");
+      params->threads=1;
+    }
 
   } else if(strcmp(param,"top_count")==0) {
-    params->topCount=atoi(value);
+    params->topCount=atoi(&values[0][0]);
 
   } else if(strcmp(param,"truncate_prot_names")==0) {
-    params->truncate=atoi(value);
+    params->truncate=atoi(&values[0][0]);
 
   } else if(strcmp(param,"use_comet_xcorr")==0){
-    params->xcorr=atoi(value);
+    if(atoi(&values[0][0])!=0) params->xcorr=true;
+    else params->xcorr=false;
 
 	} else {
 		warn(param,1);

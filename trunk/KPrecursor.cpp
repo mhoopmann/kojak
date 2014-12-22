@@ -45,8 +45,7 @@ KPrecursor::KPrecursor(kParams* p){
   else hs.msType=hs2.msType=hs4.msType=OrbiTrap;
   hs.res400=hs2.res400=hs4.res400=params->ms1Resolution;
   hs.corr=hs2.corr=hs4.corr=0.85;
-  if(params->ms1Centroid) hs.centroid=hs2.centroid=hs4.centroid=true;
-  else hs.centroid=hs2.centroid=hs4.centroid=false;
+  hs.centroid=hs2.centroid=hs4.centroid=true;
 
   strcpy(hs.inFile,"PLTmp.ms1");
   strcpy(hs2.inFile,"PLTmp.ms1");
@@ -61,19 +60,16 @@ KPrecursor::KPrecursor(kParams* p){
   h->Echo(false);
   h->SetResultsToMemory(true);
 
-  scanBuf = new deque<Spectrum>;
   centBuf = new deque<Spectrum>;
 
   setFile();
 
-  //params = NULL;
 }
 
 KPrecursor::~KPrecursor(){
   delete h;
   delete averagine;
   delete mercury;
-  delete scanBuf;
   delete centBuf;
   params = NULL;
 }
@@ -114,8 +110,12 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
     dif=mercury->FixedData[i].mass-mercury->FixedData[i-1].mass;
     pre.monoMass=mercury->FixedData[i-1].mass-offset;
     s.addPrecursor(pre);
-    if(pre.monoMass>3000){
-      pre.monoMass=mercury->FixedData[i-1].mass-dif-offset;
+    if(pre.monoMass>3000 && i>1){
+      pre.monoMass=mercury->FixedData[i-2].mass-offset;
+      s.addPrecursor(pre);
+    }
+    if(pre.monoMass>5000 && i>2){
+      pre.monoMass=mercury->FixedData[i-3].mass-offset;
       s.addPrecursor(pre);
     }
   }
@@ -123,14 +123,6 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
   //also add the next peak
   pre.monoMass=mercury->FixedData[i+1].mass-offset;
   s.addPrecursor(pre);
-
-  /*
-  if(s.getScanNumber()==18211){
-    cout << "\n" << i << endl;
-    for(i=0;i<s.sizePrecursor();i++) cout << s.getPrecursor(i).monoMass << "\t" << s.getPrecursor(i).charge << "\t" << s.getPrecursor(i).corr << endl;
-    exit(0);
-  }
-  */
 
   return true;
 }
@@ -171,14 +163,13 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   mz=spec.getMZ();
 
   //clear scan buffer of unneeded spectra
-  while(scanBuf->size()>0 && scanBuf->at(0).getRTime()<rt-1.0){
-    lastScan=scanBuf->at(0).getScanNumber();
-    scanBuf->pop_front();
+  while(centBuf->size()>0 && centBuf->at(0).getRTime()<rt-1.0){
+    lastScan=centBuf->at(0).getScanNumber();
     centBuf->pop_front();
   }
 
   //if whole buffer was emptied, read in files until we find the scan range needed.  
-  if(scanBuf->size()==0){
+  if(centBuf->size()==0){
     msr.setFilter(MS1);
     msr.readFile(NULL,spec,lastScan);
     msr.readFile(NULL,spec);
@@ -186,9 +177,10 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
       msr.readFile(NULL,spec);
     }
     if(spec.getScanNumber()>0) {
-      scanBuf->push_back(spec);
       if(!params->ms1Centroid){
         centroid(spec,cent,params->ms1Resolution,params->instrument);
+        cent.setScanNumber(spec.getScanNumber());
+        cent.setRTime(spec.getRTime());
         centBuf->push_back(cent);
       } else {
         centBuf->push_back(spec);
@@ -197,21 +189,22 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   }
 
   //Sanity check. Exit if you can't find precursor scans within range of MS/MS retention time
-  if(scanBuf->size()==0){
+  if(centBuf->size()==0){
     //cout << "Reached end of file buffer and no spectra remain." << endl;
     return false;
   }
 
   //add spectra that need to be buffered
-  lastScan=scanBuf->at(scanBuf->size()-1).getScanNumber();
-  if(scanBuf->at(scanBuf->size()-1).getRTime()<rt+0.6){
+  lastScan=centBuf->at(centBuf->size()-1).getScanNumber();
+  if(centBuf->at(centBuf->size()-1).getRTime()<rt+0.6){
     msr.setFilter(MS1);
     msr.readFile(NULL,spec,lastScan);
     msr.readFile(NULL,spec);
     while(spec.getScanNumber()>0 && spec.getRTime()<rt+2.0){
-      scanBuf->push_back(spec);
       if(!params->ms1Centroid){
         centroid(spec,cent,params->ms1Resolution,params->instrument);
+        cent.setScanNumber(spec.getScanNumber());
+        cent.setRTime(spec.getRTime());
         centBuf->push_back(cent);
       } else {
         centBuf->push_back(spec);
@@ -219,9 +212,10 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
       msr.readFile(NULL,spec);
     }
     if(spec.getScanNumber()>0){
-      scanBuf->push_back(spec);
       if(!params->ms1Centroid){
         centroid(spec,cent,params->ms1Resolution,params->instrument);
+        cent.setScanNumber(spec.getScanNumber());
+        cent.setRTime(spec.getRTime());
         centBuf->push_back(cent);
       } else {
         centBuf->push_back(spec);
@@ -232,13 +226,14 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   //Find a precursor within 10 seconds for a given scan 
   v.clear();
   maxIntensity=0;
-  for(i=0;i<scanBuf->size();i++){
-    if(scanBuf->at(i).getRTime()<rt-0.167) continue;
-    if(scanBuf->at(i).getRTime()>rt+0.167) break;
+  for(i=0;i<centBuf->size();i++){
+    if(centBuf->at(i).getRTime()<rt-0.167) continue;
+    if(centBuf->at(i).getRTime()>rt+0.167) break;
     j=findPeak(centBuf->at(i),mz,10);
+    
     if(j>-1){
-      p.rt=scanBuf->at(i).getRTime();
-      p.scan=scanBuf->at(i).getScanNumber();
+      p.rt=centBuf->at(i).getRTime();
+      p.scan=centBuf->at(i).getScanNumber();
       v.push_back(p);
       if(centBuf->at(i)[j].intensity>maxIntensity){
         maxIntensity=centBuf->at(i)[j].intensity;
@@ -258,26 +253,36 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   
   //Get up to +/-15 sec of spectra around the max precursor intensity
   //This is done by extending on both sides until a gap is found or time is reached.
+  //Additionally, stop if 2 scans found flanking either side (maximum 5 scans per precursor).
   vs.clear();
-  rtHigh=rtLow=scanBuf->at(precursor).getRTime();
-  for(i=precursor;i<scanBuf->size();i++){
-    if(scanBuf->at(i).getRTime()>maxRT+0.25) break;
+  rtHigh=rtLow=centBuf->at(precursor).getRTime();
+  k=0;
+  for(i=precursor;i<centBuf->size();i++){
+    if(centBuf->at(i).getRTime()>maxRT+0.25) break;
     j=findPeak(centBuf->at(i),mz,10);
     if(j<0) break;
-    vs.push_back(&scanBuf->at(i));
-    rtHigh=scanBuf->at(i).getRTime();
+    vs.push_back(&centBuf->at(i));
+    rtHigh=centBuf->at(i).getRTime();
+    k++;
+    if(k==3) break;
   }
 
-  for(k=precursor-1;k>-1;k--){
-    if(scanBuf->at(k).getRTime()<maxRT-0.25) break;
-    j=findPeak(centBuf->at(k),mz,10);
+  k=0;
+  i=precursor;
+  while(i>0){
+    i--;
+    if(centBuf->at(i).getRTime()<maxRT-0.25) break;
+    j=findPeak(centBuf->at(i),mz,10);
     if(j<0) break;
-    vs.push_back(&scanBuf->at(k));
-    rtLow=scanBuf->at(k).getRTime();
+    vs.push_back(&centBuf->at(i));
+    rtLow=centBuf->at(i).getRTime();
+    k++;
+    if(k==2) break;
   }
 
   //If total spectra to be combined is small (5 scan events), try 
   //grabbing a +/- 5 sec window around max, regardless of precursor observation
+  /*
   if(vs.size()<5 && (rtHigh-rtLow)<0.167){
     vs.clear();
     for(i=precursor;i<scanBuf->size();i++){
@@ -289,17 +294,18 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
       else break;
     }
   }
+  */
 
   //Average points between mz-1.5 and mz+2
-  if(params->ms1Centroid) averageScansCentroid(vs,s,mz-1.5,mz+2);
-  else averageScansBin(vs,s,mz-1.5,mz+2);
-  s.setScanNumber(scanBuf->at(precursor).getScanNumber());
+  averageScansCentroid(vs,s,mz-1.5,mz+2);
+  s.setScanNumber(centBuf->at(precursor).getScanNumber());
 
   //Clear corr
   corr=0;
 
   //Perform 18O2 analysis with Hardklor. If enrichment is set to 0, store unenriched results in the *O2 variables.
   //This is done in a non-competitive to identify an 18O2 peptide without solving everything
+  //if(scanNum==33338) cout << "Hardklor" << endl;
   if(params->enrichment>0) h->GoHardklor(hs2,&s);
   else h->GoHardklor(hs,&s);
 
@@ -481,11 +487,12 @@ bool KPrecursor::setFile() {
   msr.readFile(params->msFile,spec);
   strcpy(fileName,params->msFile);
 
+  if(spec.getScanNumber()==0) return false;
+
   centBuf->clear();
-  scanBuf->clear();
-  scanBuf->push_back(spec);
   if(!params->ms1Centroid){
     centroid(spec,cent,params->ms1Resolution,params->instrument);
+    cent.setScanNumber(spec.getScanNumber());
     centBuf->push_back(cent);
   } else {
     centBuf->push_back(spec);
@@ -497,87 +504,27 @@ bool KPrecursor::setFile() {
 /*============================
   Private Functions
 ============================*/
-void KPrecursor::averageScansBin(vector<Spectrum*>& s, Spectrum& avg, double min, double max){
-
-  unsigned int i;
-  int j;
-  double binWidth;
-  double offset;
-  float* bin;
-  float intensity;
-  int binCount;
-  int* pos;
-
-  pos=new int[s.size()];
-
-  avg.clear();
-
-  //Get some point near peak of interest to determine bin size. Make sure it is not a 0 intensity point.
-  pos[0]=findPeak(*s[0],(min+max)/2);
-  while(pos[0]<s[0]->size()-2 && (s[0]->at(pos[0]).intensity<0.1 || s[0]->at(pos[0]-1).intensity<0.1 || s[0]->at(pos[0]+1).intensity<0.1)){
-    pos[0]++;
-  }
-  
-  //binWidth is the distance between two points in profile data divided by 2
-  binWidth=s[0]->at(pos[0]+1).mz-s[0]->at(pos[0]).mz;
-  binWidth/=2;
-  
-  binCount=(int)((max-min)/binWidth+1);
-  bin = new float[binCount];
-  for(j=0;j<binCount;j++) bin[j]=0;
-
-  //align all spectra to point closest to min and set offset
-  for(i=0;i<s.size();i++)  {
-    pos[i]=findPeak(*s[i],min);
-    if(s[i]->at(pos[i]).mz<min) pos[i]++;
-  }
-  offset=s[0]->at(pos[0]).mz;
-
-  //Iterate all spectra, adding intensities to the bins
-  for(i=0;i<s.size();i++) {
-    while(pos[i]<s[i]->size() && s[i]->at(pos[i]).mz<max){
-      j=(int)((s[i]->at(pos[i]).mz-offset)/binWidth);
-      if(j<0){
-        pos[i]++;
-        continue;
-      }
-      if(j>=binCount) break;
-      bin[j]+=s[i]->at(pos[i]).intensity;
-      pos[i]++;
-    }
-  }
-
-  //average scan is sum of two bins at a time
-  for(j=1;j<binCount-1;j+=2){
-    intensity=bin[j]+bin[j+1];
-    intensity/=s.size();
-    if(intensity>0) avg.add(offset+j*binWidth+binWidth/2,intensity);
-  }
-
-  //clear memory
-  delete [] bin;
-  delete [] pos;
-}
-
-//Almost identical to averageScansBin, except centroided spectra need to be treated differently
+//Places centroided peaks in bins, then finds average. Has potential for error when accuracy drifts into neighboring bins.
 void KPrecursor::averageScansCentroid(vector<Spectrum*>& s, Spectrum& avg, double min, double max){
 
   unsigned int i;
-  int j;
+  int j,k;
   double binWidth;
-  double offset;
+  double offset=-1.0;
   float* bin;
   float intensity;
   int binCount;
   int* pos;
+  double  lowMZ=-1.0;
+  kScanBin sb;
+  vector<kScanBin> topList;
 
   pos=new int[s.size()];
 
   avg.clear();
 
   //Set some really small bin width related to the mz region being summed.
-  binWidth=(min+max)/2*0.00001;
-  binWidth/=2;
+  binWidth=0.0001;
   
   binCount=(int)((max-min)/binWidth+1);
   bin = new float[binCount];
@@ -587,13 +534,17 @@ void KPrecursor::averageScansCentroid(vector<Spectrum*>& s, Spectrum& avg, doubl
   for(i=0;i<s.size();i++)  {
     pos[i]=findPeak(*s[i],min);
     if(s[i]->at(pos[i]).mz<min) pos[i]++;
+    if(offset<0) offset=s[i]->at(pos[i]).mz;
+    else if(s[i]->at(pos[i]).mz<offset) offset=s[i]->at(pos[i]).mz;
+    //cout << s[i]->getScanNumber() << "\t" << pos[i] << "\t" << s[i]->at(pos[i]).mz << endl;
   }
-  offset=s[0]->at(pos[0]).mz;
+  //printf("Offset: %.5lf\n",offset);
 
   //Iterate all spectra and add peaks to bins
   for(i=0;i<s.size();i++) {
-    while(pos[i]<s[i]->size() && s[i]->at(pos[i]).mz<max){
+    while(pos[i]<s[i]->size() && s[i]->at(pos[i]).mz<max){ 
       j=(int)((s[i]->at(pos[i]).mz-offset)/binWidth);
+      //cout << i << "\t" << pos[i] << "\t" << j << endl;
       if(j<0){
         pos[i]++;
         continue;
@@ -604,12 +555,32 @@ void KPrecursor::averageScansCentroid(vector<Spectrum*>& s, Spectrum& avg, doubl
     }
   }
 
-  //average scan is sum of two bins at a time
-  for(j=1;j<binCount-1;j+=2){
-    intensity=bin[j]+bin[j+1];
-    intensity/=s.size();
-    if(intensity>0) avg.add(offset+j*binWidth+binWidth/2,intensity);
+  //Unsure of current efficiency. Finds bin of tallest peak, then combines with neighboring bins
+  //to produce an average. Thus summing of neighboring bins allows flexibility when dealing with mass accuracy drift.
+  //Using larger bins has the same effect, but perhaps fewer significant digits in the final result.
+  for(j=0;j<binCount;j++){
+    if(bin[j]>0) {
+      sb.index=j;
+      sb.intensity=bin[j];
+      topList.push_back(sb);
+    }
   }
+  qsort(&topList[0],topList.size(),sizeof(kScanBin),compareScanBinRev);
+  for(i=0;i<topList.size();i++){
+    if(bin[topList[i].index]==0) continue;
+    intensity=0;
+    j=topList[i].index-50;
+    k=topList[i].index+51;
+    if(j<0) j=0;
+    if(k>binCount) k=binCount;
+    for(j=j;j<k;j++){
+      intensity+=bin[j];
+      bin[j]=0;
+    }
+    intensity/=s.size();
+    avg.add(offset+topList[i].index*binWidth,intensity);
+  }
+  avg.sortMZ();
 
   //clean up memory
   delete [] bin;
@@ -815,6 +786,18 @@ int KPrecursor::comparePLPScanNum(const void *p1, const void *p2){
   if(d1.scan<d2.scan) {
 		return -1;
 	} else if(d1.scan>d2.scan) {
+  	return 1;
+  } else {
+	  return 0;
+  }
+}
+
+int KPrecursor::compareScanBinRev(const void *p1, const void *p2){
+  kScanBin d1 = *(kScanBin *)p1;
+  kScanBin d2 = *(kScanBin *)p2;
+  if(d1.intensity>d2.intensity) {
+		return -1;
+  } else if(d1.intensity<d2.intensity) {
   	return 1;
   } else {
 	  return 0;

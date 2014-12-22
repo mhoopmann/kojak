@@ -23,6 +23,9 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include <iostream>
+#include <exception>
+
 using namespace std;
 
 //FASTA database structure
@@ -41,33 +44,41 @@ typedef struct kPepMap{
 //Peptide reference to an entry in pldbDB
 typedef struct kPeptide{
   double mass;            //monoisotopic, zero mass
-  vector<kPepMap>* map;  //array of mappings where peptides appear in more than one place
-  vector<int>* vK;
+  vector<kPepMap>* map;   //array of mappings where peptides appear in more than one place
+  vector<int>* vA;        //List of linkage sites for set A
+  vector<int>* vB;        //List of linkage sites for set B
   kPeptide(){
     mass=0;
     map=new vector<kPepMap>;
-    vK=new vector<int>;
+    vA=new vector<int>;
+    vB=new vector<int>;
   }
   kPeptide(const kPeptide& m){
     mass=m.mass;
     map=new vector<kPepMap>;
-    vK=new vector<int>;
+    vA=new vector<int>;
+    vB=new vector<int>;
     for(unsigned int i=0;i<m.map->size();i++) map->push_back(m.map->at(i));
-    for(unsigned int i=0;i<m.vK->size();i++) vK->push_back(m.vK->at(i));
+    for(unsigned int i=0;i<m.vA->size();i++) vA->push_back(m.vA->at(i));
+    for(unsigned int i=0;i<m.vB->size();i++) vB->push_back(m.vB->at(i));
   }
   ~kPeptide(){
     delete map;
-    delete vK;
+    delete vA;
+    delete vB;
   }
   kPeptide& operator=(const kPeptide& m){
     if(this!=&m){
       mass=m.mass;
       delete map;
-      delete vK;
+      delete vA;
+      delete vB;
       map=new vector<kPepMap>;
-      vK=new vector<int>;
+      vA=new vector<int>;
+      vB=new vector<int>;
       for(unsigned int i=0;i<m.map->size();i++) map->push_back(m.map->at(i));
-      for(unsigned int i=0;i<m.vK->size();i++) vK->push_back(m.vK->at(i));
+      for(unsigned int i=0;i<m.vA->size();i++) vA->push_back(m.vA->at(i));
+      for(unsigned int i=0;i<m.vB->size();i++) vB->push_back(m.vB->at(i));
     }
     return (*this);
   }
@@ -88,9 +99,12 @@ typedef struct kPepSort{
 typedef struct kLinker{
   double mass;
   int mono;     //0=cross-link, 1=mono-link
+  int siteA;    //number represents site list. 1 for vA, 2 for vB.
+  int siteB;    //number represents site list. 1 for vA, 2 for vB.
 } kLinker;
 
 typedef struct kMass {
+  bool    xl;
   int     index;
   double  mass;
 } kMass;
@@ -99,6 +113,13 @@ typedef struct kSparseMatrix{
   int   bin;
   float fIntensity;
 } kSparseMatrix;
+
+typedef struct kEnzymeRules{
+  bool cutC[128];
+  bool cutN[128];
+  bool exceptC[128];
+  bool exceptN[128];
+} kEnzymeRules;
 
 typedef struct kParams {
   int     diagnostic;
@@ -113,23 +134,28 @@ typedef struct kParams {
   int     ms2Resolution;
   int     preferPrecursor;
   int     relaxedAnalysis;
+  int     setA;
+  int     setB;
   int     specProcess;
+  int     threads;
   int     topCount;
   int     truncate;
-  int     xcorr;
+  bool    xcorr;
+  double  binOffset;
+  double  binSize;
   double  enrichment;
   double  maxPepMass;
   double  minPepMass;
   double  percVersion;
   double  ppmPrecursor;
-  double  ppmFragment;
   char    dbFile[256];
   char    decoy[256];
+  char    enzyme[32];
   char    msFile[256];
   char    outFile[256];
   char    percolator[256];
-  vector<double>* xLink;
-  vector<double>* mLink;
+  vector<kLinker>* xLink;
+  vector<kLinker>* mLink;
   vector<kMass>* mods;
   vector<kMass>* fMods;
   kParams(){
@@ -145,23 +171,28 @@ typedef struct kParams {
     ms2Resolution=15000;
     preferPrecursor=0;
     relaxedAnalysis=0;
+    setA=0;
+    setB=0;
     specProcess=0;
+    threads=1;
     topCount=250;
     truncate=0;
-    xcorr=0;
+    xcorr=false;
+    binSize=0.03;
+    binOffset=0.0;
     enrichment=0;
     maxPepMass=4000.0;
     minPepMass=500.0;
     percVersion=2.04;
     ppmPrecursor=25.0;
-    ppmFragment=25.0;
     strcpy(decoy,"random");
     dbFile[0]='\0';
+    strcpy(enzyme,"[KR]|");
     msFile[0]='\0';
     outFile[0]='\0';
     percolator[0]='\0';
-    xLink = new vector<double>;
-    mLink = new vector<double>;
+    xLink = new vector<kLinker>;
+    mLink = new vector<kLinker>;
     mods = new vector<kMass>;
     fMods = new vector<kMass>;
   }
@@ -178,23 +209,28 @@ typedef struct kParams {
     ms2Resolution=p.ms2Resolution;
     preferPrecursor=p.preferPrecursor;
     relaxedAnalysis=p.relaxedAnalysis;
+    setA=p.setA;
+    setB=p.setB;
     specProcess=p.specProcess;
+    threads=p.threads;
     topCount=p.topCount;
     truncate=p.truncate;
     xcorr=p.xcorr;
+    binOffset=p.binOffset;
+    binSize=p.binSize;
     enrichment=p.enrichment;
     maxPepMass=p.maxPepMass;
     minPepMass=p.minPepMass;
     percVersion=p.percVersion;
     ppmPrecursor=p.ppmPrecursor;
-    ppmFragment=p.ppmFragment;
     strcpy(decoy,p.decoy);
     strcpy(dbFile,p.dbFile);
+    strcpy(enzyme,p.enzyme);
     strcpy(msFile,p.msFile);
     strcpy(outFile,p.outFile);
     strcpy(percolator,p.percolator);
-    xLink = new vector<double>;
-    mLink = new vector<double>;
+    xLink = new vector<kLinker>;
+    mLink = new vector<kLinker>;
     mods = new vector<kMass>;
     fMods = new vector<kMass>;
     unsigned int i;
@@ -223,18 +259,23 @@ typedef struct kParams {
       ms2Resolution=p.ms2Resolution;
       preferPrecursor=p.preferPrecursor;
       relaxedAnalysis=p.relaxedAnalysis;
+      setA=p.setA;
+      setB=p.setB;
       specProcess=p.specProcess;
+      threads=p.threads;
       topCount=p.topCount;
       truncate=p.truncate;
       xcorr=p.xcorr;
+      binOffset=p.binOffset;
+      binSize=p.binSize;
       enrichment=p.enrichment;
       maxPepMass=p.maxPepMass;
       minPepMass=p.minPepMass;
       percVersion=p.percVersion;
       ppmPrecursor=p.ppmPrecursor;
-      ppmFragment=p.ppmFragment;
       strcpy(decoy,p.decoy);
       strcpy(dbFile,p.dbFile);
+      strcpy(enzyme,p.enzyme);
       strcpy(msFile,p.msFile);
       strcpy(outFile,p.outFile);
       strcpy(percolator,p.percolator);
@@ -242,8 +283,8 @@ typedef struct kParams {
       delete mLink;
       delete mods;
       delete fMods;
-      xLink = new vector<double>;
-      mLink = new vector<double>;
+      xLink = new vector<kLinker>;
+      mLink = new vector<kLinker>;
       mods = new vector<kMass>;
       fMods = new vector<kMass>;
       unsigned int i;
@@ -256,10 +297,15 @@ typedef struct kParams {
   }
 } kParams;
 
+typedef struct kSpecPoint{
+  double mass;
+  float intensity;
+} kSpecPoint;
+
 typedef struct kPreprocessStruct { //adapted from Comet
    int iHighestIon;
    double dHighestIntensity;
-   double *pdCorrelationData;
+   kSpecPoint *pdCorrelationData;
 } kPreprocessStruct;
 
 typedef struct kPepMod{
@@ -278,7 +324,9 @@ typedef struct kScoreCard{
   int     rank;
   float   simpleScore;
   double  mass;
-  vector<kPepMod>* mods;
+  double  scoreDiff;
+  vector<kPepMod>* mods1;
+  vector<kPepMod>* mods2;
   kScoreCard(){
     linkable1=false;
     linkable2=false;
@@ -290,9 +338,14 @@ typedef struct kScoreCard{
     rank=0;
     simpleScore=0;
     mass=0;
-    mods=new vector<kPepMod>;
+    scoreDiff=0;
+    mods1=new vector<kPepMod>;
+    mods2=new vector<kPepMod>;
+    //cout << mods1 << endl;
+    //cout << mods2 << endl;
   }
   kScoreCard(const kScoreCard& p){
+    unsigned int i;
     linkable1=p.linkable1;
     linkable2=p.linkable2;
     k1=p.k1;
@@ -303,14 +356,19 @@ typedef struct kScoreCard{
     rank=p.rank;
     simpleScore=p.simpleScore;
     mass=p.mass;
-    mods=new vector<kPepMod>;
-    for(unsigned int i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));
+    scoreDiff=p.scoreDiff;
+    mods1=new vector<kPepMod>;
+    for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
+    mods2=new vector<kPepMod>;
+    for(i=0;i<p.mods2->size();i++) mods2->push_back(p.mods2->at(i));
   }
   ~kScoreCard(){
-    delete mods;
+    delete mods1;
+    delete mods2;
   }
   kScoreCard& operator=(const kScoreCard& p){
     if(this!=&p){
+      unsigned int i;
       linkable1=p.linkable1;
       linkable2=p.linkable2;
       k1=p.k1;
@@ -321,37 +379,95 @@ typedef struct kScoreCard{
       rank=p.rank;
       simpleScore=p.simpleScore;
       mass=p.mass;
-      delete mods;
-      mods=new vector<kPepMod>;
-      for(unsigned int i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));
+      scoreDiff=p.scoreDiff;
+      delete mods1;
+      mods1=new vector<kPepMod>;
+      for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
+      delete mods2;
+      mods2=new vector<kPepMod>;
+      for(i=0;i<p.mods2->size();i++) mods2->push_back(p.mods2->at(i));
     }
     return *this;
   }
 } kScoreCard;
 
 typedef struct kSingletScoreCard{
-  char  len;
-  bool  linkable;
-  int   k1;
-  int   pep1;
-  float simpleScore;
+  char                len;
+  bool                linkable;
+  char                k1;
+  int                 pep1;
+  float               simpleScore;
+  double              mass;
+  char                modLen;
+  kPepMod*            mods;
+  kSingletScoreCard*  next;
+  kSingletScoreCard*  prev;
   kSingletScoreCard(){
     len=0;
     linkable=false;
     k1=0;
     pep1=0;
     simpleScore=0;
+    mass=0;
+    modLen=0;
+    mods=NULL;
+    next=NULL;
+    prev=NULL;
+  }
+  kSingletScoreCard(const kSingletScoreCard& k){
+    len=k.len;
+    linkable=k.linkable;
+    k1=k.k1;
+    pep1=k.pep1;
+    simpleScore=k.simpleScore;
+    mass=k.mass;
+    modLen=k.modLen;
+    mods=NULL;
+    if(modLen>0){
+      mods=new kPepMod[modLen];
+      for(char i=0;i<modLen;i++) mods[i]=k.mods[i];
+    }
+    next=NULL;
+    prev=NULL;
+  }
+  ~kSingletScoreCard(){
+    if(mods!=NULL) delete [] mods;
+    next=NULL;
+    prev=NULL;
+  }
+  kSingletScoreCard& operator=(const kSingletScoreCard& k){
+    if(this!=&k){
+      len=k.len;
+      linkable=k.linkable;
+      k1=k.k1;
+      pep1=k.pep1;
+      simpleScore=k.simpleScore;
+      mass=k.mass;
+      modLen=k.modLen;
+      if(mods!=NULL) {
+        delete [] mods;
+        mods=NULL;
+      }
+      if(modLen>0){
+        mods=new kPepMod[modLen];
+        for(char i=0;i<modLen;i++) mods[i]=k.mods[i];
+      }
+      next=NULL;
+      prev=NULL;
+    }
+    return *this;
   }
 } kSingletScoreCard;
 
 typedef struct kSingletScoreCardPlus{
   char    len;
   bool    linkable;
-  int     k1;
+  char    k1;
   double  mass;
   int     pep1;
   int     rank;
   float   simpleScore;
+  int     target;
 } kSingletScoreCardPlus;
 
 typedef struct kPrecursor{ 
@@ -366,5 +482,29 @@ typedef struct kPrecursor{
     monoMass=0;
   }
 } kPrecursor;
+
+typedef struct kResults{
+  bool    decoy;
+  bool    linkable1;
+  bool    linkable2;
+  int     charge;
+  int     link1;
+  int     link2;
+  int     pep1;
+  int     pep2;
+  int     rank;
+  int     scanNumber;
+  int     type;
+  double  obsMass;
+  double  ppm;
+  double  psmMass;
+  double  score;
+  double  scoreDelta;
+  double  scorePepDif;
+  string  modPeptide1;
+  string  modPeptide2;
+  string  peptide1;
+  string  peptide2;
+} kResults;
 
 #endif

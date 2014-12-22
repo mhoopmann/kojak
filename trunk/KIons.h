@@ -18,6 +18,7 @@ limitations under the License.
 #define _KIONS_H
 
 #include "KStructs.h"
+#include "KIonSet.h"
 #include <vector>
 
 using namespace std;
@@ -30,12 +31,16 @@ typedef struct kModPos{
   double  modMass;    //total mod mass prior to this position
 } kModPos;
 
+typedef struct kModType{
+  bool    xl;
+  double  mass;
+} kModType;
+
 //max 10 mods per amino acid
 typedef struct kMod{
-  int     count;
-  double  mass[10];
+  int       count;
+  kModType  mod[10];
 } kMod;
-
 
 class KIons {
 public:
@@ -43,38 +48,38 @@ public:
   ~KIons();
 
   //Functions
-  void    addFixedMod       (char mod, double mass);
-  void    addMod            (char mod, double mass);
-  void    buildIons         (double linkMass, int link);
-  void    buildLoopIons     (double linkMass, int link1, int link2);
-  double  buildModIons      (double linkMass, int link);
-  void    buildNCIons       ();
-  void    buildSingletIons  (int link);
-  void    buildXIons        (double linkMass, int link1, int link2);
+  void      addFixedMod       (char mod, double mass);
+  void      addMod            (char mod, bool xl, double mass);
+  void      buildIons         ();
+  void      buildLoopIons     (double linkMass, int link1, int link2);
+  void      buildSingletIons  (int link);
+  void      modIonsRec        (int start, int link, int index, int depth, bool xl);
+  void      modLoopIonsRec    (int start, int link, int link2, int index, int depth, bool xl);
+  void      reset             ();
 
   //Accessors
+  KIonSet&  operator[ ]   (const int& i);
+  KIonSet*  at            (const int& i);
   int       getIonCount   ();
   double    getModMass    (int index);
   int       getModMassSize();
   double*   getMods       ();
   void      getPeptide    (bool bPepOne, char* seq);
+  int       getPeptideLen ();
   void      getPeptideMods(vector<kPepMod>& v);
+  int       size          ();
 
   //Modifiers
   void  setMaxModCount  (int i);
   void  setPeptide      (bool bPepOne, char* seq, int len, double mass);
 
   //Data Members
-  double  bIons[6][512];
-  double  yIons[6][512];
   double* modList;
 
 private:
 
-  void modMasses(double mass, int index, int count);
-
-  
-  double    tyIons[512];
+  void buildSeries(int setNum);
+  void clearSeries();
   
   double  aaMass[128];
   kMod    aaMod[128];   //inefficient memory usage, but not by much in the grand scheme.
@@ -93,10 +98,12 @@ private:
 
   vector<kModPos> modQueue;
   vector<double>  modMassArray;
+  vector<KIonSet> sets;
 
   //Utilities
   static int compareD(const void *p1,const void *p2);
 
 };
+
 
 #endif

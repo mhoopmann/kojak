@@ -15,39 +15,45 @@ limitations under the License.
 */
 
 #include "KSpectrum.h"
+#include <iostream>
 
 /*============================
   Constructors & Destructors
 ============================*/
-KSpectrum::KSpectrum(int i){
-  binSize=0.03;
+KSpectrum::KSpectrum(int i, double bs, double os){
+  binOffset=os;
+  binSize=bs;
   invBinSize=1.0/binSize;
   charge = 0; 
   maxIntensity=0;
   mz = 0;
   precursor = new vector<kPrecursor>;
-  spec = new vector<specPoint>;
+  spec = new vector<kSpecPoint>;
   scanNumber = 0;
   rTime = 0;
   xCorrArraySize=0;
   xCorrSparseArraySize=0;
   xCorrSparseArray=NULL;
-  topCount=i;
-  topSinglet = new kSingletScoreCard[topCount];
+  
+  singletCount=0;
+  singletFirst=NULL;
+  singletLast=NULL;
+  singletMax=i;
+
+  kojakSparseArray=NULL;
+  kojakBins=0;
 }
 
 KSpectrum::KSpectrum(const KSpectrum& p){
   unsigned int i;
   int j;
-  spec = new vector<specPoint>;
+  spec = new vector<kSpecPoint>;
   for(i=0;i<p.spec->size();i++) spec->push_back(p.spec->at(i));
   for(i=0;i<20;i++) topHit[i]=p.topHit[i];
-  topCount=p.topCount;
-  topSinglet = new kSingletScoreCard[topCount];
-  for(j=0;j<topCount;j++) topSinglet[j]=p.topSinglet[j];
   precursor = new vector<kPrecursor>;
   for(i=0;i<p.precursor->size();i++) precursor->push_back(p.precursor->at(i));
 
+  binOffset = p.binOffset;
   binSize = p.binSize;
   invBinSize = p.invBinSize;
   charge= p.charge;
@@ -58,19 +64,67 @@ KSpectrum::KSpectrum(const KSpectrum& p){
   xCorrArraySize = p.xCorrArraySize;
   xCorrSparseArraySize = p.xCorrSparseArraySize;
 
+  singletCount=p.singletCount;
+  singletMax=p.singletMax;
+  singletFirst=NULL;
+  singletLast=NULL;
+  kSingletScoreCard* sc=NULL;
+  kSingletScoreCard* tmp=p.singletFirst;
+  if(tmp!=NULL) {
+    singletFirst=new kSingletScoreCard(*tmp);
+    sc=singletFirst;
+    tmp=tmp->next;
+    while(tmp!=NULL){
+      sc->next=new kSingletScoreCard(*tmp);
+      sc->next->prev=sc;
+      sc=sc->next;
+      tmp=tmp->next;
+    }
+    singletLast=sc;
+  }
+
   if(p.xCorrSparseArray==NULL){
     xCorrSparseArray=NULL;
   } else {
     xCorrSparseArray = (kSparseMatrix *)calloc((size_t)xCorrSparseArraySize, (size_t)sizeof(kSparseMatrix));
     for(j=0;j<xCorrSparseArraySize;j++) xCorrSparseArray[j]=p.xCorrSparseArray[j];
   }
+
+  kojakBins=p.kojakBins;
+  if(p.kojakSparseArray==NULL){
+    kojakSparseArray=NULL;
+  } else {
+    for(j=0;j<kojakBins;j++){
+      if(p.kojakSparseArray[j]==NULL){
+        kojakSparseArray[j]=NULL;
+      } else {
+        kojakSparseArray[j] = new char[(int)invBinSize+1];
+        for(i=0;i<(unsigned int)invBinSize+1;i++) kojakSparseArray[j][i]=p.kojakSparseArray[j][i];
+      }
+    }
+  }
+
 }
   
 KSpectrum::~KSpectrum(){
   delete spec;
   delete precursor;
-  delete [] topSinglet;
   if(xCorrSparseArray!=NULL) free(xCorrSparseArray);
+
+  while(singletFirst!=NULL){
+    kSingletScoreCard* tmp=singletFirst;
+    singletFirst=singletFirst->next;
+    delete tmp;
+  }
+  singletLast=NULL;
+
+  int j;
+  if(kojakSparseArray!=NULL){
+    for(j=0;j<kojakBins;j++){
+      if(kojakSparseArray[j]!=NULL) delete [] kojakSparseArray[j];
+    }
+    delete [] kojakSparseArray;
+  }
 }
 
 
@@ -82,17 +136,14 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
     unsigned int i;
     int j;
     delete spec;
-    spec = new vector<specPoint>;
+    spec = new vector<kSpecPoint>;
     for(i=0;i<p.spec->size();i++) spec->push_back(p.spec->at(i));
     for(i=0;i<20;i++) topHit[i]=p.topHit[i];
-    topCount=p.topCount;
-    delete [] topSinglet;
-    topSinglet = new kSingletScoreCard[p.topCount];
-    for(j=0;j<p.topCount;j++) topSinglet[j]=p.topSinglet[j];
     delete precursor;
     precursor = new vector<kPrecursor>;
     for(i=0;i<p.precursor->size();i++) precursor->push_back(p.precursor->at(i));
 
+    binOffset = p.binOffset;
     binSize = p.binSize;
     invBinSize = p.invBinSize;
     charge = p.charge;
@@ -103,6 +154,25 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
     xCorrArraySize = p.xCorrArraySize;
     xCorrSparseArraySize = p.xCorrSparseArraySize;
 
+    singletCount=p.singletCount;
+    singletMax=p.singletMax;
+    singletFirst=NULL;
+    singletLast=NULL;
+    kSingletScoreCard* sc=NULL;
+    kSingletScoreCard* tmp=p.singletFirst;
+    if(tmp!=NULL) {
+      singletFirst=new kSingletScoreCard(*tmp);
+      sc=singletFirst;
+      tmp=tmp->next;
+      while(tmp!=NULL){
+        sc->next=new kSingletScoreCard(*tmp);
+        sc->next->prev=sc;
+        sc=sc->next;
+        tmp=tmp->next;
+      }
+      singletLast=sc;
+    }
+
     if(xCorrSparseArray!=NULL) free(xCorrSparseArray);
     if(p.xCorrSparseArray==NULL){
       xCorrSparseArray=NULL;
@@ -110,11 +180,31 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
       xCorrSparseArray = (kSparseMatrix *)calloc((size_t)xCorrSparseArraySize, (size_t)sizeof(kSparseMatrix));
       for(j=0;j<xCorrSparseArraySize;j++) xCorrSparseArray[j]=p.xCorrSparseArray[j];
     }
+    
+    if(kojakSparseArray!=NULL){
+      for(j=0;j<kojakBins;j++){
+        if(kojakSparseArray[j]!=NULL) delete [] kojakSparseArray[j];
+      }
+      delete [] kojakSparseArray;
+    }
+    kojakBins=p.kojakBins;
+    if(p.kojakSparseArray==NULL){
+      kojakSparseArray=NULL;
+    } else {
+      for(j=0;j<kojakBins;j++){
+        if(p.kojakSparseArray[j]==NULL){
+          kojakSparseArray[j]=NULL;
+        } else {
+          kojakSparseArray[j] = new char[(int)invBinSize+1];
+          for(i=0;i<(unsigned int)invBinSize+1;i++) kojakSparseArray[j][i]=p.kojakSparseArray[j][i];
+        }
+      }
+    }
   }
   return *this;
 }
 
-specPoint& KSpectrum::operator [](const int &i){
+kSpecPoint& KSpectrum::operator [](const int &i){
   return spec->at(i);
 }
 
@@ -122,6 +212,10 @@ specPoint& KSpectrum::operator [](const int &i){
 /*============================
   Accessors
 ============================*/
+double KSpectrum::getBinOffset(){
+  return binOffset;
+}
+
 int KSpectrum::getCharge(){
   return charge;
 }
@@ -142,6 +236,10 @@ kPrecursor& KSpectrum::getPrecursor(int i){
   return precursor->at(i);
 }
 
+kPrecursor* KSpectrum::getPrecursor2(int i){
+  return &precursor->at(i);
+}
+
 float KSpectrum::getRTime(){
   return rTime;
 }
@@ -154,8 +252,20 @@ kScoreCard& KSpectrum::getScoreCard(int i){
   return topHit[i];
 }
 
+int KSpectrum::getSingletCount(){
+  return singletCount;
+}
+
 kSingletScoreCard& KSpectrum::getSingletScoreCard(int i){
-  return topSinglet[i];
+  if(i>=singletCount) return *singletLast;
+  kSingletScoreCard* sc=singletFirst;
+  int j=0;
+  while(j<i){
+    if(sc->next==NULL) break;
+    sc=sc->next;
+    j++;
+  }
+  return *sc;
 }
 
 int KSpectrum::size(){
@@ -170,7 +280,7 @@ int KSpectrum::sizePrecursor(){
 /*============================
   Modifiers
 ============================*/
-void KSpectrum::addPoint(specPoint& s){
+void KSpectrum::addPoint(kSpecPoint& s){
   spec->push_back(s);
 }
 
@@ -210,34 +320,129 @@ void KSpectrum::checkScore(kScoreCard& s){
   unsigned int i;
   unsigned int j;
 
+  //for(i=0;i<20;i++){
+  //  cout << "score " << i << ":\t" << topHit[i].simpleScore << endl;
+  //}
+
   for(i=0;i<20;i++){
+    //cout << i << "\t" << topHit[i].simpleScore << endl;
     if(s.simpleScore > topHit[i].simpleScore) {
-      for(j=19;j>i;j--) topHit[j]=topHit[j-1];
+      //cout << "change" << endl;
+      for(j=19;j>i;j--) {
+        //cout << j << "\t" << topHit[j].simpleScore << endl;
+        topHit[j]=topHit[j-1];
+        //cout << "copy done" << endl;
+      }
+      //cout << "set" << endl;
       topHit[i] = s;
+      //cout << "done" << endl;
       return;
     }
   }
 }
 
 void KSpectrum::checkSingletScore(kSingletScoreCard& s){
-  int i;
-  int j;
 
-  for(i=0;i<topCount;i++){
-    if(s.simpleScore > topSinglet[i].simpleScore) {
-      for(j=topCount-1;j>i;j--) topSinglet[j]=topSinglet[j-1];
-      topSinglet[i] = s;
-      return;
-    }
+  kSingletScoreCard* sc;
+  kSingletScoreCard* cur;
+
+  //if(scanNumber==7653) cout << "SCAN NUMBER: " << scanNumber << "\t" << singletCount << endl;
+  
+  //If list is empty, add the score card
+  if(singletCount==0){
+    //if(scanNumber==7653) cout << "First time: " << s.simpleScore << endl;
+    singletFirst=new kSingletScoreCard(s);
+    singletLast=singletFirst;
+    singletCount++;
+    //if(scanNumber==7653) cout << "New Count: " << singletCount << endl;
+    return;
+  }  
+
+  //check if we can just add to the end
+  if(s.simpleScore<singletLast->simpleScore){
+    //if(scanNumber==7653) cout << "Tail end " << s.simpleScore << " < " << singletLast->simpleScore << endl;
+    //check if we need to store the singlet
+    if(singletCount==singletMax) return;
+
+    singletLast->next=new kSingletScoreCard(s);
+    singletLast->next->prev=singletLast;
+    singletLast=singletLast->next;
+    singletCount++;
+    return;
   }
+  
+  //check if it goes in the front
+  if(s.simpleScore>=singletFirst->simpleScore){
+    //if(scanNumber==7653) cout << "First " << s.simpleScore << " >= " << singletFirst->simpleScore << endl;
+
+    singletFirst->prev=new kSingletScoreCard(s);
+    singletFirst->prev->next=singletFirst;
+    singletFirst=singletFirst->prev;
+    if(singletCount<singletMax) {
+      singletCount++;
+      //if(scanNumber==7653) cout << "New count: " << singletCount  << endl;
+    } else {
+      //if(scanNumber==7653) cout << "Delteting" << endl;
+      cur=singletLast;
+      singletLast=singletLast->prev;
+      singletLast->next=NULL;
+      delete cur;
+    }
+    return;
+  }
+
+
+  //scan to find insertion point
+  
+  //if(scanNumber==7653) {
+  //  cout << "The List: " << endl;
+  //  cur = singletFirst;
+  //  while(cur!=NULL) {
+  //    cout << "\t" << cur->simpleScore << "\t" << cur << endl;
+  //    cur=cur->next;
+  //  }
+  //}
+  
+
+  //if(scanNumber==7653) cout << "Iterating from " << singletCount << endl;
+  cur = singletFirst->next;
+  int i=1;
+  while(s.simpleScore < cur->simpleScore){
+    i++;
+    //if(scanNumber==7653) cout << i << "\t" << s.simpleScore << "\t" << cur->simpleScore << endl;
+    cur=cur->next;
+    //if(cur==NULL) cout << "We have a problem" << endl;
+  }
+
+  //if(scanNumber==7653) cout << "Adding " << s.simpleScore << " before: " << i+1 << "\t" << cur->simpleScore << endl;
+  sc=new kSingletScoreCard(s);
+  sc->prev=cur->prev;
+  sc->next=cur;
+  cur->prev->next=sc;
+  cur->prev=sc;
+  if(sc->prev==NULL) singletFirst=sc;
+  if(singletCount<singletMax) {
+    singletCount++;
+    //if(scanNumber==7653) cout << "New count: " << singletCount  << endl;
+  } else {
+    //if(scanNumber==7653) cout << "Delteting" << endl;
+    cur=singletLast;
+    singletLast=singletLast->prev;
+    singletLast->next=NULL;
+    delete cur;
+  }
+
+  //if(scanNumber==7653) cout << "Done!" << endl;
+
 }
 
 void KSpectrum::sortMZ(){
-  qsort(&spec->at(0),spec->size(),sizeof(specPoint),compareMZ);
+  qsort(&spec->at(0),spec->size(),sizeof(kSpecPoint),compareMZ);
 }
 
-void KSpectrum::xCorrScore(){
-  CometXCorr();
+void KSpectrum::xCorrScore(bool b){
+  if(b) CometXCorr();
+  else  kojakXCorr();
 }
 
 
@@ -279,28 +484,28 @@ void KSpectrum::CometXCorr(){
   }
 
   // Create data for correlation analysis.
-  MakeCorrData(pdTempRawData, &pPre);
+  MakeCorrData(pdTempRawData, &pPre, 50.0);
 
   // Make fast xcorr spectrum.
   dSum=0.0;
-  for (i=0; i<75; i++) dSum += pPre.pdCorrelationData[i];
+  for (i=0; i<75; i++) dSum += pPre.pdCorrelationData[i].intensity;
   for (i=75; i < xCorrArraySize +75; i++) {
-    if (i<xCorrArraySize) dSum += pPre.pdCorrelationData[i];
-    if (i>=151) dSum -= pPre.pdCorrelationData[i-151];
-    pdTmpFastXcorrData[i-75] = (dSum - pPre.pdCorrelationData[i-75])* 0.0066666667;
+    if (i<xCorrArraySize) dSum += pPre.pdCorrelationData[i].intensity;
+    if (i>=151) dSum -= pPre.pdCorrelationData[i-151].intensity;
+    pdTmpFastXcorrData[i-75] = (dSum - pPre.pdCorrelationData[i-75].intensity)* 0.0066666667;
   }
 
   xCorrSparseArraySize=1;
   for (i=0; i<xCorrArraySize; i++) {
-    dTmp = pPre.pdCorrelationData[i] - pdTmpFastXcorrData[i];
+    dTmp = pPre.pdCorrelationData[i].intensity - pdTmpFastXcorrData[i];
     pfFastXcorrData[i] = (float)dTmp;
 
     // Add flanking peaks if used
     iTmp = i-1;
-    if (iTmp >= 0) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp] - pdTmpFastXcorrData[iTmp])*0.5);
+    if (iTmp >= 0) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
 
     iTmp = i+1;
-    if (iTmp < xCorrArraySize) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp] - pdTmpFastXcorrData[iTmp])*0.5);
+    if (iTmp < xCorrArraySize) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
 
     //MH: Count number of sparse entries needed
     if (i>0 && pfFastXcorrData[i] != pfFastXcorrData[i-1]) xCorrSparseArraySize++;
@@ -324,7 +529,9 @@ void KSpectrum::CometXCorr(){
   xCorrSparseArray[0].bin=0;
   xCorrSparseArray[0].fIntensity=0;
   j=1;
+
   for (i=1; i<xCorrArraySize; i++){
+
     if (pfFastXcorrData[i] != pfFastXcorrData[i-1]){
       xCorrSparseArray[j].bin = i;
       xCorrSparseArray[j++].fIntensity = pfFastXcorrData[i];
@@ -333,6 +540,139 @@ void KSpectrum::CometXCorr(){
   xCorrSparseArray[j].bin=i;
   xCorrSparseArray[j].fIntensity=0;
 
+  free(pfFastXcorrData);
+  free(pdTempRawData);
+
+}
+
+void KSpectrum::kojakXCorr(){
+  int i;
+  int j;
+  int iTmp;
+  double dTmp;
+  double dSum;
+  double *pdTempRawData;
+  double *pdTmpFastXcorrData;
+  float  *pfFastXcorrData;
+  kPreprocessStruct pPre;
+
+  pPre.iHighestIon = 0;
+  pPre.dHighestIntensity = 0;
+
+  BinIons(&pPre);
+  //cout << scanNumber << ": " << kojakBins << "\t" << xCorrArraySize << "\t" << invBinSize << "\t" << (int)invBinSize+1 << endl;
+  kojakSparseArray=new char*[kojakBins];
+  for(i=0;i<kojakBins;i++) kojakSparseArray[i]=NULL;
+
+  pdTempRawData = (double *)calloc((size_t)xCorrArraySize, (size_t)sizeof(double));
+  if (pdTempRawData == NULL) {
+    fprintf(stderr, " Error - calloc(pdTempRawData[%d]).\n\n", xCorrArraySize);
+    exit(1);
+  }
+
+  pdTmpFastXcorrData = (double *)calloc((size_t)xCorrArraySize, (size_t)sizeof(double));
+  if (pdTmpFastXcorrData == NULL) {
+    fprintf(stderr, " Error - calloc(pdTmpFastXcorrData[%d]).\n\n", xCorrArraySize);
+    exit(1);
+  }
+
+  pfFastXcorrData = (float *)calloc((size_t)xCorrArraySize, (size_t)sizeof(float));
+  if (pfFastXcorrData == NULL) {
+    fprintf(stderr, " Error - calloc(pfFastXcorrData[%d]).\n\n", xCorrArraySize);
+    exit(1);
+  }
+
+  // Create data for correlation analysis.
+  MakeCorrData(pdTempRawData, &pPre, 50.0);
+
+  // Make fast xcorr spectrum.
+  dSum=0.0;
+  for (i=0; i<75; i++) dSum += pPre.pdCorrelationData[i].intensity;
+  for (i=75; i < xCorrArraySize +75; i++) {
+    if (i<xCorrArraySize) dSum += pPre.pdCorrelationData[i].intensity;
+    if (i>=151) dSum -= pPre.pdCorrelationData[i-151].intensity;
+    pdTmpFastXcorrData[i-75] = (dSum - pPre.pdCorrelationData[i-75].intensity)* 0.0066666667;
+  }
+
+  xCorrSparseArraySize=1;
+  for (i=0; i<xCorrArraySize; i++) {
+    dTmp = pPre.pdCorrelationData[i].intensity - pdTmpFastXcorrData[i];
+    pfFastXcorrData[i] = (float)dTmp;
+
+    // Add flanking peaks if used
+    iTmp = i-1;
+    if (iTmp >= 0) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
+
+    iTmp = i+1;
+    if (iTmp < xCorrArraySize) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
+
+  }
+  free(pdTmpFastXcorrData);
+
+  //MH: Fill sparse matrix
+  for(i=0;i<xCorrArraySize;i++){
+    if(pfFastXcorrData[i]>0.5 || pfFastXcorrData[i]<-0.5){
+
+      //Fill in missing masses as a result of adding flanking peaks
+      if(pPre.pdCorrelationData[i].mass==0){
+        j=1;
+        while(true){
+          if( (i+j)<xCorrArraySize){
+            if(pPre.pdCorrelationData[i+j].mass>0){
+              pPre.pdCorrelationData[i].mass=pPre.pdCorrelationData[i+j].mass-j*binSize;
+              break;
+            }
+          }
+          if( (i-j)>-1){
+            if(pPre.pdCorrelationData[i-j].mass>0){
+              pPre.pdCorrelationData[i].mass=pPre.pdCorrelationData[i-j].mass+j*binSize;
+              break;
+            }
+          }
+          j++;
+        }
+      }
+
+      //convert i to sparse array key
+      //dTmp=pPre.pdCorrelationData[i].mass+binSize*binOffset;
+      dTmp=binSize*i;
+      iTmp=(int)dTmp;
+      //cout << i << "\t" << pfFastXcorrData[i] << "\t" << dTmp << "\t" << iTmp << endl;
+      if(kojakSparseArray[iTmp]==NULL) {
+        kojakSparseArray[iTmp]=new char[(int)invBinSize+1];
+        for(j=0;j<(int)invBinSize+1;j++) kojakSparseArray[iTmp][j]=0;
+      }
+      j=(int)((dTmp-iTmp)*invBinSize/*+0.5*/);
+      //cout << (dTmp-iTmp) << "\t" << (dTmp-iTmp)*invBinSize/*+0.5*/ << endl;
+      //cout << j << endl;
+      //if( j>(int)invBinSize) {
+      //  cout << "ERROR!" << endl;
+      //  exit(0);
+      //}
+      if(pfFastXcorrData[i]>127) kojakSparseArray[iTmp][j]=127;
+      else if(pfFastXcorrData[i]<-128) kojakSparseArray[iTmp][j]=-128;
+      else if(pfFastXcorrData[i]>0) kojakSparseArray[iTmp][j]=(char)(pfFastXcorrData[i]+0.5);
+      else kojakSparseArray[iTmp][j]=(char)(pfFastXcorrData[i]-0.5);
+      //cout << i << "\t" << iTmp << "\t" << j << "\t" << (int)kojakSparseArray[iTmp][j] << endl;
+    }
+  }
+
+  /*
+  if(scanNumber==11368){
+    for(i=0;i<kojakBins;i++){
+      if(kojakSparseArray[i]==NULL) {
+        cout << i << "\tNULL" << endl;
+        continue;
+      }
+      for(j=0;j<(int)invBinSize+1;j++){
+        cout << i << "\t" << j << "\t" << (int)kojakSparseArray[i][j] << endl;
+      }
+    }
+  }
+  */
+
+  //exit(1);
+  free(pPre.pdCorrelationData);
   free(pfFastXcorrData);
   free(pdTempRawData);
 
@@ -351,8 +691,9 @@ void KSpectrum::BinIons(kPreprocessStruct *pPre) {
     if(precursor->at(j).monoMass>dPrecursor) dPrecursor=precursor->at(j).monoMass;
   }
   xCorrArraySize = (int)((dPrecursor + 100.0) / binSize);
+  kojakBins = (int)(spec->at(spec->size()-1).mass+100.0);
 
-  pPre->pdCorrelationData = (double *)calloc(xCorrArraySize, (size_t)sizeof(double));
+  pPre->pdCorrelationData = (kSpecPoint *)calloc(xCorrArraySize, (size_t)sizeof(kSpecPoint));
   if (pPre->pdCorrelationData == NULL) {
     fprintf(stderr, " Error - calloc(pdCorrelationData[%d]).\n\n", xCorrArraySize);
     exit(1);
@@ -369,14 +710,17 @@ void KSpectrum::BinIons(kPreprocessStruct *pPre) {
     if (dIntensity > 0.0) {
       if (dIon < (dPrecursor + 50.0)) {
 
-        //#define BIN(dMass) (int)(dMass*invBinSize + 1.0)
-        int iBinIon = (int)(dIon*invBinSize+1.0); //Why +1.0?
+        //#define BIN(dMass) (int)(dMass*invBinSize + binOffset)
+        int iBinIon = (int)(dIon*invBinSize+binOffset);
         dIntensity = sqrt(dIntensity);
         if (iBinIon > pPre->iHighestIon) pPre->iHighestIon = iBinIon;
 
-        if ((iBinIon < xCorrArraySize) && (dIntensity > pPre->pdCorrelationData[iBinIon])) {
-          if (dIntensity > pPre->pdCorrelationData[iBinIon]) pPre->pdCorrelationData[iBinIon] = dIntensity;
-          if (pPre->pdCorrelationData[iBinIon] > pPre->dHighestIntensity) pPre->dHighestIntensity = pPre->pdCorrelationData[iBinIon];    
+        if ((iBinIon < xCorrArraySize) && (dIntensity > pPre->pdCorrelationData[iBinIon].intensity)) {
+          if (dIntensity > pPre->pdCorrelationData[iBinIon].intensity) {
+            pPre->pdCorrelationData[iBinIon].intensity = (float)dIntensity;
+            pPre->pdCorrelationData[iBinIon].mass = dIon;
+          }
+          if (pPre->pdCorrelationData[iBinIon].intensity > pPre->dHighestIntensity) pPre->dHighestIntensity = pPre->pdCorrelationData[iBinIon].intensity;    
         }
       }
     }
@@ -388,7 +732,7 @@ void KSpectrum::BinIons(kPreprocessStruct *pPre) {
 }
 
 // pdTempRawData now holds raw data, pdCorrelationData is windowed data.
-void KSpectrum::MakeCorrData(double *pdTempRawData, kPreprocessStruct *pPre){
+void KSpectrum::MakeCorrData(double *pdTempRawData, kPreprocessStruct *pPre, double scale){
   int  i;
   int  ii;
   int  iBin;
@@ -406,8 +750,8 @@ void KSpectrum::MakeCorrData(double *pdTempRawData, kPreprocessStruct *pPre){
   if (pPre->dHighestIntensity > 0.000001) dTmp1 = 100.0 / pPre->dHighestIntensity;
 
   for (i=0; i < xCorrArraySize; i++) {
-    pdTempRawData[i] = pPre->pdCorrelationData[i]*dTmp1;
-    pPre->pdCorrelationData[i]=0.0;
+    pdTempRawData[i] = pPre->pdCorrelationData[i].intensity*dTmp1;
+    pPre->pdCorrelationData[i].intensity=0.0;
     if (dMaxOverallInten < pdTempRawData[i]) dMaxOverallInten = pdTempRawData[i];
   }
 
@@ -423,13 +767,13 @@ void KSpectrum::MakeCorrData(double *pdTempRawData, kPreprocessStruct *pPre){
     }
 
     if (dMaxWindowInten > 0.0) {
-      dTmp1 = 50.0 / dMaxWindowInten;
+      dTmp1 = scale / dMaxWindowInten;
       dTmp2 = 0.05 * dMaxOverallInten;
 
       for (ii=0; ii<iWindowSize; ii++){    // Normalize to max inten. in window.      
         iBin = i*iWindowSize+ii;
         if (iBin < xCorrArraySize){
-          if (pdTempRawData[iBin] > dTmp2) pPre->pdCorrelationData[iBin] = pdTempRawData[iBin]*dTmp1;
+          if (pdTempRawData[iBin] > dTmp2) pPre->pdCorrelationData[iBin].intensity = (float)(pdTempRawData[iBin]*dTmp1);
         }
       }
     }
@@ -442,16 +786,16 @@ void KSpectrum::MakeCorrData(double *pdTempRawData, kPreprocessStruct *pPre){
   Utilities
 ============================*/
 int KSpectrum::compareIntensity(const void *p1, const void *p2){
-  const specPoint d1 = *(specPoint *)p1;
-  const specPoint d2 = *(specPoint *)p2;
+  const kSpecPoint d1 = *(kSpecPoint *)p1;
+  const kSpecPoint d2 = *(kSpecPoint *)p2;
   if(d1.intensity<d2.intensity) return -1;
   else if(d1.intensity>d2.intensity) return 1;
   else return 0;
 }
 
 int KSpectrum::compareMZ(const void *p1, const void *p2){
-  const specPoint d1 = *(specPoint *)p1;
-  const specPoint d2 = *(specPoint *)p2;
+  const kSpecPoint d1 = *(kSpecPoint *)p1;
+  const kSpecPoint d2 = *(kSpecPoint *)p2;
   if(d1.mass<d2.mass) return -1;
   else if(d1.mass>d2.mass) return 1;
   else return 0;

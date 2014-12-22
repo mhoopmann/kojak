@@ -35,6 +35,10 @@ typedef struct kRTProfile{
   float rt;
 } kRTProfile;
 
+typedef struct kScanBin{
+  int   index;
+  float intensity;
+} kScanBin;
 
 class KPrecursor {
 public:
@@ -43,13 +47,12 @@ public:
   ~KPrecursor();
 
   bool  estimatePrecursor (KSpectrum& s);
-  bool  getSpecRange      (KSpectrum& s);
+  bool  getSpecRange      (KSpectrum& pls);
   bool  setFile           ();
 
 private:
 
   //Functions
-  void    averageScansBin       (vector<Spectrum*>& s, Spectrum& avg, double min, double max);
   void    averageScansCentroid  (vector<Spectrum*>& s, Spectrum& avg, double min, double max);
   void    centroid              (Spectrum& s, Spectrum& out, double resolution, int instrument=0);
   int     findPeak              (Spectrum& s, double mass);
@@ -73,13 +76,13 @@ private:
   CHardklorSetting hs4;
   CHardklorVariant hv;
 
-  deque<Spectrum>*  scanBuf;
   deque<Spectrum>*  centBuf;
 
   kParams*   params;
 
   //Utilities
-  static int    comparePLPScanNum(const void *p1, const void *p2);
+  static int    comparePLPScanNum (const void *p1, const void *p2);
+  static int    compareScanBinRev (const void *p1, const void *p2);
 
 };
 
