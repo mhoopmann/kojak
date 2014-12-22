@@ -16,6 +16,9 @@ limitations under the License.
 
 #include "KDB.h"
 
+//==============================
+//  Constructors & Destructors
+//==============================
 KDatabase::KDatabase(){
   AA['a']=AA['A']=71.0371103;
   AA['c']=AA['C']=103.0091803;
@@ -37,14 +40,26 @@ KDatabase::KDatabase(){
   AA['v']=AA['V']=99.0684087;
   AA['w']=AA['W']=186.0793065;
   AA['y']=AA['Y']=163.0633228;
+
+  setA=0;
+  setB=0;
 }
 
+//==============================
+//  Operators
+//==============================
 kDB& KDatabase::operator[ ](const int& i){
   return vDB[i];
 }
 
+//==============================
+//  User Functions
+//==============================
+
+//buildDB reads in a FASTA file and stores it in memory.
 bool  KDatabase::buildDB(char* fname) {
-  char    str[1024];
+  char    str[10240];
+  char*   tok;
   FILE*   f;
   kDB    d;
 
@@ -55,18 +70,11 @@ bool  KDatabase::buildDB(char* fname) {
   f=fopen(fname,"rt");
   if(f==NULL) return false;
   while(!feof(f)){
-    fgets(str,1024,f);
-    if(feof(f)) continue;
-    while(strlen(str)>0){
-      if(str[strlen(str)-1]=='\n') {
-        str[strlen(str)-1]='\0';
-        continue;
-      }
-      if(str[strlen(str)-1]==' ') {
-        str[strlen(str)-1]='\0';
-        continue;
-      }
-      break;
+    if(fgets(str,10240,f)==NULL) continue;
+    if(strlen(str)>0){
+      tok=strtok(str,"\r\n");
+      if(tok==NULL) continue;
+      strcpy(str,tok);
     }
     if(str[0]=='>') {
       if(d.name.compare("NIL")!=0) {
@@ -95,8 +103,9 @@ bool  KDatabase::buildDB(char* fname) {
   return true;
 }
 
+
+//buildPeptides creates lists of peptides to search based on the user-defined enzyme rules
 bool  KDatabase::buildPeptides(double min, double max, int mis){
-  //char str[256];
 
   double mass;
 
@@ -118,7 +127,6 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
   vPepK.clear();
 
   for(i=0;i<DBSize;i++){
-
     seqSize=vDB[i].sequence.size();
     start=0;
     n=0;
@@ -128,7 +136,8 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
     next=0; //allow for next start site to be amino acid after initial M.
 
     pm.index=i;
-    p.vK->clear();
+    p.vA->clear();
+    p.vB->clear();
 
     while(true){
 
@@ -136,12 +145,12 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
       if((start+n)==seqSize) {
         //Add to database
         if(mass>min && mass<max) {
-        p.mass=mass;
+          p.mass=mass;
           pm.start=start;
           pm.stop=start+n;
           p.map->clear();
           p.map->push_back(pm);
-          if(p.vK->size()>0) vPepK.push_back(p);
+          if(p.vA->size()>0 || p.vB->size()>0) vPepK.push_back(p);
           else vPep.push_back(p);
         }
         if(next==-1) break;
@@ -149,46 +158,58 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         n=0;
         mc=0;
         mass=18.0105633;
-        p.vK->clear();
+        p.vA->clear();
+        p.vB->clear();
         next=-1;
         continue;
       }
 
-      //add amino acid mass
-      mass+=AA[vDB[i].sequence[start+n]];
+      //Mark sites of cross-linker attachment (if searching for cross-links)
+      if(setA>0) checkAA(p,setA,1,i,start,n,seqSize);
+      if(setB>0) checkAA(p,setB,2,i,start,n,seqSize);
 
-      //mark position if a lysine is the current aa
-      if(vDB[i].sequence[start+n]=='K') p.vK->push_back(start+n);
-      else if(start+n==0) p.vK->push_back(start+n); //mark N-terminus, too
-      else if(start+n==1 && start==1) p.vK->push_back(start+n); //mark Met-removed N-terminus, too
-				
-			//skip non-tryptic peptides (ignoring proline rule)
-      if(vDB[i].sequence[start+n]!='K' && vDB[i].sequence[start+n]!='R') {
-        n++;
-        continue;
-      } else {
+      //Check if we found an enzyme cut site. Also add the amino acid mass if cutting C-terminal or not at all.
+      if(n>0 && enzyme.cutN[vDB[i].sequence[start+n]] && !enzyme.exceptC[vDB[i].sequence[start+n-1]]){
+        if(next==-1) next=start+n-1;
+        mc++;
+      } else if((start+n+1)<seqSize && enzyme.cutC[vDB[i].sequence[start+n]] && !enzyme.exceptN[vDB[i].sequence[start+n+1]]){
+        mass+=AA[vDB[i].sequence[start+n]];
         if(next==-1) next=start+n;
         mc++;
+      } else {
+        mass+=AA[vDB[i].sequence[start+n]];
+        n++;
+        continue;
       }
  
+      //If we got here, it was because we reached a cleavage point
+      //If the peptide is in our boundaries, add it to the database.
       if(mass>min && mass<max && (mc-1)<=mis){
-        //Add to database
         p.mass=mass;
         pm.start=start;
         pm.stop=start+n;
         p.map->clear();
         p.map->push_back(pm);
-        if(vDB[i].sequence[start+n]=='K' && start+n!=seqSize-1) {
+        if(vDB[i].sequence[start+n]=='K' && start+n!=seqSize-1 && (setA==1 || setB==1)) {
           //unmark last lysine if it is the peptide cut site, unless it is the C-terminus
-          tmp=p.vK->at(p.vK->size()-1);
-          p.vK->pop_back();
-          if(p.vK->size()>0) vPepK.push_back(p);
+          if(setA==1){
+            tmp=p.vA->at(p.vA->size()-1);
+            p.vA->pop_back();
+          } else {    
+            tmp=p.vB->at(p.vB->size()-1);
+            p.vB->pop_back();
+          }
+          if(p.vA->size()>0 || p.vB->size()>0) vPepK.push_back(p);
           else vPep.push_back(p);
-          p.vK->push_back(tmp); //add it back for when peptide continues to build
+    
+          //add it back for when peptide continues to build
+          if(setA==1) p.vA->push_back(tmp); 
+          else p.vB->push_back(tmp);
+
         } else if(start+n!=seqSize-1) {
           //add c-terminal peptides to the database on the next iteration
           //otherwise, add this non-c-terminal peptide now.
-          if(p.vK->size()>0) vPepK.push_back(p);
+          if(p.vA->size()>0 || p.vB->size()>0) vPepK.push_back(p);
           else vPep.push_back(p);
         }
 
@@ -196,26 +217,30 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         continue;
       }
 
-      //When we reach the max peptide
+      //When we reach the max peptide mass or missed cleavage max
       if(mass>max || mc>mis ) {
 
-        //if we know next K or R
+        //if we know next cut site
         if(next>-1) {
           start=next+1;
           n=0;
           mc=0;
           mass=18.0105633;
-          p.vK->clear();
+          p.vA->clear();
+          p.vB->clear();
           next=-1;
 
         //Otherwise, continue scanning until it is found
         } else {
           while((start+n)<seqSize-1){
             n++;
-            if(vDB[i].sequence[start+n]=='K' && vDB[i].sequence[start+n]=='R') {
+            if(n>0 && enzyme.cutN[vDB[i].sequence[start+n]] && !enzyme.exceptC[vDB[i].sequence[start+n-1]]){
+              next=start+n-1;
+              break;
+            } else if((start+n+1)<seqSize && enzyme.cutC[vDB[i].sequence[start+n]] && !enzyme.exceptN[vDB[i].sequence[start+n+1]]){
               next=start+n;
               break;
-            }
+            } 
           }
           if(next<0) break;
 
@@ -223,7 +248,8 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
           n=0;
           mc=0;
           mass=18.0105633;
-          p.vK->clear();
+          p.vA->clear();
+          p.vB->clear();
           next=-1;
         }  
       } else {
@@ -294,14 +320,14 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
   for(i=0;i<vPep.size();i++){
     getPeptideSeq(vPep[i].map->at(0).index,vPep[i].map->at(0).start,vPep[i].map->at(0).stop,str);
     cout << i << ", " << vPep[i].mass << "\t" << str;
-    for(k=0;k<vPep[i].vK->size();k++) cout << "\t" << vPep[i].vK->at(k);
+    for(k=0;k<vPep[i].vA->size();k++) cout << "\t" << vPep[i].vA->at(k);
     cout << endl;
-    if(i==10) break;
+    //if(i==10) break;
   }
   for(i=0;i<vPepK.size();i++){
     getPeptideSeq(vPepK[i].map->at(0).index,vPepK[i].map->at(0).start,vPepK[i].map->at(0).stop,str);
     cout << i << ", " << vPepK[i].mass << "\t" << str;
-    for(k=0;k<vPepK[i].vK->size();k++) cout << "\t" << vPepK[i].vK->at(k);
+    for(k=0;k<vPepK[i].vA->size();k++) cout << "\t" << vPepK[i].vA->at(k);
     cout << endl;
     //if(i==10) break;
   }
@@ -312,6 +338,8 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
 }
 
+//Deprecated function for counting number of cross-link combinations.
+//Only correct when counting K-K linkages.
 void KDatabase::combo(){
   qsort(&vPep[0],vPep.size(),sizeof(kPeptide),compareMass);
   unsigned int i,j,k;
@@ -333,17 +361,17 @@ void KDatabase::combo(){
   }
   cout << "Combos to check: " << k << endl;
 
-
-  /*
-  for(i=0;i<vPep.size();i++){
-    getPeptideSeq(vPep[i].index,vPep[i].start,vPep[i].stop,str);
-    cout << vPep[i].mass << "\t" << str << endl;
-  }
-  */
 }
 
+//==============================
+//  Accessors & Modifiers
+//==============================
 void KDatabase::addFixedMod(char mod, double mass){
   AA[mod]+=mass;
+}
+
+kDB& KDatabase::at(const int& i){
+  return vDB[i];
 }
 
 kPeptide& KDatabase::getPeptide(int index, bool linkable){
@@ -351,9 +379,9 @@ kPeptide& KDatabase::getPeptide(int index, bool linkable){
   else return vPep[index];
 }
 
-vector<kPeptide>& KDatabase::getPeptideList(bool linkable){
-  if(linkable) return vPepK;
-  else return vPep;
+vector<kPeptide>* KDatabase::getPeptideList(bool linkable){
+  if(linkable) return &vPepK;
+  else return &vPep;
 }
 
 int KDatabase::getPeptideListSize(bool linkable){
@@ -380,6 +408,109 @@ bool KDatabase::getPeptideSeq(kPeptide& p, string& str){
   return true;
 }
 
+bool KDatabase::setEnzyme(char* str){
+  bool stateNTerm=false;
+  int stateRule=0;
+
+  unsigned int i;
+  for(i=0;i<128;i++){
+    enzyme.cutC[i]=enzyme.cutN[i]=enzyme.exceptC[i]=enzyme.exceptN[i]=false;
+  }
+
+  for(i=0;i<strlen(str);i++){
+    switch(str[i]){
+      case '[':
+        if(stateRule>0){
+          cout << "Error in enzyme string: " << str << endl;
+          return false;
+        }
+        stateRule=1;
+        break;
+      case ']':
+        if(stateRule!=1){
+          cout << "Error in enzyme string: " << str << endl;
+          return false;
+        }
+        stateRule=0;
+        break;
+      case '{':
+        if(stateRule>0){
+          cout << "Error in enzyme string: " << str << endl;
+          return false;
+        }
+        stateRule=2;
+        break;
+      case '}':
+        if(stateRule!=2){
+          cout << "Error in enzyme string: " << str << endl;
+          return false;
+        }
+        stateRule=0;
+        break;
+      case '|':
+        if(stateNTerm) {
+          cout << "Error in enzyme string: " << str << endl;
+          return false;
+        }
+        stateNTerm=true;
+        break;
+      default:
+        if(stateRule==0){
+          cout << "Error in enzyme string: " << str << endl;
+          return false;
+        }
+        if(stateNTerm){
+          if(stateRule==1) enzyme.cutN[str[i]]=true;
+          else enzyme.exceptN[str[i]]=true;
+        } else {
+          if(stateRule==1) enzyme.cutC[str[i]]=true;
+          else enzyme.exceptC[str[i]]=true;
+        }
+        break;
+    }
+  }
+
+  return true;
+
+}
+
+bool KDatabase::setXLType(int a, int b){
+  setA=a;
+  setB=b;
+  return true;
+}
+
+//==============================
+//  Private Functions
+//==============================
+void KDatabase::checkAA(kPeptide& p, int type, int set, int i, int start, int n, int seqSize){
+  vector<int>* v;
+  if(set==1) v=p.vA;
+  else v=p.vB;
+
+  switch(type){
+    case 1:
+      if(vDB[i].sequence[start+n]=='K') v->push_back(start+n);
+      else if(start+n==0) v->push_back(start+n); //mark N-terminus, too
+      else if(start+n==1 && start==1) v->push_back(start+n); //mark Met-removed N-terminus, too'
+      break;
+    case 2:
+      if(vDB[i].sequence[start+n]=='D' || vDB[i].sequence[start+n]=='E') v->push_back(start+n);
+      else if((start+n)==(seqSize-1)) v->push_back(start+n); //mark C-terminus, too
+      break;
+    case 3:
+      if(vDB[i].sequence[start+n]=='C') v->push_back(start+n);
+      break;
+    default:
+      break;
+  }
+
+  v=NULL;
+}
+
+//==============================
+//  Utility Functions
+//==============================
 int KDatabase::compareMass(const void *p1, const void *p2){
   const kPeptide d1 = *(kPeptide *)p1;
   const kPeptide d2 = *(kPeptide *)p2;

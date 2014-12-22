@@ -31,6 +31,8 @@ public:
   ~KData();
 
   KSpectrum& operator[ ](const int& i);
+  KSpectrum& at(const int& i);
+  KSpectrum* getSpectrum(const int& i);
 
   bool      getBoundaries     (double mass1, double mass2, vector<int>& index);
   bool      getBoundaries2    (double mass, double prec, vector<int>& index);
@@ -38,15 +40,15 @@ public:
   double    getMaxMass        ();
   double    getMinMass        ();
   bool      mapPrecursors     ();
-  bool      outputPercolator  (char* out, char* tag, KDatabase& db, int pLen);
-  bool      outputResults     (char* out, KDatabase& db, bool bEnrich);
+  bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r);
+  bool      outputResults     (KDatabase& db);
   void      readLinkers       (char* fn);
-  bool      readSpectra2      ();
-  void      setLinker         (double mass, int type);
+  bool      readSpectra       ();
+  void      setLinker         (kLinker x);
   void      setVersion        (char* v);
   int       size              ();
   int       sizeLink          ();
-  void      xCorr             ();
+  void      xCorr             (bool b);
 
 private:
 

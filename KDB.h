@@ -32,32 +32,41 @@ public:
   //Constructors & Destructors
   KDatabase();
 
+  //Operators
   kDB& operator[ ](const int& i);
+
+  //User Functions
+  bool  buildDB       (char* fname);                     //Reads FASTA file and populates vDB
+  bool  buildPeptides (double min, double max, int mis); //Make peptide list within mass boundaries and miscleavages.
+  void  combo         ();
 
   //Accessors & Modifiers
   void                addFixedMod         (char mod, double mass);
+  kDB&                at                  (const int& i);
   kPeptide&           getPeptide          (int index, bool linkable);
-  vector<kPeptide>&   getPeptideList      (bool linkable);
+  vector<kPeptide>*   getPeptideList      (bool linkable);
   int                 getPeptideListSize  (bool linkable);
   bool                getPeptideSeq       (int index, int start, int stop, char* str);
   bool                getPeptideSeq       (int index, int start, int stop, string& str);
   bool                getPeptideSeq       (kPeptide& p, string& str);
   kDB&                getProtein          (int index);
   int                 getProteinDBSize    ();
-
-  //User Functions
-  bool  buildDB(char* fname);                           //Reads FASTA file and populates vDB
-  bool  buildPeptides(double min, double max, int mis); //Make peptide list within mass boundaries and miscleavages.
-  void  combo();
+  bool                setEnzyme           (char* str);
+  bool                setXLType           (int a=0, int b=0);
 
 private:
   
   //Data Members
-  double  AA[128];            //Amino acid masses
+  double        AA[128];   //Amino acid masses
+  kEnzymeRules  enzyme;    //Where to cut to generate peptides
+  int           setA;
+  int           setB;
 
   vector<kDB>      vDB;    //Entire FASTA database stored in memory
   vector<kPeptide> vPep;   //List of all peptides not linkable
   vector<kPeptide> vPepK;  //List of all peptides with a linkable K
+
+  void checkAA(kPeptide& p, int type, int set, int i, int start, int n, int seqSize);
 
   //Utility functions (for sorting)
   static int compareMass      (const void *p1, const void *p2);
