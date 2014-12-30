@@ -1,8 +1,10 @@
 #summary Digestion enzyme rules in the Kojak parameters.
 
-= Introduction =
+= Navigation =
+ * [TableOfContents Return to Table of Contents]
+ * [Parameters Return to Parameters]
 
-Digestion Enzyme Rules
+= Introduction =
 
 
 = Details =
