@@ -10,7 +10,7 @@ Digestion enzyme rules are specified using a formatted text string, similar to t
 
 = Details =
 
-  # Cleavage amino acids are specified in square braces: '[]'
+  # Cleavage amino acids are specified in square braces: "[]"
   # A vertical line, |, indicates N- or C-terminal to the residue
   # Exception amino acids are specified in french braces: {}
 
