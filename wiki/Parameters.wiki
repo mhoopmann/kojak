@@ -11,7 +11,7 @@ This page describes in more detail the parameters used to tune the performance o
 = Details =
 
 || *Parameter* || *Value* || *Recommended Range* || *Description* ||
-|| cross_link || Number, Number, Number || see description || Specifies the sites of cross-linking and mass modification. Three values follow this parameter, with the format _[[chem #1]_ _[[chem #2]_ _[[mass]_. Chem codes are integers signifying the reactive groups on the cross-linker: 1=amine reactive, 2=carboxyl reactive, 3=sulfhydryl reactive. The mass can be any real number, positive or negative.||
+|| cross_link || Number, Number, Number || see description || Specifies the sites of cross-linking and mass modification. Three values follow this parameter, with the format _[[chem #1]]_ _[[chem #2]]_ _[[mass]]_. Chem codes are integers signifying the reactive groups on the cross-linker: 1=amine reactive, 2=carboxyl reactive, 3=sulfhydryl reactive. The mass can be any real number, positive or negative.||
 || database || Text || n/a || The name of the fasta file containing the amino acid protein sequences (and decoy sequences) to be searched. It is recommended to include the path in the name of the file. ||
 || decoy_filter || Text || n/a || A short, case-sensitive string of characters that appears in the name of every decoy protein sequence in the database. The default value is the word _random_ ||
 || enrichment || Number || 0.0-1.0 || Value between 0 and 1 to describe 18O atom percent excess (APE). For example, 0.25 equals 25 APE. Set to 0 to disable enrichment. ||
