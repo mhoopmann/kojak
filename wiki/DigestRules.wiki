@@ -15,11 +15,12 @@ Digestion enzyme rules are specified using a formatted text string, similar to t
   # Exception amino acids are specified in french braces: {}
 
 = Examples =
+{{{
+  [KR]|{P} - Trypsin rule with cleavage after K or R, except when followed by P.
 
-  * ['KR']|{P} - Trypsin rule with cleavage after K or R, except when followed by P.
+  [KR]| - Trypsin rule with cleavage after K or R, ignoring any restrictions.
 
-  * '[KR]'| - Trypsin rule with cleavage after K or R, ignoring any restrictions.
+  [DE]|{P} - GluC rule with cleavage after D or E, except when followed by P.
 
-  * '[DE]'|{P} - GluC rule with cleavage after D or E, except when followed by P.
-
-  * |'[K]' - LysN rule with cleavage before K.
+  |[K] - LysN rule with cleavage before K.
+}}}
