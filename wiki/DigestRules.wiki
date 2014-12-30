@@ -10,13 +10,13 @@ Digestion enzyme rules are specified using a formatted text string, similar to t
 
 = Details =
 
-1. Cleavage amino acids are specified in square braces: '[]'
-2. A vertical line, '|', indicates N- or C-terminal to the residue
-3. Exception amino acids are specified in french braces: '{}'
+  1. Cleavage amino acids are specified in square braces: '[]'
+  2. A vertical line, '|', indicates N- or C-terminal to the residue
+  3. Exception amino acids are specified in french braces: '{}'
 
 = Examples =
 
-* [KR]|{P} - Trypsin rule with cleavage after K or R, except when followed by P.
-* [KR]| - Trypsin rule with cleavage after K or R, ignoring any restrictions.
-* [DE]|{P} - GluC rule with cleavage after D or E, except when followed by P.
-* |[K] - LysN rule with cleavage before K.
+  * [KR]|{P} - Trypsin rule with cleavage after K or R, except when followed by P.
+  * [KR]| - Trypsin rule with cleavage after K or R, ignoring any restrictions.
+  * [DE]|{P} - GluC rule with cleavage after D or E, except when followed by P.
+  * |[K] - LysN rule with cleavage before K.
