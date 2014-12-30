@@ -16,7 +16,7 @@ Digestion enzyme rules are specified using a formatted text string, similar to t
 
 = Examples =
 
-  * '[KR]'|{P} - Trypsin rule with cleavage after K or R, except when followed by P.
+  * ['KR']|{P} - Trypsin rule with cleavage after K or R, except when followed by P.
 
   * '[KR]'| - Trypsin rule with cleavage after K or R, ignoring any restrictions.
 
