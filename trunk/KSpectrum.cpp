@@ -293,6 +293,10 @@ void KSpectrum::clear(){
   precursor->clear();
 }
 
+void KSpectrum::erasePrecursor(int i){
+  precursor->erase(precursor->begin()+i);
+}
+
 void KSpectrum::setCharge(int i){
   charge=i;
 }

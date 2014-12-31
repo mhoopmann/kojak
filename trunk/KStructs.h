@@ -133,7 +133,6 @@ typedef struct kParams {
   int     ms1Resolution;
   int     ms2Resolution;
   int     preferPrecursor;
-  int     relaxedAnalysis;
   int     setA;
   int     setB;
   int     specProcess;
@@ -170,7 +169,6 @@ typedef struct kParams {
     ms1Resolution=60000;
     ms2Resolution=15000;
     preferPrecursor=0;
-    relaxedAnalysis=0;
     setA=0;
     setB=0;
     specProcess=0;
@@ -208,7 +206,6 @@ typedef struct kParams {
     ms1Resolution=p.ms1Resolution;
     ms2Resolution=p.ms2Resolution;
     preferPrecursor=p.preferPrecursor;
-    relaxedAnalysis=p.relaxedAnalysis;
     setA=p.setA;
     setB=p.setB;
     specProcess=p.specProcess;
@@ -258,7 +255,6 @@ typedef struct kParams {
       ms1Resolution=p.ms1Resolution;
       ms2Resolution=p.ms2Resolution;
       preferPrecursor=p.preferPrecursor;
-      relaxedAnalysis=p.relaxedAnalysis;
       setA=p.setA;
       setB=p.setB;
       specProcess=p.specProcess;

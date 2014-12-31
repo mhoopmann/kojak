@@ -20,6 +20,7 @@ limitations under the License.
 //  Constructors & Destructors
 //==============================
 KDatabase::KDatabase(){
+  for(int i=0;i<128;i++) AA[i]=0;
   AA['a']=AA['A']=71.0371103;
   AA['c']=AA['C']=103.0091803;
   AA['d']=AA['D']=115.0269385;
@@ -88,6 +89,8 @@ bool  KDatabase::buildDB(char* fname) {
       d.sequence="";
     } else {
       for(unsigned int i=0;i<strlen(str);i++){
+        if(AA[str[i]]==0) cout << "WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space." << endl;
+        if(str[i]==' ' || str[i]=='\t') continue;
         d.sequence+=toupper(str[i]);
       }
     }
