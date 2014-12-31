@@ -62,6 +62,7 @@ public:
   void addPoint         (kSpecPoint& s);
   void addPrecursor     (kPrecursor& p);
   void clear            ();
+  void erasePrecursor   (int i);
   void setCharge        (int i);
   void setMaxIntensity  (float f);
   void setMZ            (double d);

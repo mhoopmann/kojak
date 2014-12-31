@@ -347,6 +347,27 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
     pls.addPrecursor(pre);
   }
 
+  //Assume two precursors with nearly identical mass (within precursor tolerance) are the same.
+  //This can occur when checking multiple enrichment states.
+  //Keep only the higher correlated precursor.
+  if(pls.sizePrecursor()>1){
+    bool bCheck=true;
+    while(bCheck){
+      bCheck=false;
+      for(k=0;k<pls.sizePrecursor()-1;k++){
+        for(j=k+1;j<pls.sizePrecursor();j++){
+          if(fabs(pls.getPrecursor(k).monoMass-pls.getPrecursor(j).monoMass)/pls.getPrecursor(k).monoMass*1e6 < params->ppmPrecursor){
+            if(pls.getPrecursor(k).corr>pls.getPrecursor(j).corr) pls.erasePrecursor(j);
+            else pls.erasePrecursor(k);
+            bCheck=true;
+            break;
+          }
+        }
+        if(bCheck) break;
+      }
+    }
+  }
+
   //If we have something, return it
   if(pls.sizePrecursor()>0)  return true;
   else return false;

@@ -275,9 +275,6 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"prefer_precursor_pred")==0){
     params->preferPrecursor=atoi(&values[0][0]);
 
-	} else if(strcmp(param,"relaxed_analysis")==0){
-    params->relaxedAnalysis=atoi(&values[0][0]);
-
   } else if(strcmp(param,"search_dimers")==0){
     params->dimers=atoi(&values[0][0]);
 

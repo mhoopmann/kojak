@@ -22,7 +22,7 @@ limitations under the License.
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.3, November 21 2014" << endl;
+  cout << "Kojak version 1.3.2, December 29 2014" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File>" << endl;
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]){
   
   //Step #3: Read in spectra and map precursors
   KData spec(&params);
-  spec.setVersion("1.3");
+  spec.setVersion("1.3.2-nosplit");
   spec.readSpectra();
   spec.mapPrecursors();
   spec.xCorr(params.xcorr);
@@ -65,23 +65,20 @@ int main(int argc, char* argv[]){
 
   //Step #4: Analyze single peptides, monolinks, and crosslinks
   KAnalysis anal(params, &db, &spec);
+  
   cout << "Scoring non-linked peptides. ";
   anal.doPeptideAnalysis(false);
-  //if(params.dimers>0 && params.relaxedAnalysis==0){
-  //  cout << "Scoring non-covalent dimerizations. ";
-  //  anal.doPeptideAnalysisNC();
-  //}
+  
   cout << "Scoring linked peptides. ";
   anal.doPeptideAnalysis(true);
-  if(params.relaxedAnalysis>0){
-    cout << "Finalizing relaxed analysis. ";
-    anal.doRelaxedAnalysis();
-  }
+  
+  cout << "Finalizing XL analysis. ";
+  anal.doRelaxedAnalysis();
 
   //Step #5: Output results
   //if(params.percolator[0]!='\0') spec.outputPercolator(params.percolator,params.decoy,db,params.truncate);
   //if(params.enrichment>0)  spec.outputResults(params.outFile,params.decoy,db,true);
-  spec.outputResults(db);
+  spec.outputResults2(db);
 
   cout << "Finished." << endl;
 
