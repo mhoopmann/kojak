@@ -1,4 +1,5 @@
 #summary Instructions to obtain your copy of Kojak.
+#labels Featured
 
 = Downloads =
 
