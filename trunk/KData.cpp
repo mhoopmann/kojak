@@ -313,7 +313,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   if(params->percVersion>2.04) fprintf(f,"\t%d",r.scanNumber);
   fprintf(f,"\t%.4lf",r.score);
   fprintf(f,"\t%.4lf",r.scoreDelta);
-  fprintf(f,"\t%d\t%.4lf",r.rank,r.scorePepDif);
+  if(r.type==2 || r.type==3) fprintf(f,"\t%d\t%.4lf",r.rank,r.scorePepDif);
   //if(r.type==1) fprintf(f,"\t1\t0");
   //else if(r.type==2) fprintf(f,"\t0\t1");
   //else if(r.type==3) fprintf(f,"\t0\t0");
@@ -405,7 +405,7 @@ bool KData::outputResults(KDatabase& db){
     fprintf(f2,"Loop\tCross\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
   }
 
-  fprintf(f,"PepLynx version %s\n",version);
+  fprintf(f,"Kojak version %s\n",version);
   fprintf(f,"Scan Number\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tPep. Diff.\tPeptide #1\tLink #1\tProtein #1\tPeptide #2\tLink #2\tProtein #2\tLinker Mass\n");
 
   //Output top n (currently 1) scores for each spectrum
@@ -708,7 +708,7 @@ bool KData::outputResults2(KDatabase& db){
   }
 
   //Put the headers on all the files
-  fprintf(fOut,"PepLynx version %s\n",version);
+  fprintf(fOut,"Kojak version %s\n",version);
   fprintf(fOut,"Scan Number\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tPep. Diff.\tPeptide #1\tLink #1\tProtein #1\tPeptide #2\tLink #2\tProtein #2\tLinker Mass\n");
   if(params->percolator[0]!='\0'){
     if(params->percVersion>2.04) {
