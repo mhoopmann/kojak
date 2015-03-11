@@ -679,10 +679,10 @@ bool KData::outputResults2(KDatabase& db){
   fOut=fopen(params->outFile,"wt");
   if(fOut==NULL) bBadFiles=true;
   if(params->percolator[0]!='\0') {
-    sprintf(fName,"%s-Intra.txt",params->percolator);
+    sprintf(fName,"%s-Inter.txt",params->percolator);
     fIntra=fopen(fName,"wt");
     if(fIntra==NULL) bBadFiles=true;
-    sprintf(fName,"%s-Inter.txt",params->percolator);
+    sprintf(fName,"%s-Intra.txt",params->percolator);
     fInter=fopen(fName,"wt");
     if(fInter==NULL) bBadFiles=true;
     sprintf(fName,"%s-Loop.txt",params->percolator);
