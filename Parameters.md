@@ -1,0 +1,41 @@
+# Navigation #
+  * [Return to Table of Contents](TableOfContents.md)
+
+# Introduction #
+
+This page describes in more detail the parameters used to tune the performance of Kojak. Parameters are stored in an ASCII text configuration file. An example configuration file can be found [here](SampleConfigurationFile.md).
+
+# Details #
+
+| **Parameter** | **Value** | **Recommended Range** | **Description** |
+|:--------------|:----------|:----------------------|:----------------|
+| cross\_link | Number, Number, Number | see description | Specifies the sites of cross-linking and mass modification. Three values follow this parameter, with the format: **chem1 chem2 mass**. Chem codes are integers signifying the reactive groups on the cross-linker: 1=amine reactive, 2=carboxyl reactive, 3=sulfhydryl reactive. The mass can be any real number, positive or negative. If data contain multiple cross-linkers, use multiple cross\_link lines in the configuration file.|
+| database | Text | n/a | The name of the fasta file containing the amino acid protein sequences (and decoy sequences) to be searched. It is recommended to include the path in the name of the file. |
+| decoy\_filter | Text | n/a | A short, case-sensitive string of characters that appears in the name of every decoy protein sequence in the database. The default value is the word _random_ |
+| enrichment | Number | 0.0-1.0 | Value between 0 and 1 to describe 18O atom percent excess (APE). For example, 0.25 equals 25 APE. Set to 0 to disable enrichment. |
+| enzyme | Text | see description | An enzyme string code is used to define amino acid cut sites when parsing protein sequences. See [Enzyme Digest Rules](DigestRules.md) for more information. |
+| fixed\_modification | Text and Number | A-Y 0.1-5000.0 | Specify an amino acid character and modification mass separated by white space. For example: C 57.02146 will add that mass to all occurrences of cysteine in the sequence database. If multiple fixed modification masses are desired, use multiple fixed\_modification declarations. Use @ to signify a modification to the N-terminus. |
+| fragment\_bin\_offset | Number | 0.0-1.0 | An offset applied to binning algorithm when scoring spectra. The offset facilitates centering more peaks in the bin when using large bin sizes. For ion trap ms/ms (low res), the recommended value is 0.4. For high res ms/ms, the recommended value is 0.0 |
+| fragment\_bin\_size | Number | 0.01-1.1 | Determines the accuracy of the scoring algorithm with smaller bins being more strict in determining matches between theoretical and observed spectral peaks. Smaller bins also require more system memory, so caution must be exercised when setting this value for high resolution spectra. For ion trap ms/ms (low res), the recommended values is 1.0005. For high res ms/ms, the recommended value is 0.03 |
+| instrument | Number | 0 or 1 | Code to describe the instrument that was used to collect the spectra. 0 = Orbitrap, 1 = FTICR (such as Thermo LTQ-FT). |
+| max\_miscleavages | Number | 1-10 | Number of missed K or R cleavages allowed. Must be at least 2 to identify loop-links. |
+| max\_peptide\_mass | Number | 1.0-50000.0 | Maximum peptide mass allowed when parsing the protein sequence database. |
+| max\_spectrum\_peaks | Number | 0-50000 | Maximum number of MS2 peaks to analyze if using spectrum\_processing. Peaks are kept in order of intensity, starting with the most intense. Setting a value of 0 keeps all peaks.|
+| min\_peptide\_mass | Number | 1.0-50000.0 | Minimum peptide mass allowed when parsing the protein sequence database. |
+| modification | Text and Number | A-Y 0.1-5000.0 | Specify an amino acid character and variable modification mass separated by white space. For example: M 15.9949 will search methionine residues **with and without** this modification mass. If multiple variable modification masses are desired, use multiple fixed\_modification declarations. Multiple variable modification masses can be applied to the same residue. Use @ to signify a modification to the N-terminus. |
+| mono\_link | Number and Number | see description | Specifies the sites of incomplete cross-linking and mass modification. Two values follow this parameter, with the format: **chem mass**. Chem codes are integers signifying the reactive groups on the cross-linker: 1=amine reactive, 2=carboxyl reactive, 3=sulfhydryl reactive. The mass can be any real number, positive or negative. If data contain multiple mono-link masses, use multiple mono\_link lines in the configuration file.|
+| MS\_data\_file | Text | n/a | Name of the data file to be analyzed. Accepted formats are mzXML, mzML, Thermo RAW (on Windows with vendor drivers installed). It is recommended to include the path in the name of the file. |
+| MS1\_centroid | Number | 0 or 1 | Describes how peaks are stored in the precursor (MS1) scans. Set to 0 if peaks are profile. Set to 1 if peaks are centroided. |
+| MS1\_resolution | Number | 0-500000 | Describes the estimated resolution of precursor scan (MS1) peaks at 400 m/z. |
+| MS2\_centroid | Number | 0 or 1 | Describes how peaks are stored in the fragmentation (MS2 or MS/MS) scans. Set to 0 if peaks are profile. Set to 1 if peaks are centroided. |
+| MS2\_resolution | Number | 0-500000 | Describes the estimated resolution of fragmentation scan (MS2 or MS/MS) peaks at 400 m/z. |
+| output\_file | Text | n/a | Name of the file for Kojak non-validated results. It is recommended to include the path in the name of the file. |
+| percolator\_file | Text | n/a | Name of the file for Kojak results that are formatted for validation with [Percolator](Percolator.md). It is recommended to include the path in the name of the file. |
+| percolator\_version | Number | n/a | Version of [Percolator](Percolator.md) you will be using. Different versions of Percolator have different input requirements. Kojak will determine those for you based on this supplied number. |
+| ppm\_tolerance\_pre | Number | 0.1-500.0 | Tolerance used when determining which peptides to search for a given MS2 spectrum based on its precursor ion mass. Unit is parts-per-million (PPM). |
+| prefer\_precursor\_pred | Number | 0 or 1 | For some data (such as Thermo Orbitrap data), the spectrum may have a precursor mass prediction already. If this parameter is set to 1, that existing precursor mass prediction is used without further validation. Setting this parameter to 0 will force a new precursor mass prediction for these cases. Regardless of this parameter setting, spectra that do not have an existing precursor mass prediction will be analyzed to identify the monoisotopic mass. |
+| search\_dimers | Number | 0 or 1 | If set to 1 turns on searches for non-covalently linked dimers (not cross-links). This will no worse than double search time and is only recommended for highly concentrated and purified samples. |
+| spectrum\_processing | Number | 0 or 1 | If set to 1 turns on MS2 spectrum processing algorithm. This algorithm will collapse isotope distributions to the precursor peak and reduce the number of peaks to analyze to the number specified with the max\_spectrum\_peaks parameter. |
+| threads | Number | 1 to 1000 | Sets the number of threads to divide the analysis across. On multi-core/node systems, these threads are typically distributed across the cores/nodes, resulting in faster analysis times. |
+| top\_count | Number | 1 to 10000 | This parameter is used for **Relaxed Analysis Mode** to specify the number of individual peptide scores to store in the first pass of the analysis. Setting below 200 is not recommended. Setting too high will unnecessarily consume computer resources. The recommended value is 500. |
+| use\_comet\_xcorr | Number | 0 or 1 | If set to 1 will use the XCorr scoring function from the [Comet](http://comet-ms.sourceforge.net/) database search algorithm. If set to 0, will default to using Kojak's modified form of the Comet algorithm. The modified algorithm uses much less memory very similar resulting scores. The recommended value is 0. |
