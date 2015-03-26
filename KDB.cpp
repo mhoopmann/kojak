@@ -504,9 +504,9 @@ void KDatabase::checkAA(kPeptide& p, int type, int set, int i, int start, int n,
     case 3:
       if(vDB[i].sequence[start+n]=='C') v->push_back(start+n);
       break;
-		case 4:
-			if(vDB[i].sequence[start+n]=='Q') v->push_back(start+n);
-			break;
+    case 4:
+      if(vDB[i].sequence[start+n]=='Q') v->push_back(start+n);
+      break;
     default:
       break;
   }
