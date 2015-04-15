@@ -324,22 +324,18 @@ void KSpectrum::checkScore(kScoreCard& s){
   unsigned int i;
   unsigned int j;
 
-  //for(i=0;i<20;i++){
-  //  cout << "score " << i << ":\t" << topHit[i].simpleScore << endl;
-  //}
+  //char str[256];
+  //sprintf(str,"%d.txt",scanNumber);
+  //FILE* f=fopen(str,"at");
+  //fprintf(f,"%.4f\n",s.simpleScore);
+  //fclose(f);
 
   for(i=0;i<20;i++){
-    //cout << i << "\t" << topHit[i].simpleScore << endl;
     if(s.simpleScore > topHit[i].simpleScore) {
-      //cout << "change" << endl;
       for(j=19;j>i;j--) {
-        //cout << j << "\t" << topHit[j].simpleScore << endl;
         topHit[j]=topHit[j-1];
-        //cout << "copy done" << endl;
       }
-      //cout << "set" << endl;
       topHit[i] = s;
-      //cout << "done" << endl;
       return;
     }
   }

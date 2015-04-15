@@ -529,8 +529,8 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
   }
   qsort(s,count,sizeof(kSingletScoreCardPlus),compareSSCPlus);
 
-  int xlink[5];
-  int peplink[5];
+  int xlink[6];
+  int peplink[6];
   char cp1;
   char cp2;
   int len1;
@@ -543,7 +543,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
   //Check true cross-links
   for(k=0;k<spec->sizeLink();k++){
     if(spec->getLink(k).mono>0) continue;
-    for(j=0;j<5;j++) xlink[j]=0;
+    for(j=0;j<6;j++) xlink[j]=0;
     if(spec->getLink(k).siteA==1) xlink[params.setA]++;
     else xlink[params.setB]++;
     if(spec->getLink(k).siteB==1) xlink[params.setA]++;
@@ -581,20 +581,22 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
             if( (p.map->at(0).start+s[n].k1)<2) bN2=true;
             else bN2=false;
             
-            for(x=0;x<5;x++) peplink[x]=0;
+            for(x=0;x<6;x++) peplink[x]=0;
 
             if(cp1=='K' || bN1) peplink[1]++;
             if(cp1=='D' || cp1=='E' || s[j].k1==len1) peplink[2]++;
             if(cp1=='C') peplink[3]++;
 						if(cp1=='Q') peplink[4]++;
+            if(cp1=='K' || cp1=='S' || cp1=='T' || cp1=='Y' || bN1) peplink[5]++;
 
             if(cp2=='K' || bN2) peplink[1]++;
             if(cp2=='D' || cp2=='E' || s[n].k1==len2) peplink[2]++;
             if(cp2=='C') peplink[3]++;
 						if(cp2=='Q') peplink[4]++;
+            if(cp2=='K' || cp2=='S' || cp2=='T' || cp2=='Y' || bN2) peplink[5]++;
 
             bSkip=false;
-            for(x=0;x<5;x++){
+            for(x=0;x<6;x++){
               if(peplink[x]<xlink[x]) {
                 bSkip=true;
                 break;
@@ -648,20 +650,22 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
             if( (p.map->at(0).start+s[n].k1)<2) bN2=true;
             else bN2=false;
             
-            for(x=0;x<5;x++) peplink[x]=0;
+            for(x=0;x<6;x++) peplink[x]=0;
 
             if(cp1=='K' || bN1) peplink[1]++;
             if(cp1=='D' || cp1=='E' || s[j].k1==len1) peplink[2]++;
             if(cp1=='C') peplink[3]++;
 						if(cp1=='Q') peplink[4]++;
+            if(cp1=='K' || cp1=='S' || cp1=='T' || cp1=='Y' || bN1) peplink[5]++;
 
             if(cp2=='K' || bN2) peplink[1]++;
             if(cp2=='D' || cp2=='E' || s[n].k1==len2) peplink[2]++;
             if(cp2=='C') peplink[3]++;
 						if(cp2=='Q') peplink[4]++;
+            if(cp2=='K' || cp2=='S' || cp2=='T' || cp2=='Y' || bN2) peplink[5]++;
 
             bSkip=false;
-            for(x=0;x<5;x++){
+            for(x=0;x<6;x++){
               if(peplink[x]<xlink[x]) {
                 bSkip=true;
                 break;

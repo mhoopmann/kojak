@@ -507,6 +507,11 @@ void KDatabase::checkAA(kPeptide& p, int type, int set, int i, int start, int n,
     case 4:
       if(vDB[i].sequence[start+n]=='Q') v->push_back(start+n);
       break;
+    case 5:
+      if(vDB[i].sequence[start+n]=='K' || vDB[i].sequence[start+n]=='S' || vDB[i].sequence[start+n]=='T' || vDB[i].sequence[start+n]=='Y') v->push_back(start+n);
+      else if(start+n==0) v->push_back(start+n); //mark N-terminus, too
+      else if(start+n==1 && start==1) v->push_back(start+n); //mark Met-removed N-terminus, too'
+      break;
     default:
       break;
   }

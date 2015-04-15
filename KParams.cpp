@@ -217,7 +217,7 @@ void KParams::parse(char* cmd) {
       params->mods->push_back(m);
       m.index=69;
       params->mods->push_back(m);
-      m.index=35;
+      m.index=36;
       params->mods->push_back(m);
     } else if(i==3){
       m.index=67;

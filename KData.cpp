@@ -679,10 +679,10 @@ bool KData::outputResults2(KDatabase& db){
   fOut=fopen(params->outFile,"wt");
   if(fOut==NULL) bBadFiles=true;
   if(params->percolator[0]!='\0') {
-    sprintf(fName,"%s-Inter.txt",params->percolator);
+    sprintf(fName,"%s-Intra.txt",params->percolator);
     fIntra=fopen(fName,"wt");
     if(fIntra==NULL) bBadFiles=true;
-    sprintf(fName,"%s-Intra.txt",params->percolator);
+    sprintf(fName,"%s-Inter.txt",params->percolator);
     fInter=fopen(fName,"wt");
     if(fInter==NULL) bBadFiles=true;
     sprintf(fName,"%s-Loop.txt",params->percolator);
@@ -953,17 +953,17 @@ bool KData::outputResults2(KDatabase& db){
       fprintf(fOut,"\n");
 
       if(res.type==2){
-        bInter=false;
+        bInter=true;
         pep = db.getPeptide(res.pep1,res.linkable1);
         pep2 = db.getPeptide(res.pep2,res.linkable2);
         for(j=0;j<pep.map->size();j++){
           for(k=0;k<pep2.map->size();k++){
             if(pep.map->at(j).index==pep2.map->at(k).index){
-              bInter=true;
+              bInter=false;
               break;
             }
           }
-          if(bInter) break;
+          if(!bInter) break;
         }
       }
       
