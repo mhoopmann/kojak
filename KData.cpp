@@ -81,6 +81,7 @@ bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
   //Adjust if needed
   if(massList[mid].mass<mass1) mid++;
   if(mid>0 && massList[mid-1].mass>mass1) mid--;
+  if(massList[mid].mass>mass2) return false;
   if(mid==sz) return false;
   low=mid;
 
