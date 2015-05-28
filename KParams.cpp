@@ -62,6 +62,14 @@ bool KParams::parseConfig(char* fname){
 //==============================
 //  Private Functions
 //==============================
+bool KParams::checkMod(kMass m){
+  unsigned int i;
+  for(i=0;i<params->mods->size();i++){
+    if(params->mods->at(i).index == m.index && params->mods->at(i).mass == m.mass && params->mods->at(i).xl == m.xl) return true;
+  }
+  return false;
+}
+
 void KParams::parse(char* cmd) {
 
   char *tok;
@@ -155,6 +163,10 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"diagnostic")==0){
     params->diagnostic=atoi(&values[0][0]);
 
+  } else if(strcmp(param,"diff_mods_on_xl")==0){
+    if(atoi(&values[0][0])!=0) params->diffModsOnXL=true;
+    else params->diffModsOnXL=false;
+
 	} else if(strcmp(param,"decoy_filter")==0){
     strcpy(params->decoy,&values[0][0]);
  
@@ -201,7 +213,7 @@ void KParams::parse(char* cmd) {
     m.xl=false;
     m.index=(int)values[0][0];
     m.mass=atof(&values[1][0]);
-    params->mods->push_back(m);
+    if(!checkMod(m)) params->mods->push_back(m);
 
   } else if(strcmp(param,"mono_link")==0){
     m.xl=true;
@@ -209,41 +221,38 @@ void KParams::parse(char* cmd) {
     i=atoi(&values[0][0]);
     if(i==1){
       m.index=75;
-      params->mods->push_back(m);
+      if(!checkMod(m)) params->mods->push_back(m);
       m.index=64;
-      params->mods->push_back(m);
+      if(!checkMod(m)) params->mods->push_back(m);
     } else if(i==2){
       m.index=68;
-      params->mods->push_back(m);
+      if(!checkMod(m)) params->mods->push_back(m);
       m.index=69;
-      params->mods->push_back(m);
+      if(!checkMod(m)) params->mods->push_back(m);
       m.index=36;
-      params->mods->push_back(m);
+      if(!checkMod(m)) params->mods->push_back(m);
     } else if(i==3){
       m.index=67;
-      params->mods->push_back(m);
+      if(!checkMod(m)) params->mods->push_back(m);
+    } else if(i==4){
+      m.index=81;
+      if(!checkMod(m)) params->mods->push_back(m);
+    } else if(i==5){
+      m.index=75;
+      if(!checkMod(m)) params->mods->push_back(m);
+      m.index=64;
+      if(!checkMod(m)) params->mods->push_back(m);
+      m.index=83;
+      if(!checkMod(m)) params->mods->push_back(m);
+      m.index=84;
+      if(!checkMod(m)) params->mods->push_back(m);
+      m.index=89;
+      if(!checkMod(m)) params->mods->push_back(m);
     }
 
-    /*
-    i=atoi(&values[0][0]);
-    if(params->setA==0) {
-      params->setA=i;
-      x.siteA=1;
-    } else if(params->setA==i) {
-      x.siteA=1;
-    } else if(params->setB==0) {
-      params->setB=i;
-      x.siteA=2;
-    } else if(params->setB==i) {
-      x.siteA=2;
-    } else {
-      printf("Error in mono_link parameter(s)\n");
-      exit(-5);
-    }
-    x.mass=atof(&values[1][0]);
-    x.mono=1;
-    params->mLink->push_back(x);
-    */
+  } else if(strcmp(param,"mono_links_on_xl")==0){
+    if(atoi(&values[0][0])!=0) params->monoLinksOnXL=true;
+    else params->monoLinksOnXL=false;
 
 	} else if(strcmp(param,"MS_data_file")==0){
     strcpy(params->msFile,&values[0][0]);

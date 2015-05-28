@@ -31,6 +31,7 @@ private:
 
   kParams* params;
 
+  bool checkMod(kMass m);
   void parse(char* cmd);
   void warn(char* c, int i);
 

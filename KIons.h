@@ -71,6 +71,7 @@ public:
 
   //Modifiers
   void  setMaxModCount  (int i);
+  void  setModFlags     (bool monoMods, bool difMods);
   void  setPeptide      (bool bPepOne, char* seq, int len, double mass);
 
   //Data Members
@@ -83,6 +84,9 @@ private:
   
   double  aaMass[128];
   kMod    aaMod[128];   //inefficient memory usage, but not by much in the grand scheme.
+
+  bool  monoModsOnXL;
+  bool  diffModsOnXL;
 
   double  pep1Mass;
   double  pep2Mass;

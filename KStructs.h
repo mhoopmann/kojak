@@ -139,6 +139,8 @@ typedef struct kParams {
   int     threads;
   int     topCount;
   int     truncate;
+  bool    diffModsOnXL;
+  bool    monoLinksOnXL;
   bool    xcorr;
   double  binOffset;
   double  binSize;
@@ -175,6 +177,8 @@ typedef struct kParams {
     threads=1;
     topCount=250;
     truncate=0;
+    diffModsOnXL=false;
+    monoLinksOnXL=false;
     xcorr=false;
     binSize=0.03;
     binOffset=0.0;
@@ -212,6 +216,8 @@ typedef struct kParams {
     threads=p.threads;
     topCount=p.topCount;
     truncate=p.truncate;
+    diffModsOnXL=p.diffModsOnXL;
+    monoLinksOnXL=p.monoLinksOnXL;
     xcorr=p.xcorr;
     binOffset=p.binOffset;
     binSize=p.binSize;
@@ -261,6 +267,8 @@ typedef struct kParams {
       threads=p.threads;
       topCount=p.topCount;
       truncate=p.truncate;
+      diffModsOnXL=p.diffModsOnXL;
+      monoLinksOnXL=p.monoLinksOnXL;
       xcorr=p.xcorr;
       binOffset=p.binOffset;
       binSize=p.binSize;

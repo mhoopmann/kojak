@@ -47,6 +47,8 @@ KIons::KIons(){
   pep2=NULL;
   maxModCount=0;
   ionCount=0;
+  diffModsOnXL=false;
+  monoModsOnXL=false;
 }
 
 KIons::~KIons(){
@@ -208,7 +210,8 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
     for(j=0;j<aaMod[pep1[i]].count;j++){
 
       //skip mods not allowed on this peptide
-      if(xl && !aaMod[pep1[i]].mod[j].xl) continue;
+      if(xl && !aaMod[pep1[i]].mod[j].xl && !diffModsOnXL) continue;
+      if(xl && aaMod[pep1[i]].mod[j].xl && !monoModsOnXL) continue;
 
       //Add masses
       KIonSet s=sets[index];
@@ -350,6 +353,11 @@ void KIons::getPeptideMods(vector<kPepMod>& v){
 
 void KIons::setMaxModCount(int i){
   maxModCount=i;
+}
+
+void KIons::setModFlags(bool monoMods, bool difMods){
+  monoModsOnXL=monoMods;
+  diffModsOnXL=difMods;
 }
 
 void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass){

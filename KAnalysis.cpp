@@ -883,6 +883,7 @@ bool KAnalysis::analyzeSingletsNoLysine(kPeptide& pep, int sIndex, int index, bo
   maxMass+=(maxMass/1000000*params.ppmPrecursor);
 
   //Iterate all spectra from (peptide mass + minimum mass) to (peptide mass + maximum mass)
+  cout << "stray getBoundaries" << endl;
   if(!spec->getBoundaries(minMass,maxMass,scanIndex)) return false;
   for(j=0;j<scanIndex.size();j++){
     scoreSingletSpectra(scanIndex[j],sIndex,ions[iIndex][sIndex].mass,pep.map->at(0).stop-pep.map->at(0).start+1,index,-1,linkable,minMass,iIndex);
@@ -898,7 +899,10 @@ bool KAnalysis::analyzeSingletsNoLysine(kPeptide& pep, int sIndex, int index, bo
 bool KAnalysis::allocateMemory(int threads){
   bKIonsManager = new bool[threads];
   ions = new KIons[threads];
-  for(int i=0;i<threads;i++) bKIonsManager[i]=false;
+  for(int i=0;i<threads;i++) {
+    bKIonsManager[i]=false;
+    ions[i].setModFlags(params.monoLinksOnXL,params.diffModsOnXL);
+  }
   return true;
 }
 
@@ -990,9 +994,9 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
       sc.mods=NULL;
     }
     iset=ions[iIndex].at(sIndex);
-    if(iset->difMass>0){
+    if(iset->difMass!=0){
       for(i=0;i<ions[iIndex].getIonCount();i++) {
-        if(mod.mass=iset->mods[i]>0){
+        if(iset->mods[i]!=0){
           mod.pos=(char)i;
           mod.mass=iset->mods[i];
           v.push_back(mod);

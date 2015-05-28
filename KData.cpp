@@ -53,6 +53,9 @@ KSpectrum& KData::at(const int& i){
 
 bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
   int sz=massList.size();
+
+  if(mass1>massList[sz-1].mass) return false;
+
   int lower=0;
   int mid=sz/2;
   int upper=sz;
