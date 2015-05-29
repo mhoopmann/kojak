@@ -851,7 +851,10 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   for(k=0;k<pep.vB->size();k++){
 
     //skip n-term if already searched
-    if(k==0 && pep.vB->at(k)==1 && pep.vA->size()>0 && pep.vA->at(0)==1) continue;
+    if(k==0 && pep.vB->at(k)<2 && pep.vA->size()>0 && pep.vA->at(0)==pep.vB->at(k)) continue;
+
+    //skip c-term if already searched
+    if(k==pep.vB->size()-1 && pep.vA->size()>0 && pep.vA->at(pep.vA->size()-1)==pep.vB->at(k)) continue;
 
     //build fragment ions and score against all potential spectra
     ions[iIndex].reset();
