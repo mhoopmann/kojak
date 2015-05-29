@@ -53,7 +53,7 @@ int main(int argc, char* argv[]){
   
   //Step #3: Read in spectra and map precursors
   KData spec(&params);
-  spec.setVersion("1.3.5");
+  spec.setVersion("1.3.6");
   spec.readSpectra();
   spec.mapPrecursors();
   spec.xCorr(params.xcorr);
