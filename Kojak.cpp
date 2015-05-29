@@ -22,7 +22,7 @@ limitations under the License.
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.3.6, May 26 2015" << endl;
+  cout << "Kojak version 1.3.6, May 29 2015" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File>" << endl;

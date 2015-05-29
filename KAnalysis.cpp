@@ -1036,7 +1036,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, boo
     sc.link=link;
     if(ions[iIndex][sIndex].difMass>0){
       for(i=0;i<ions[iIndex].getPeptideLen();i++) {
-        if(ions[iIndex][sIndex].mods[i]>0){
+        if(ions[iIndex][sIndex].mods[i]!=0){
           mod.pos=(char)i;
           mod.mass=ions[iIndex][sIndex].mods[i];
           sc.mods1->push_back(mod);
