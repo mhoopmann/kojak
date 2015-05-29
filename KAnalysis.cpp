@@ -850,6 +850,9 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   //Iterate every alternate link site as a site for the monolink
   for(k=0;k<pep.vB->size();k++){
 
+    //skip n-term if already searched
+    if(k==0 && pep.vB->at(k)==1 && pep.vA->size()>0 && pep.vA->at(0)==1) continue;
+
     //build fragment ions and score against all potential spectra
     ions[iIndex].reset();
     ions[iIndex].buildSingletIons(pep.vB->at(k)-pep.map->at(0).start);
