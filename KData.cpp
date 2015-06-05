@@ -371,7 +371,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
 
 bool KData::outputResults(KDatabase& db){
 
-  unsigned int i,j,k,n,x;
+  unsigned int i,j,k,n,x,d;
   char peptide[256];
   char tmp[16];
 
@@ -418,28 +418,47 @@ bool KData::outputResults(KDatabase& db){
 
     //This block is strictly for exporting the diagnostics
     //<--------- Start Diagnostics
-    if(spec[i].getScanNumber()==params->diagnostic){
-      FILE* f2=fopen("diagnostic.txt","at");
-      fprintf(f2,"\n");
-      fprintf(f2,"# precursors: %d\n",spec[i].sizePrecursor());
-      for(j=0;j<(unsigned int)spec[i].sizePrecursor();j++) fprintf(f2,"Precursor: %.4lf\t%d\t%.4lf\t%d\n",spec[i].getPrecursor(j).monoMass,spec[i].getPrecursor(j).charge,spec[i].getPrecursor(j).corr,(int)spec[i].getPrecursor(j).label);
-      fprintf(f2,"\n");
+    for(d=0;d<params->diag->size();d++){
+      if(spec[i].getScanNumber()==params->diag->at(d)){
+        char diagStr[256];
+        sprintf(diagStr,"diagnostic_%d.txt",params->diag->at(d));
+        FILE* f2=fopen(diagStr,"at");
+        fprintf(f2,"\n");
+        fprintf(f2,"# precursors: %d\n",spec[i].sizePrecursor());
+        for(j=0;j<(unsigned int)spec[i].sizePrecursor();j++) fprintf(f2,"Precursor: %.4lf\t%d\t%.4lf\t%d\n",spec[i].getPrecursor(j).monoMass,spec[i].getPrecursor(j).charge,spec[i].getPrecursor(j).corr,(int)spec[i].getPrecursor(j).label);
+        fprintf(f2,"\n");
 
-      for(j=0;j<20;j++){
-        tmpSC = spec[i].getScoreCard(j);
-        pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
-        db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-        for(n=0;n<strlen(peptide);n++){
-          fprintf(f2,"%c",peptide[n]);
-          for(x=0;x<tmpSC.mods1->size();x++){
-            if(tmpSC.mods1->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods1->at(x).mass);
+        for(j=0;j<20;j++){
+          tmpSC = spec[i].getScoreCard(j);
+          pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
+          db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+          for(n=0;n<strlen(peptide);n++){
+            fprintf(f2,"%c",peptide[n]);
+            for(x=0;x<tmpSC.mods1->size();x++){
+              if(tmpSC.mods1->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods1->at(x).mass);
+            }
+            if(n==tmpSC.k1 || (tmpSC.pep2<0 && n==tmpSC.k2)) fprintf(f2,"[x]");
           }
-          if(n==tmpSC.k1 || (tmpSC.pep2<0 && n==tmpSC.k2)) fprintf(f2,"[x]");
-        }
-        fprintf(f2,"(%d)",spec[i].getScoreCard(j).k1);
-        if(tmpSC.k1>-1 && link[tmpSC.link].mono==0){
-          if(tmpSC.pep2>-1){
-            fprintf(f2,"\t");
+          fprintf(f2,"(%d)",spec[i].getScoreCard(j).k1);
+          if(tmpSC.k1>-1 && link[tmpSC.link].mono==0){
+            if(tmpSC.pep2>-1){
+              fprintf(f2,"\t");
+              pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
+              db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+              for(n=0;n<strlen(peptide);n++){
+                fprintf(f2,"%c",peptide[n]);
+                for(x=0;x<tmpSC.mods2->size();x++){
+                  if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
+                }
+                if(n==tmpSC.k2) fprintf(f2,"[x]");
+              }
+              fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
+            } else {
+              fprintf(f2,"\t(%d)",spec[i].getScoreCard(j).k2);
+            }
+          }
+          if(tmpSC.link==-2){
+            fprintf(f2,"+");
             pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
             db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
             for(n=0;n<strlen(peptide);n++){
@@ -447,29 +466,15 @@ bool KData::outputResults(KDatabase& db){
               for(x=0;x<tmpSC.mods2->size();x++){
                 if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
               }
-              if(n==tmpSC.k2) fprintf(f2,"[x]");
             }
             fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
-          } else {
-            fprintf(f2,"\t(%d)",spec[i].getScoreCard(j).k2);
           }
+          if(tmpSC.link>-1) fprintf(f2,"\t%.4lf\t%.4lf\t%.4lf\n",tmpSC.simpleScore,tmpSC.mass,link[tmpSC.link].mass);
+          else fprintf(f2,"\t%.4lf\t%.4lf\t--\n",tmpSC.simpleScore,tmpSC.mass);
         }
-        if(tmpSC.link==-2){
-          fprintf(f2,"+");
-          pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
-          db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-          for(n=0;n<strlen(peptide);n++){
-            fprintf(f2,"%c",peptide[n]);
-            for(x=0;x<tmpSC.mods2->size();x++){
-              if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
-            }
-          }
-          fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
-        }
-        if(tmpSC.link>-1) fprintf(f2,"\t%.4lf\t%.4lf\t%.4lf\n",tmpSC.simpleScore,tmpSC.mass,link[tmpSC.link].mass);
-        else fprintf(f2,"\t%.4lf\t%.4lf\t--\n",tmpSC.simpleScore,tmpSC.mass);
+        fclose(f2);
+        break;
       }
-      fclose(f2);
     }
     //<--------- End Diagnostics
 
@@ -648,7 +653,7 @@ bool KData::outputResults(KDatabase& db){
 
 bool KData::outputResults2(KDatabase& db){
 
-  unsigned int i,j,k,n,x;
+  unsigned int i,j,k,n,x,d;
   char fName[256];
   char peptide[256];
   char tmp[16];
@@ -741,28 +746,48 @@ bool KData::outputResults2(KDatabase& db){
 
     //This block is strictly for exporting the diagnostics
     //<--------- Start Diagnostics
-    if(spec[i].getScanNumber()==params->diagnostic){
-      FILE* f2=fopen("diagnostic.txt","at");
-      fprintf(f2,"\n");
-      fprintf(f2,"# precursors: %d\n",spec[i].sizePrecursor());
-      for(j=0;j<(unsigned int)spec[i].sizePrecursor();j++) fprintf(f2,"Precursor: %.4lf\t%d\t%.4lf\t%d\n",spec[i].getPrecursor(j).monoMass,spec[i].getPrecursor(j).charge,spec[i].getPrecursor(j).corr,(int)spec[i].getPrecursor(j).label);
-      fprintf(f2,"\n");
+    for(d=0;d<params->diag->size();d++){
+      if(spec[i].getScanNumber()==params->diag->at(d)){
+        char diagStr[256];
+        sprintf(diagStr,"diagnostic_%d.txt",params->diag->at(d));
 
-      for(j=0;j<20;j++){
-        tmpSC = spec[i].getScoreCard(j);
-        pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
-        db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-        for(n=0;n<strlen(peptide);n++){
-          fprintf(f2,"%c",peptide[n]);
-          for(x=0;x<tmpSC.mods1->size();x++){
-            if(tmpSC.mods1->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods1->at(x).mass);
+        FILE* f2=fopen(diagStr,"at");
+        fprintf(f2,"\n");
+        fprintf(f2,"# precursors: %d\n",spec[i].sizePrecursor());
+        for(j=0;j<(unsigned int)spec[i].sizePrecursor();j++) fprintf(f2,"Precursor: %.4lf\t%d\t%.4lf\t%d\n",spec[i].getPrecursor(j).monoMass,spec[i].getPrecursor(j).charge,spec[i].getPrecursor(j).corr,(int)spec[i].getPrecursor(j).label);
+        fprintf(f2,"\n");
+
+        for(j=0;j<20;j++){
+          tmpSC = spec[i].getScoreCard(j);
+          pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
+          db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+          for(n=0;n<strlen(peptide);n++){
+            fprintf(f2,"%c",peptide[n]);
+            for(x=0;x<tmpSC.mods1->size();x++){
+              if(tmpSC.mods1->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods1->at(x).mass);
+            }
+            if(n==tmpSC.k1 || (tmpSC.pep2<0 && n==tmpSC.k2)) fprintf(f2,"[x]");
           }
-          if(n==tmpSC.k1 || (tmpSC.pep2<0 && n==tmpSC.k2)) fprintf(f2,"[x]");
-        }
-        fprintf(f2,"(%d)",spec[i].getScoreCard(j).k1);
-        if(tmpSC.k1>-1 && link[tmpSC.link].mono==0){
-          if(tmpSC.pep2>-1){
-            fprintf(f2,"\t");
+          fprintf(f2,"(%d)",spec[i].getScoreCard(j).k1);
+          if(tmpSC.k1>-1 && link[tmpSC.link].mono==0){
+            if(tmpSC.pep2>-1){
+              fprintf(f2,"\t");
+              pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
+              db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+              for(n=0;n<strlen(peptide);n++){
+                fprintf(f2,"%c",peptide[n]);
+                for(x=0;x<tmpSC.mods2->size();x++){
+                  if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
+                }
+                if(n==tmpSC.k2) fprintf(f2,"[x]");
+              }
+              fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
+            } else {
+              fprintf(f2,"\t(%d)",spec[i].getScoreCard(j).k2);
+            }
+          }
+          if(tmpSC.link==-2){
+            fprintf(f2,"+");
             pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
             db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
             for(n=0;n<strlen(peptide);n++){
@@ -770,29 +795,15 @@ bool KData::outputResults2(KDatabase& db){
               for(x=0;x<tmpSC.mods2->size();x++){
                 if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
               }
-              if(n==tmpSC.k2) fprintf(f2,"[x]");
             }
             fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
-          } else {
-            fprintf(f2,"\t(%d)",spec[i].getScoreCard(j).k2);
           }
+          if(tmpSC.link>-1) fprintf(f2,"\t%.4lf\t%.4lf\t%.4lf\n",tmpSC.simpleScore,tmpSC.mass,link[tmpSC.link].mass);
+          else fprintf(f2,"\t%.4lf\t%.4lf\t--\n",tmpSC.simpleScore,tmpSC.mass);
         }
-        if(tmpSC.link==-2){
-          fprintf(f2,"+");
-          pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
-          db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-          for(n=0;n<strlen(peptide);n++){
-            fprintf(f2,"%c",peptide[n]);
-            for(x=0;x<tmpSC.mods2->size();x++){
-              if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
-            }
-          }
-          fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
-        }
-        if(tmpSC.link>-1) fprintf(f2,"\t%.4lf\t%.4lf\t%.4lf\n",tmpSC.simpleScore,tmpSC.mass,link[tmpSC.link].mass);
-        else fprintf(f2,"\t%.4lf\t%.4lf\t--\n",tmpSC.simpleScore,tmpSC.mass);
+        fclose(f2);
+        break;
       }
-      fclose(f2);
     }
     //<--------- End Diagnostics
 
@@ -1041,7 +1052,7 @@ bool KData::readSpectra(){
   cout << "Reading spectra ..." << endl;
 
   msr.setFilter(MS2);
-  msr.readFile(params->msFile,s);
+  if(!msr.readFile(params->msFile,s)) return false;
   while(s.getScanNumber()>0){
 
     totalScans++;
@@ -1137,12 +1148,19 @@ bool KData::readSpectra(){
     //Add spectrum (if it has enough data points) to data object and read next file
     if(pls.size()>12) spec.push_back(pls);
 
-    if(pls.getScanNumber()==params->diagnostic){
-      FILE* f=fopen("diagnostic_spectrum.txt","wt");
-      fprintf(f,"Scan: %d\t%d\n",pls.getScanNumber(),pls.size());
-      for(int k=0;k<pls.size();k++) fprintf(f,"%.6lf\t%.0f\n",pls[k].mass,pls[k].intensity);
-      fclose(f);
+    /*
+    for(d=0;d<params->diag->size();d++){
+      if(pls.getScanNumber()==params->diag->at(d)){
+        char diagStr[256];
+        sprintf(diagStr,"diagnostic_spectrum_%d.txt",params->diag->at(d));
+        FILE* f=fopen(diagStr,"wt");
+        fprintf(f,"Scan: %d\t%d\n",pls.getScanNumber(),pls.size());
+        for(int k=0;k<pls.size();k++) fprintf(f,"%.6lf\t%.0f\n",pls[k].mass,pls[k].intensity);
+        fclose(f);
+        break;
+      }
     }
+    */
 
     msr.readFile(NULL,s);
   }

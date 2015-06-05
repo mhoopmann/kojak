@@ -472,7 +472,7 @@ void KAnalysis::analyzePeptideNC(vector<kPeptideB>* p, int pIndex, int iIndex){
 void KAnalysis::analyzeRelaxed(KSpectrum* sp){
 
   int i,j,k,m,n,x;
-  unsigned int q;
+  unsigned int q,d;
   int index;
   int count=sp->getSingletCount();
 
@@ -484,24 +484,31 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
   kScoreCard sc;
   kPeptide pep;
   
-  if(sp->getScanNumber()==params.diagnostic){
-    FILE* f=fopen("diagnostic.txt","wt");
-    fprintf(f,"Scan: %d\n",sp->getScanNumber());
-    char strs[256];
-    for(k=0;k<count;k++){
-      sc1=sp->getSingletScoreCard(k);
-      db->getPeptideSeq( db->getPeptideList(sc1.linkable)->at(sc1.pep1).map->at(0).index,db->getPeptideList(sc1.linkable)->at(sc1.pep1).map->at(0).start,db->getPeptideList(sc1.linkable)->at(sc1.pep1).map->at(0).stop,strs);
-      for(q=0;q<strlen(strs);q++){
-        fprintf(f,"%c",strs[q]);
-        for(x=0;x<sc1.modLen;x++){
-          if(sc1.mods[x].pos==q) fprintf(f,"[%.2lf]",sc1.mods[x].mass);
+  //<------ Diagnostic output
+  for(d=0;d<params.diag->size();d++){
+    if(sp->getScanNumber()==params.diag->at(d)){
+      char diagStr[256];
+      sprintf(diagStr,"diagnostic_%d.txt",params.diag->at(d));
+      FILE* f=fopen(diagStr,"wt");
+      fprintf(f,"Scan: %d\n",sp->getScanNumber());
+      char strs[256];
+      for(k=0;k<count;k++){
+        sc1=sp->getSingletScoreCard(k);
+        db->getPeptideSeq( db->getPeptideList(sc1.linkable)->at(sc1.pep1).map->at(0).index,db->getPeptideList(sc1.linkable)->at(sc1.pep1).map->at(0).start,db->getPeptideList(sc1.linkable)->at(sc1.pep1).map->at(0).stop,strs);
+        for(q=0;q<strlen(strs);q++){
+          fprintf(f,"%c",strs[q]);
+          for(x=0;x<sc1.modLen;x++){
+            if(sc1.mods[x].pos==q) fprintf(f,"[%.2lf]",sc1.mods[x].mass);
+          }
+          if(q==sc1.k1)fprintf(f,"[x]");
         }
-        if(q==sc1.k1)fprintf(f,"[x]");
+        fprintf(f,"\t%d\t%d\t%.6lf\t%.4lf\t%.4lf\n",sc1.k1,(int)sc1.modLen,sc1.mass,sc1.simpleScore,sc1.simpleScore*sc1.len);
       }
-      fprintf(f,"\t%d\t%d\t%.6lf\t%.4lf\t%.4lf\n",sc1.k1,(int)sc1.modLen,sc1.mass,sc1.simpleScore,sc1.simpleScore*sc1.len);
+      fclose(f);
+      break;
     }
-    fclose(f);
   }
+  //<------ End diagnostic
 
   //Make a sortable list of top hits to compare
   for(j=0;j<count;j++){

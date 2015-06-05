@@ -122,7 +122,7 @@ typedef struct kEnzymeRules{
 } kEnzymeRules;
 
 typedef struct kParams {
-  int     diagnostic;
+  //int     diagnostic;
   int     dimers;
   int     instrument;     //0=Orbi, 1=FTICR
   int     maxMods;
@@ -155,12 +155,13 @@ typedef struct kParams {
   char    msFile[256];
   char    outFile[256];
   char    percolator[256];
-  vector<kLinker>* xLink;
-  vector<kLinker>* mLink;
-  vector<kMass>* mods;
-  vector<kMass>* fMods;
+  vector<int>*      diag;
+  vector<kLinker>*  xLink;
+  vector<kLinker>*  mLink;
+  vector<kMass>*    mods;
+  vector<kMass>*    fMods;
   kParams(){
-    diagnostic=0;
+    //diagnostic=0;
     dimers=0;
     instrument=1;
     maxMods=0;
@@ -193,13 +194,14 @@ typedef struct kParams {
     msFile[0]='\0';
     outFile[0]='\0';
     percolator[0]='\0';
+    diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
     mods = new vector<kMass>;
     fMods = new vector<kMass>;
   }
   kParams(const kParams& p){
-    diagnostic=p.diagnostic;
+    //diagnostic=p.diagnostic;
     dimers=p.dimers;
     instrument=p.instrument;
     maxMods=p.maxMods;
@@ -232,17 +234,20 @@ typedef struct kParams {
     strcpy(msFile,p.msFile);
     strcpy(outFile,p.outFile);
     strcpy(percolator,p.percolator);
+    diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
     mods = new vector<kMass>;
     fMods = new vector<kMass>;
     unsigned int i;
+    for(i=0;i<p.diag->size();i++) diag->push_back(p.diag->at(i));
     for(i=0;i<p.xLink->size();i++) xLink->push_back(p.xLink->at(i));
     for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));
     for(i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));
     for(i=0;i<p.fMods->size();i++) fMods->push_back(p.fMods->at(i));
   }
   ~kParams(){
+    delete diag;
     delete xLink;
     delete mLink;
     delete mods;
@@ -250,7 +255,7 @@ typedef struct kParams {
   }
   kParams& operator=(const kParams& p){
     if(this!=&p){
-      diagnostic=p.diagnostic;
+      //diagnostic=p.diagnostic;
       dimers=p.dimers;
       instrument=p.instrument;
       maxMods=p.maxMods;
@@ -283,15 +288,18 @@ typedef struct kParams {
       strcpy(msFile,p.msFile);
       strcpy(outFile,p.outFile);
       strcpy(percolator,p.percolator);
+      delete diag;
       delete xLink;
       delete mLink;
       delete mods;
       delete fMods;
+      diag = new vector<int>;
       xLink = new vector<kLinker>;
       mLink = new vector<kLinker>;
       mods = new vector<kMass>;
       fMods = new vector<kMass>;
       unsigned int i;
+      for(i=0;i<p.diag->size();i++) diag->push_back(p.diag->at(i));
       for(i=0;i<p.xLink->size();i++) xLink->push_back(p.xLink->at(i));
       for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));
       for(i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));

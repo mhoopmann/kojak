@@ -161,7 +161,8 @@ void KParams::parse(char* cmd) {
     strcpy(params->dbFile,&values[0][0]);
 
   } else if(strcmp(param,"diagnostic")==0){
-    params->diagnostic=atoi(&values[0][0]);
+    //params->diagnostic=atoi(&values[0][0]);
+    params->diag->push_back(atoi(&values[0][0]));
 
   } else if(strcmp(param,"diff_mods_on_xl")==0){
     if(atoi(&values[0][0])!=0) params->diffModsOnXL=true;
