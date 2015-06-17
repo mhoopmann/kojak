@@ -214,13 +214,14 @@ bool KData::mapPrecursors(){
   int iTmp;
   
   unsigned int i;
-  int j;
+  int j,k;
 
   KPrecursor pre(params);
   kMass      m;
 
   int peakCounts=0;
   int specCounts=0;
+  int ret;
 
   int prePre=0;
   int foundPre=0;
@@ -244,9 +245,8 @@ bool KData::mapPrecursors(){
       fflush(stdout);
     }
 
-    //if precursors already existed (user request at spectrum load time),
-    //don't compute new precursors
-    if(spec[i].sizePrecursor()>0){
+    //If instrument determined precursors are preferred, only compute precursors if none supplied
+    if(params->preferPrecursor==1 && spec[i].sizePrecursor()>0){
       prePre++;
       specCounts++;
       peakCounts+=spec[i].size();
@@ -254,17 +254,62 @@ bool KData::mapPrecursors(){
     }
 
     //Find precursor using object function. Take results and copy them to spectra
-    if(pre.getSpecRange(spec[i])){
+    ret=pre.getSpecRange(spec[i]);
+    if(ret>0){
+
+      //if supplementing instrument predicted precursor, then chance for precursor
+      //to be seen twice (first by instrument, then by Hardklor). Keep Hardklor result.
+      if(spec[i].getInstrumentPrecursor() && spec[i].sizePrecursor()>1){
+        if(spec[i].getPrecursor(0).charge==spec[i].getPrecursor(1).charge && 
+           fabs((spec[i].getPrecursor(0).monoMass-spec[i].getPrecursor(1).monoMass)/spec[i].getPrecursor(0).monoMass*1e6)<10.0 ){
+          spec[i].erasePrecursor(0);
+          spec[i].setInstrumentPrecursor(false);
+        }
+      }
+
+      //if precursor prediction doesn't overlap selected ion, predict additional
+      //precursors using presumed charge states and the selected ion.
+      if(ret==2) {
+        pre.estimatePrecursor(spec[i]);
+
+        //if supplementing instrument predicted precursor, then chance for precursor
+        //to be seen twice (first by instrument, then by charge prediction). Keep instrument.
+        if(spec[i].getInstrumentPrecursor() && spec[i].sizePrecursor()>1){
+          for(k=1;k<spec[i].sizePrecursor();k++){
+            if(spec[i].getPrecursor(0).charge==spec[i].getPrecursor(k).charge && 
+               fabs((spec[i].getPrecursor(0).monoMass-spec[i].getPrecursor(k).monoMass)/spec[i].getPrecursor(0).monoMass*1e6)<10.0 ){
+              spec[i].erasePrecursor(k);
+              k--;
+            }
+          }
+        }
+
+      }
+
+    } else { 
+      
+      //If no precursors found, estimate using mercury and selected mass
+      pre.estimatePrecursor(spec[i]);
+      
+      //if supplementing instrument predicted precursor, then chance for precursor
+      //to be seen twice (first by instrument, then by charge prediction). Keep instrument.
+      if(spec[i].getInstrumentPrecursor() && spec[i].sizePrecursor()>1){
+        for(k=1;k<spec[i].sizePrecursor();k++){
+          if(spec[i].getPrecursor(0).charge==spec[i].getPrecursor(k).charge && 
+             fabs(spec[i].getPrecursor(0).monoMass-spec[i].getPrecursor(k).monoMass)<0.01 ){
+            spec[i].erasePrecursor(k);
+            k--;
+          }
+        }
+      }
+
+    }
+
+    if(spec[i].sizePrecursor()>0){
       foundPre++;
       specCounts++;
       peakCounts+=spec[i].size();
-    } else { //If no precursors found, estimate using mercury and selected mass
-      if(params->enrichment==0 && pre.estimatePrecursor(spec[i])){
-        noPre++;
-        specCounts++;
-        peakCounts+=spec[i].size();
-      }
-    } 
+    }    
 
   }
  
@@ -944,7 +989,7 @@ bool KData::outputResults2(KDatabase& db){
       pep = db.getPeptide(res.pep1,res.linkable1);
       for(j=0;j<pep.map->size();j++){
         fprintf(fOut,"%s",&db[pep.map->at(j).index].name[0]);
-        if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1+1); //put position from start of protein
+        if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //put position from start of protein
       }
 
       if(res.modPeptide2.size()>1) {
@@ -954,7 +999,7 @@ bool KData::outputResults2(KDatabase& db){
         pep = db.getPeptide(res.pep2,res.linkable2);
         for(j=0;j<pep.map->size();j++){
           fprintf(fOut,"%s",&db[pep.map->at(j).index].name[0]);
-          if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link2+1); //put position from start of protein
+          if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link2); //put position from start of protein
         }
         if(tmpSC.link>-1)fprintf(fOut,"\t%.4lf",link[tmpSC.link].mass);
         else fprintf(fOut,"\t-");
@@ -1137,19 +1182,19 @@ bool KData::readSpectra(){
     //Get any additional information user requested
     pls.setCharge(s.getCharge());
     pls.setMZ(s.getMZ());
-    if(params->preferPrecursor){
+    if(params->preferPrecursor>0){
       if(s.getMonoMZ()>0 && s.getCharge()>0){
         pre.monoMass=s.getMonoMZ()*s.getCharge()-s.getCharge()*1.007276466;
         pre.charge=s.getCharge();
         pls.addPrecursor(pre);
+        pls.setInstrumentPrecursor(true);
       }
     }
 
     //Add spectrum (if it has enough data points) to data object and read next file
     if(pls.size()>12) spec.push_back(pls);
 
-    /*
-    for(d=0;d<params->diag->size();d++){
+    for(unsigned int d=0;d<params->diag->size();d++){
       if(pls.getScanNumber()==params->diag->at(d)){
         char diagStr[256];
         sprintf(diagStr,"diagnostic_spectrum_%d.txt",params->diag->at(d));
@@ -1160,7 +1205,6 @@ bool KData::readSpectra(){
         break;
       }
     }
-    */
 
     msr.readFile(NULL,s);
   }

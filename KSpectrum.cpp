@@ -23,6 +23,7 @@ limitations under the License.
 KSpectrum::KSpectrum(int i, double bs, double os){
   binOffset=os;
   binSize=bs;
+  instrumentPrecursor=false;
   invBinSize=1.0/binSize;
   charge = 0; 
   maxIntensity=0;
@@ -55,6 +56,7 @@ KSpectrum::KSpectrum(const KSpectrum& p){
 
   binOffset = p.binOffset;
   binSize = p.binSize;
+  instrumentPrecursor = p.instrumentPrecursor;
   invBinSize = p.invBinSize;
   charge= p.charge;
   maxIntensity = p.maxIntensity;
@@ -145,6 +147,7 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
 
     binOffset = p.binOffset;
     binSize = p.binSize;
+    instrumentPrecursor = p.instrumentPrecursor;
     invBinSize = p.invBinSize;
     charge = p.charge;
     maxIntensity = p.maxIntensity;
@@ -218,6 +221,10 @@ double KSpectrum::getBinOffset(){
 
 int KSpectrum::getCharge(){
   return charge;
+}
+
+bool KSpectrum::getInstrumentPrecursor(){
+  return instrumentPrecursor;
 }
 
 double KSpectrum::getInvBinSize(){
@@ -299,6 +306,10 @@ void KSpectrum::erasePrecursor(int i){
 
 void KSpectrum::setCharge(int i){
   charge=i;
+}
+
+void KSpectrum::setInstrumentPrecursor(bool b){
+  instrumentPrecursor=b;
 }
 
 void KSpectrum::setMaxIntensity(float f){

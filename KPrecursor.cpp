@@ -38,13 +38,15 @@ KPrecursor::KPrecursor(kParams* p){
   hs.winSize=hs2.winSize=hs4.winSize=10;
   hs.peptide=hs2.peptide=hs4.peptide=4;
   hs.sn=hs2.sn=hs4.sn=0;
-  hs.depth=hs2.depth=hs4.depth=1;
+  hs.depth=hs2.depth=hs4.depth=3;
   hs.minCharge=hs2.minCharge=hs4.minCharge=2;
   hs.maxCharge=hs2.maxCharge=hs4.maxCharge=8;
+  hs.algorithm=Version2;
   if(params->instrument==1) hs.msType=hs2.msType=hs4.msType=FTICR;
   else hs.msType=hs2.msType=hs4.msType=OrbiTrap;
   hs.res400=hs2.res400=hs4.res400=params->ms1Resolution;
-  hs.corr=hs2.corr=hs4.corr=0.85;
+  hs.corr=0.875;
+  hs2.corr=hs4.corr=0.85;
   hs.centroid=hs2.centroid=hs4.centroid=true;
 
   strcpy(hs.inFile,"PLTmp.ms1");
@@ -55,10 +57,24 @@ KPrecursor::KPrecursor(kParams* p){
 
   averagine = new CAveragine(NULL,NULL);
 	mercury = new CMercury8(NULL);
+  models = new CModelLibrary(averagine,mercury);
 
-  h = new CHardklor(averagine,mercury);
+  h = new CHardklor2(averagine,mercury,models);
+  hO = new CHardklor(averagine,mercury);
+
+	CHardklorVariant hkv;
+  vector<CHardklorVariant> pepVariants;
+  pepVariants.clear();
+	pepVariants.push_back(hkv);
+
+	models->eraseLibrary();
+	models->buildLibrary(2,8,pepVariants);
+
   h->Echo(false);
   h->SetResultsToMemory(true);
+
+  hO->Echo(false);
+  hO->SetResultsToMemory(true);
 
   centBuf = new deque<Spectrum>;
 
@@ -83,52 +99,62 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
   double mass;
   double offset;
   double dif;
-  unsigned int i;
+  unsigned int i,j;
   kPrecursor pre;
 
-  if(s.getCharge()<1) return false;  //only estimate if precursor charge is known
+  //only estimate if precursor charge is known or assumed
+  if(s.getCharge()<1 && preCharges.size()==0) return false;  
 
-  mass = s.getMZ()*s.getCharge()-s.getCharge()*1.007276466;
-  averagine->clear();
-  averagine->calcAveragine(mass,hv);
-  averagine->getAveragine(formula);
-
-  mercury->GoMercury(formula);
-  for(i=0;i<mercury->FixedData.size();i++){
-    if(mercury->FixedData[i].data>99.99) break;
+  //Check if precursor charge is already known. If so, use only it.
+  if(s.getCharge()>0){
+    preCharges.clear();
+    preCharges.push_back(s.getCharge());
   }
-  offset=mercury->FixedData[i].mass-mass;
 
-  pre.charge=s.getCharge();
-  pre.monoMass=mass;
-  s.addPrecursor(pre);
+  for(j=0;j<preCharges.size();j++){
 
-  //if base peak is not monoisotopic, try one peak to the left.
-  //Could try all peaks until monoisotopic is found, but might not make any difference,
-  //only add time.
-  if(i>0){
-    dif=mercury->FixedData[i].mass-mercury->FixedData[i-1].mass;
-    pre.monoMass=mercury->FixedData[i-1].mass-offset;
+    mass = s.getMZ()*preCharges[j]-preCharges[j]*1.007276466;
+    averagine->clear();
+    averagine->calcAveragine(mass,hv);
+    averagine->getAveragine(formula);
+
+    mercury->GoMercury(formula);
+    for(i=0;i<mercury->FixedData.size();i++){
+      if(mercury->FixedData[i].data>99.99) break;
+    }
+    offset=mercury->FixedData[i].mass-mass;
+
+    pre.charge=preCharges[j];
+    pre.monoMass=mass;
     s.addPrecursor(pre);
-    if(pre.monoMass>3000 && i>1){
-      pre.monoMass=mercury->FixedData[i-2].mass-offset;
-      s.addPrecursor(pre);
-    }
-    if(pre.monoMass>5000 && i>2){
-      pre.monoMass=mercury->FixedData[i-3].mass-offset;
-      s.addPrecursor(pre);
-    }
-  }
 
-  //also add the next peak
-  pre.monoMass=mercury->FixedData[i+1].mass-offset;
-  s.addPrecursor(pre);
+    //if base peak is not monoisotopic, try one peak to the left.
+    //Could try all peaks until monoisotopic is found, but might not make any difference,
+    //only add time.
+    if(i>0){
+      dif=mercury->FixedData[i].mass-mercury->FixedData[i-1].mass;
+      pre.monoMass=mercury->FixedData[i-1].mass-offset;
+      s.addPrecursor(pre);
+      if(pre.monoMass>3000 && i>1){
+        pre.monoMass=mercury->FixedData[i-2].mass-offset;
+        s.addPrecursor(pre);
+      }
+      if(pre.monoMass>5000 && i>2){
+        pre.monoMass=mercury->FixedData[i-3].mass-offset;
+        s.addPrecursor(pre);
+      }
+    }
+
+    //also add the next peak?
+    //pre.monoMass=mercury->FixedData[i+1].mass-offset;
+    //s.addPrecursor(pre);
+  }
 
   return true;
 }
 
 //Finds the 18O2 and 18O4 precursor monoisotopic masses and charge states for a given MS/MS scan.
-bool KPrecursor::getSpecRange(KSpectrum& pls){
+int KPrecursor::getSpecRange(KSpectrum& pls){
 
   unsigned int i;
 
@@ -139,6 +165,7 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   int best;
   int lastScan;
   int scanNum=pls.getScanNumber();
+  int ret=0;
 
   float maxIntensity;
   float maxRT;
@@ -149,6 +176,7 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   double corr;
   double monoMass;
   double mz;
+  double tmz;
 
   kPrecursor pre;
   kRTProfile p;
@@ -191,7 +219,7 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   //Sanity check. Exit if you can't find precursor scans within range of MS/MS retention time
   if(centBuf->size()==0){
     //cout << "Reached end of file buffer and no spectra remain." << endl;
-    return false;
+    return ret;
   }
 
   //add spectra that need to be buffered
@@ -248,7 +276,7 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   //In the future, perhaps add verbosity parameter to capture this message.
   if(v.size()<1){
     //cout << "Warning: Precursor not found for " << scanNum << " " << mz << endl;
-    return false;
+    return ret;
   }
   
   //Get up to +/-15 sec of spectra around the max precursor intensity
@@ -297,32 +325,97 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   */
 
   //Average points between mz-1.5 and mz+2
-  averageScansCentroid(vs,s,mz-1.5,mz+2);
+  averageScansCentroid(vs,s,mz-1.0,mz+1.5);
   s.setScanNumber(centBuf->at(precursor).getScanNumber());
+
+  //Obtain the possible precursor charge states of the selected ion.
+  //Find the index of the closest peak to the selected m/z.
+  preCharges.clear();
+  tmz=fabs(mz-s[0].mz);
+  for(j=1;j<s.size();j++){
+    if(fabs(mz-s[j].mz)<tmz) tmz=fabs(mz-s[j].mz);
+    else break;
+  }
+  j=j-1;
+  h->QuickCharge(s,j,preCharges);
 
   //Clear corr
   corr=0;
 
   //Perform 18O2 analysis with Hardklor. If enrichment is set to 0, store unenriched results in the *O2 variables.
   //This is done in a non-competitive to identify an 18O2 peptide without solving everything
-  //if(scanNum==33338) cout << "Hardklor" << endl;
-  if(params->enrichment>0) h->GoHardklor(hs2,&s);
-  else h->GoHardklor(hs,&s);
+  if(params->enrichment>0) {
+    hO->GoHardklor(hs2,&s);
 
-  for(j=0;j<h->Size();j++){
-    if(h->operator[](j).corr>corr){
-      monoMass=h->operator[](j).monoMass;
-      charge=h->operator[](j).charge;
-      corr=h->operator[](j).corr;
+    for(j=0;j<h->Size();j++){
+      if(h->operator[](j).corr>corr){
+        monoMass=h->operator[](j).monoMass;
+        charge=h->operator[](j).charge;
+        corr=h->operator[](j).corr;
+      }
     }
-  }
-  if(corr>0){
-    pre.monoMass=monoMass;
-    pre.charge=charge;
-    pre.corr=corr;
-    if(params->enrichment>0) pre.label=1;
-    else pre.label=0;
-    pls.addPrecursor(pre);
+    if(corr>0){
+      pre.monoMass=monoMass;
+      pre.charge=charge;
+      pre.corr=corr;
+      if(params->enrichment>0) pre.label=1;
+      else pre.label=0;
+      pls.addPrecursor(pre);
+    }
+
+  } else {
+    
+    h->GoHardklor(hs,&s);
+
+    //If nothing was found, really narrow down the window and try again.
+    if(h->Size()==0){
+      averageScansCentroid(vs,s,mz-0.6,mz+1.2);
+      s.setScanNumber(centBuf->at(precursor).getScanNumber());
+      if(params->enrichment>0) h->GoHardklor(hs2,&s);
+      else h->GoHardklor(hs,&s);
+    }
+
+    float intensity=0;
+    for(j=0;j<h->Size();j++){
+
+      //Must have highest intensity and intersect isolated peak.
+      if(h->operator[](j).intensity<intensity) continue;
+      tmz=(h->operator[](j).monoMass+1.007276466*h->operator[](j).charge)/h->operator[](j).charge;
+      while(tmz<(pls.getMZ()+0.01)){
+        if(fabs(tmz-pls.getMZ())<0.01){
+          monoMass=h->operator[](j).monoMass;
+          charge=h->operator[](j).charge;
+          corr=h->operator[](j).corr;
+          intensity=h->operator[](j).intensity;
+          ret=1;
+          break;
+        }
+        tmz+=(1.003/h->operator[](j).charge);
+      }
+    }
+
+    //failing to match precursor peak, keep most intense precursor in presumed isolation window
+    if(corr==0){
+      for(j=0;j<h->Size();j++){
+        if(h->operator[](j).intensity>intensity){
+          monoMass=h->operator[](j).monoMass;
+          charge=h->operator[](j).charge;
+          corr=h->operator[](j).corr;
+          intensity=h->operator[](j).intensity;
+          ret=2;
+        }
+      }
+    }
+
+    if(corr>0){
+      pre.monoMass=monoMass;
+      pre.charge=charge;
+      pre.corr=corr;
+      if(params->enrichment>0) pre.label=1;
+      else pre.label=0;
+      pls.addPrecursor(pre);
+    }
+
   }
 
   //Clear corr
@@ -330,12 +423,13 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
 
   //Perform the 18O4 Hardklor analysis on the same data if needed
   if(params->enrichment>0) {
-    h->GoHardklor(hs4,&s);
+    hO->GoHardklor(hs4,&s);
     for(j=0;j<h->Size();j++){
-      if(h->operator[](j).corr>corr){
-        monoMass=h->operator[](j).monoMass;
-        charge=h->operator[](j).charge;
-        corr=h->operator[](j).corr;
+      if(hO->operator[](j).corr>corr){
+        monoMass=hO->operator[](j).monoMass;
+        charge=hO->operator[](j).charge;
+        corr=hO->operator[](j).corr;
+        ret=1;
       }
     }
   }
@@ -369,8 +463,9 @@ bool KPrecursor::getSpecRange(KSpectrum& pls){
   }
 
   //If we have something, return it
-  if(pls.sizePrecursor()>0)  return true;
-  else return false;
+  return ret;
+  //if(pls.sizePrecursor()>0)  return true;
+  //else return false;
 
 }
 

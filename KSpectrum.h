@@ -43,32 +43,34 @@ public:
   int             kojakBins;
 
   //Accessors
-  double              getBinOffset        ();
-  int                 getCharge           ();
-  double              getInvBinSize       ();
-  float               getMaxIntensity     ();
-  double              getMZ               ();
-  kPrecursor&         getPrecursor        (int i);
-  kPrecursor*         getPrecursor2       (int i);
-  float               getRTime            ();
-  int                 getScanNumber       ();
-  kScoreCard&         getScoreCard        (int i);
-  int                 getSingletCount     ();
-  kSingletScoreCard&  getSingletScoreCard (int i);
-  int                 size                ();
-  int                 sizePrecursor       ();
+  double              getBinOffset          ();
+  int                 getCharge             ();
+  bool                getInstrumentPrecursor();
+  double              getInvBinSize         ();
+  float               getMaxIntensity       ();
+  double              getMZ                 ();
+  kPrecursor&         getPrecursor          (int i);
+  kPrecursor*         getPrecursor2         (int i);
+  float               getRTime              ();
+  int                 getScanNumber         ();
+  kScoreCard&         getScoreCard          (int i);
+  int                 getSingletCount       ();
+  kSingletScoreCard&  getSingletScoreCard   (int i);
+  int                 size                  ();
+  int                 sizePrecursor         ();
 
   //Modifiers
-  void addPoint         (kSpecPoint& s);
-  void addPrecursor     (kPrecursor& p);
-  void clear            ();
-  void erasePrecursor   (int i);
-  void setCharge        (int i);
-  void setMaxIntensity  (float f);
-  void setMZ            (double d);
-  void setPrecursor     (double d, int i);
-  void setRTime         (float f);
-  void setScanNumber    (int i);
+  void addPoint               (kSpecPoint& s);
+  void addPrecursor           (kPrecursor& p);
+  void clear                  ();
+  void erasePrecursor         (int i);
+  void setCharge              (int i);
+  void setInstrumentPrecursor (bool b);
+  void setMaxIntensity        (float f);
+  void setMZ                  (double d);
+  void setPrecursor           (double d, int i);
+  void setRTime               (float f);
+  void setScanNumber          (int i);
 
   //Functions
   void  checkScore        (kScoreCard& s);
@@ -82,6 +84,7 @@ private:
   double                binOffset;
   double                binSize;
   int                   charge;
+  bool                  instrumentPrecursor;
   double                invBinSize;
   float                 maxIntensity;
   double                mz;

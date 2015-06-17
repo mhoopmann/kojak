@@ -171,7 +171,7 @@ typedef struct kParams {
     ms2Centroid=0;
     ms1Resolution=60000;
     ms2Resolution=15000;
-    preferPrecursor=0;
+    preferPrecursor=1;
     setA=0;
     setB=0;
     specProcess=0;

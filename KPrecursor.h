@@ -20,7 +20,8 @@ limitations under the License.
 #include "KStructs.h"
 #include "KSpectrum.h"
 
-#include "CHardklor.h"
+#include "CHardklor2.h"
+#include "CModelLibrary.h"
 #include "CHardklorSetting.h"
 #include "CHardklorVariant.h"
 #include "MSObject.h"
@@ -47,8 +48,10 @@ public:
   ~KPrecursor();
 
   bool  estimatePrecursor (KSpectrum& s);
-  bool  getSpecRange      (KSpectrum& pls);
+  int   getSpecRange      (KSpectrum& pls);
   bool  setFile           ();
+
+  vector<int> preCharges;
 
 private:
 
@@ -70,7 +73,9 @@ private:
   
   CAveragine*      averagine;
 	CMercury8*       mercury;
-  CHardklor*       h;
+  CModelLibrary*   models;
+  CHardklor2*      h;
+  CHardklor*       hO;
   CHardklorSetting hs;
   CHardklorSetting hs2;
   CHardklorSetting hs4;
