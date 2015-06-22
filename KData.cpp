@@ -763,7 +763,7 @@ bool KData::outputResults2(KDatabase& db){
 
   //Put the headers on all the files
   fprintf(fOut,"Kojak version %s\n",version);
-  fprintf(fOut,"Scan Number\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tPep. Diff.\tPeptide #1\tLink #1\tProtein #1\tPeptide #2\tLink #2\tProtein #2\tLinker Mass\n");
+  fprintf(fOut,"Scan Number\tRet Time\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tPep. Diff.\tPeptide #1\tLink #1\tProtein #1\tPeptide #2\tLink #2\tProtein #2\tLinker Mass\n");
   if(params->percolator[0]!='\0'){
     if(params->percVersion>2.04) {
       fprintf(fIntra,"SpecId\tLabel\tScanNum\tScore\tdScore\t");
@@ -855,10 +855,11 @@ bool KData::outputResults2(KDatabase& db){
     scoreIndex=0;
     tmpSC=spec[i].getScoreCard(scoreIndex);
     res.scanNumber=spec[i].getScanNumber();
+    res.rTime=spec[i].getRTime();
 
     //if there are no matches to the spectrum, return null result and continue
     if(tmpSC.simpleScore==0){
-      fprintf(fOut,"%d\t0\t0\t0\t0\t0\t0\t0\t-\t-\t-\t-\t-\t-\t0\n",res.scanNumber);
+      fprintf(fOut,"%d\t%.4f\t0\t0\t0\t0\t0\t0\t0\t-\t-\t-\t-\t-\t-\t0\n",res.scanNumber,res.rTime);
       continue;
     }
 
@@ -975,6 +976,7 @@ bool KData::outputResults2(KDatabase& db){
 
       //Export Results:
       fprintf(fOut,"%d",res.scanNumber);
+      fprintf(fOut,"\t%.4f",res.rTime);
       fprintf(fOut,"\t%.4lf",res.obsMass);
       fprintf(fOut,"\t%d",res.charge);
       fprintf(fOut,"\t%.4lf",res.psmMass);

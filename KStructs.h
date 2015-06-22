@@ -507,6 +507,7 @@ typedef struct kResults{
   int     rank;
   int     scanNumber;
   int     type;
+  float   rTime;
   double  obsMass;
   double  ppm;
   double  psmMass;
