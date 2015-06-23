@@ -1,7 +1,6 @@
 # Kojak
 
 A database search algorithm for solving cross-linked peptide mass spectra.
-Author: Michael Hoopmann, Institute for Systems Biology
 
 ## License
 
