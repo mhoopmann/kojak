@@ -355,7 +355,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   //Export Results:
   if(r.decoy) fprintf(f,"D-");
   else fprintf(f,"T-");
-  fprintf(f,"%d",r.scanNumber);
+  fprintf(f,"%d-%.2f",r.scanNumber,r.rTime);
   if(count>1) fprintf(f,"-%d",count);
   if(r.decoy) fprintf(f,"\t-1");
   else fprintf(f,"\t1");
@@ -766,11 +766,11 @@ bool KData::outputResults2(KDatabase& db){
   fprintf(fOut,"Scan Number\tRet Time\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tPep. Diff.\tPeptide #1\tLink #1\tProtein #1\tPeptide #2\tLink #2\tProtein #2\tLinker Mass\n");
   if(params->percolator[0]!='\0'){
     if(params->percVersion>2.04) {
-      fprintf(fIntra,"SpecId\tLabel\tScanNum\tScore\tdScore\t");
-      fprintf(fInter,"SpecId\tLabel\tScanNum\tScore\tdScore\t");
-      fprintf(fLoop,"SpecId\tLabel\tScanNum\tScore\tdScore\t");
-      fprintf(fSingle,"SpecId\tLabel\tScanNum\tScore\tdScore\t");
-      if(params->dimers) fprintf(fDimer,"SpecId\tLabel\tScanNum\tScore\tdScore\t");
+      fprintf(fIntra,"SpecId\tLabel\tscannr\tScore\tdScore\t");
+      fprintf(fInter,"SpecId\tLabel\tscannr\tScore\tdScore\t");
+      fprintf(fLoop,"SpecId\tLabel\tscannr\tScore\tdScore\t");
+      fprintf(fSingle,"SpecId\tLabel\tscannr\tScore\tdScore\t");
+      if(params->dimers) fprintf(fDimer,"SpecId\tLabel\tscannr\tScore\tdScore\t");
     } else {
       fprintf(fIntra,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fInter,"SpecId\tLabel\tScore\tdScore\t");
