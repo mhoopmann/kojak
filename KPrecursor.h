@@ -64,6 +64,7 @@ private:
 
   //Data Members
   char      fileName[256];
+  int       lastScan;
   MSObject  mso;
   MSReader  msr;
   MSReader  msw;

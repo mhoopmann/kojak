@@ -22,7 +22,7 @@ limitations under the License.
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.3.6, June 17 2015" << endl;
+  cout << "Kojak version 1.3.7-dev, June 24 2015" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File>" << endl;
@@ -53,7 +53,7 @@ int main(int argc, char* argv[]){
   
   //Step #3: Read in spectra and map precursors
   KData spec(&params);
-  spec.setVersion("1.3.6");
+  spec.setVersion("1.3.7-dev");
   if(!spec.readSpectra()){
     cout << "Error reading MS_data_file. Exiting." << endl;
     return -2;

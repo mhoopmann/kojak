@@ -163,7 +163,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   int k;
   int precursor;
   int best;
-  int lastScan;
   int scanNum=pls.getScanNumber();
   int ret=0;
 
@@ -179,9 +178,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   double tmz;
 
   kPrecursor pre;
-  kRTProfile p;
   Spectrum s;
-  vector<kRTProfile> v;
   vector<Spectrum*> vs;
 
   //Look up original MS2
@@ -192,7 +189,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
 
   //clear scan buffer of unneeded spectra
   while(centBuf->size()>0 && centBuf->at(0).getRTime()<rt-1.0){
-    lastScan=centBuf->at(0).getScanNumber();
     centBuf->pop_front();
   }
 
@@ -213,6 +209,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       } else {
         centBuf->push_back(spec);
       }
+      lastScan=spec.getScanNumber();
     }
   }
 
@@ -222,8 +219,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     return ret;
   }
 
-  //add spectra that need to be buffered
-  lastScan=centBuf->at(centBuf->size()-1).getScanNumber();
   if(centBuf->at(centBuf->size()-1).getRTime()<rt+0.6){
     msr.setFilter(MS1);
     msr.readFile(NULL,spec,lastScan);
@@ -237,6 +232,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       } else {
         centBuf->push_back(spec);
       }
+      lastScan=spec.getScanNumber();
       msr.readFile(NULL,spec);
     }
     if(spec.getScanNumber()>0){
@@ -248,33 +244,29 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       } else {
         centBuf->push_back(spec);
       }
+      lastScan=spec.getScanNumber();
     }
   }
 
   //Find a precursor within 10 seconds for a given scan 
-  v.clear();
   maxIntensity=0;
+  precursor=-1;
   for(i=0;i<centBuf->size();i++){
     if(centBuf->at(i).getRTime()<rt-0.167) continue;
     if(centBuf->at(i).getRTime()>rt+0.167) break;
     j=findPeak(centBuf->at(i),mz,10);
     
     if(j>-1){
-      p.rt=centBuf->at(i).getRTime();
-      p.scan=centBuf->at(i).getScanNumber();
-      v.push_back(p);
       if(centBuf->at(i)[j].intensity>maxIntensity){
         maxIntensity=centBuf->at(i)[j].intensity;
-        maxRT=p.rt;
-        best=p.scan;
+        maxRT=centBuf->at(i).getRTime();
+        best=centBuf->at(i).getScanNumber();
         precursor=i;
       }
     }
   }
 
-  //If no precursor was found within 10 seconds of MS/MS scan event, exit.
-  //In the future, perhaps add verbosity parameter to capture this message.
-  if(v.size()<1){
+  if(precursor<0){
     //cout << "Warning: Precursor not found for " << scanNum << " " << mz << endl;
     return ret;
   }
@@ -604,6 +596,7 @@ bool KPrecursor::setFile() {
   strcpy(fileName,params->msFile);
 
   if(spec.getScanNumber()==0) return false;
+  lastScan=spec.getScanNumber();
 
   centBuf->clear();
   if(!params->ms1Centroid){
