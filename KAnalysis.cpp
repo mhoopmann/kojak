@@ -553,6 +553,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
   bool bN2;
   bool bSkip;
   kPeptide p;
+  vector<int> matches;
 
   //Check true cross-links
   for(k=0;k<spec->sizeLink();k++){
@@ -569,6 +570,8 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
       if(!s[j].linkable) continue;
       if(s[j].k1<0) continue;
 
+      matches.clear();
+
       p=db->getPeptide(s[j].pep1,true);
       cp1=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[j].k1];
       len1=db->at(p.map->at(0).index).sequence.size()-1;
@@ -580,6 +583,15 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
         n=index;
         while(n<count){
           if(s[n].simpleScore<0 || s[n].k1<0){
+            n++;
+            continue;
+          }
+
+          //Make sure we didn't already pair these peptides with a different precursor during this pass
+          for(x=0;x<matches.size();x++){
+            if(matches[x]==n) break;
+          }
+          if(x<matches.size()) {
             n++;
             continue;
           }
@@ -641,6 +653,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
             sc1=sp->getSingletScoreCard(s[n].rank);
             for(i=0;i<sc1.modLen;i++) sc.mods2->push_back(sc1.mods[i]);
             sp->checkScore(sc);
+            matches.push_back(n);
           } else if(ppm>params.ppmPrecursor) {
             break;
           }
@@ -649,6 +662,15 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
         n=index-1;
         while(n>-1){
           if(s[n].simpleScore<0 || s[n].k1<0){
+            n--;
+            continue;
+          }
+
+          //Make sure we didn't already pair these peptides with a different precursor during this pass
+          for(x=0;x<matches.size();x++){
+            if(matches[x]==n) break;
+          }
+          if(x<matches.size()) {
             n--;
             continue;
           }
@@ -709,6 +731,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
             sc1=sp->getSingletScoreCard(s[n].rank);
             for(i=0;i<sc1.modLen;i++) sc.mods2->push_back(sc1.mods[i]);
             sp->checkScore(sc);
+            matches.push_back(n);
           } else if(ppm<-params.ppmPrecursor) {
             break;
           }
