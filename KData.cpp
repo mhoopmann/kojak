@@ -379,7 +379,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
       else fprintf(f,"\t%d\t%d\t%d\t-.%s(%d)--%s(%d).-",r.peptide1.size(),r.peptide2.size(),r.peptide1.size()+r.peptide2.size(),&r.modPeptide2[0],r.link2,&r.modPeptide1[0],r.link1);
     }
   } else {
-    fprintf(f,"\t0\t%d\t%d\t-.%s",r.peptide1.size(),r.peptide1.size(),&r.modPeptide1[0]);
+    fprintf(f,"\t%d\t-.%s",r.peptide1.size(),&r.modPeptide1[0]);
     if(r.type==1) fprintf(f,"(%d,%d)-LOOP",r.link1,r.link2);
     fprintf(f,".-");
   }
