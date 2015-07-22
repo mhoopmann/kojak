@@ -140,6 +140,7 @@ typedef struct kParams {
   int     topCount;
   int     truncate;
   bool    diffModsOnXL;
+  bool    ionSeries[6];
   bool    monoLinksOnXL;
   bool    xcorr;
   double  binOffset;
@@ -179,6 +180,12 @@ typedef struct kParams {
     topCount=250;
     truncate=0;
     diffModsOnXL=false;
+    ionSeries[0]=false; //a-ions
+    ionSeries[1]=true;  //b-ions
+    ionSeries[2]=false; //c-ions
+    ionSeries[3]=false; //x-ions
+    ionSeries[4]=true;  //y-ions
+    ionSeries[5]=false; //z-ions
     monoLinksOnXL=false;
     xcorr=false;
     binSize=0.03;
@@ -245,6 +252,7 @@ typedef struct kParams {
     for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));
     for(i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));
     for(i=0;i<p.fMods->size();i++) fMods->push_back(p.fMods->at(i));
+    for(i=0;i<6;i++) ionSeries[i]=p.ionSeries[i];
   }
   ~kParams(){
     delete diag;
@@ -304,6 +312,7 @@ typedef struct kParams {
       for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));
       for(i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));
       for(i=0;i<p.fMods->size();i++) fMods->push_back(p.fMods->at(i));
+      for(i=0;i<6;i++) ionSeries[i]=p.ionSeries[i];
     }
     return (*this);
   }

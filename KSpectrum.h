@@ -28,7 +28,7 @@ class KSpectrum {
 public:
 
   //Constructors & Destructors
-  KSpectrum(int i, double bs, double os);
+  KSpectrum(const int& i, const double& bs, const double& os);
   KSpectrum(const KSpectrum& p);
   ~KSpectrum();
 

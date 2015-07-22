@@ -129,6 +129,8 @@ private:
   static kParams    params;
   static KData*     spec;
 
+  static int        numIonSeries;
+
   static Mutex  mutexKIonsManager; 
   static Mutex* mutexSpecScore; 
 

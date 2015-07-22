@@ -28,6 +28,8 @@ Mutex*      KAnalysis::mutexSpecScore;
 kParams     KAnalysis::params;
 KData*      KAnalysis::spec;
 
+int         KAnalysis::numIonSeries;
+
 /*============================
   Constructors & Destructors
 ============================*/
@@ -60,6 +62,11 @@ KAnalysis::KAnalysis(kParams& p, KDatabase* d, KData* dat){
       if(spec->getLink(j).mass<lowLinkMass) lowLinkMass=spec->getLink(j).mass;
       if(spec->getLink(j).mass>highLinkMass) highLinkMass=spec->getLink(j).mass;
     }
+  }
+
+  numIonSeries=0;
+  for(i=0;i<6;i++){
+    if(params.ionSeries[i]) numIonSeries++;
   }
 
   //Create mutexes
@@ -1131,7 +1138,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
   KSpectrum* s=spec->getSpectrum(specIndex);
   KIonSet* ki=ions[iIndex].at(sIndex);
-
+  
   double dXcorr=0.0;
   double invBinSize=s->getInvBinSize();
   double binOffset=params.binOffset;
@@ -1142,11 +1149,22 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   int k;
   int maxCharge=s->getCharge();  
 
-  int i;
+  int i,j;
   int key;
   int pos;
 
   unsigned int SpecSize=s->size();
+
+  //Assign ion series
+  double***  ionSeries;
+  ionSeries=new double**[numIonSeries];
+  k=0;
+  if(params.ionSeries[0]) ionSeries[k++]=ki->aIons;
+  if(params.ionSeries[1]) ionSeries[k++]=ki->bIons;
+  if(params.ionSeries[2]) ionSeries[k++]=ki->cIons;
+  if(params.ionSeries[3]) ionSeries[k++]=ki->xIons;
+  if(params.ionSeries[4]) ionSeries[k++]=ki->yIons;
+  if(params.ionSeries[5]) ionSeries[k++]=ki->zIons;
 
   //The number of fragment ion series to analyze is PrecursorCharge-1
   //However, don't analyze past the 5+ series
@@ -1158,18 +1176,21 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
     dif=modMass/k;
 
     //Iterate through pfFastXcorrData
-    for(i=0;i<ionCount;i++){
+    for(j=0;j<2;j++){
+      for(i=0;i<ionCount;i++){
 
-      //get key
-      if(ki->bIons[k][i]<0) mz = params.binSize * (int)((dif-ki->bIons[k][i])*invBinSize+binOffset);
-      else mz = params.binSize * (int)(ki->bIons[k][i]*invBinSize+binOffset);
-      key = (int)mz;
-      if(key>=s->kojakBins) break;
-      if(s->kojakSparseArray[key]==NULL) continue;
-      pos = (int)((mz-key)*invBinSize);
-      dXcorr += s->kojakSparseArray[key][pos];
+        //get key
+        if(ionSeries[j][k][i]<0) mz = params.binSize * (int)((dif-ionSeries[j][k][i])*invBinSize+binOffset);
+        else mz = params.binSize * (int)(ionSeries[j][k][i]*invBinSize+binOffset);
+        key = (int)mz;
+        if(key>=s->kojakBins) break;
+        if(s->kojakSparseArray[key]==NULL) continue;
+        pos = (int)((mz-key)*invBinSize);
+        dXcorr += s->kojakSparseArray[key][pos];
+      }
     }
 
+    /*
     for(i=0;i<ionCount;i++){
       if(ki->yIons[k][i]<0) mz = params.binSize * (int)((dif-ki->yIons[k][i])*invBinSize+binOffset);
       else mz = params.binSize * (int)(ki->yIons[k][i]*invBinSize+binOffset);
@@ -1179,6 +1200,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
       pos = (int)((mz-key)*invBinSize);
       dXcorr += s->kojakSparseArray[key][pos];
     }
+    */
   }
 
   //Scale score appropriately

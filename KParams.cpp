@@ -195,6 +195,30 @@ void KParams::parse(char* cmd) {
       params->instrument=1;
     }
 
+  } else if(strcmp(param,"ion_series_A")==0){
+    if(atoi(&values[0][0])==0) params->ionSeries[0]=false;
+    else params->ionSeries[0]=true;
+
+  } else if(strcmp(param,"ion_series_B")==0){
+    if(atoi(&values[0][0])==0) params->ionSeries[1]=false;
+    else params->ionSeries[1]=true;
+
+  } else if(strcmp(param,"ion_series_C")==0){
+    if(atoi(&values[0][0])==0) params->ionSeries[2]=false;
+    else params->ionSeries[2]=true;
+
+  } else if(strcmp(param,"ion_series_X")==0){
+    if(atoi(&values[0][0])==0) params->ionSeries[3]=false;
+    else params->ionSeries[3]=true;
+
+  } else if(strcmp(param,"ion_series_Y")==0){
+    if(atoi(&values[0][0])==0) params->ionSeries[4]=false;
+    else params->ionSeries[4]=true;
+
+  } else if(strcmp(param,"ion_series_Z")==0){
+    if(atoi(&values[0][0])==0) params->ionSeries[5]=false;
+    else params->ionSeries[5]=true;
+
 	} else if(strcmp(param,"max_miscleavages")==0){
     params->miscleave=atoi(&values[0][0]);
 

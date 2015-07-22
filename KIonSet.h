@@ -9,8 +9,12 @@ public:
 
   KIonSet& operator=(const KIonSet& k);
 
-  double* bIons[6];
-  double* yIons[6];
+  double** aIons;
+  double** bIons;
+  double** cIons;
+  double** xIons;
+  double** yIons;
+  double** zIons;
   double* mods;
   double  mass;
   double  difMass;

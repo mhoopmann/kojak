@@ -20,7 +20,7 @@ limitations under the License.
 /*============================
   Constructors & Destructors
 ============================*/
-KSpectrum::KSpectrum(int i, double bs, double os){
+KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
   binOffset=os;
   binSize=bs;
   instrumentPrecursor=false;

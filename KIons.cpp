@@ -92,8 +92,12 @@ void KIons::buildIons(){
   fragMass=0;
 	for(i=0;i<ionCount;i++){
     fragMass+=aaMass[pep1[i]];
+    sets[0].aIons[0][b] = fragMass - 27.9949141;
     sets[0].bIons[0][b] = fragMass;
+    sets[0].cIons[0][b] = fragMass + 17.026547;
+    sets[0].xIons[0][y] = (pep1Mass-fragMass) + 25.9792649;
     sets[0].yIons[0][y] = (pep1Mass-fragMass);
+    sets[0].zIons[0][y] = (pep1Mass-fragMass) - 16.0187224; //z. not z
     b++;
     y--;
 	}
@@ -101,8 +105,12 @@ void KIons::buildIons(){
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
     for(j=1;j<6;j++){
+      sets[0].aIons[j][i] = ((sets[0].aIons[0][i]+1.007276466*j)/j);
       sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
+      sets[0].cIons[j][i] = ((sets[0].cIons[0][i]+1.007276466*j)/j);
+      sets[0].xIons[j][i] = ((sets[0].xIons[0][i]+1.007276466*j)/j);
       sets[0].yIons[j][i] = ((sets[0].yIons[0][i]+1.007276466*j)/j);
+      sets[0].zIons[j][i] = ((sets[0].zIons[0][i]+1.007276466*j)/j);
     }
   }
 
@@ -144,8 +152,14 @@ void KIons::buildLoopIons(double linkMass, int link1, int link2){
     if(i>=a1 && i<a2) continue;
     else if(i>=a2) fragMass=mMass+linkMass;
     else fragMass = mMass;
+
+    sets[0].aIons[0][b] = fragMass - 27.9949141;
     sets[0].bIons[0][b] = fragMass;
+    sets[0].cIons[0][b] = fragMass + 17.026547;
+    sets[0].xIons[0][y] = (totalMass-fragMass) + 25.9792649;
     sets[0].yIons[0][y] = (totalMass-fragMass);
+    sets[0].zIons[0][y] = (totalMass-fragMass) - 16.0187224; //z. not z
+
     b++;
     y--;
 	}
@@ -153,8 +167,12 @@ void KIons::buildLoopIons(double linkMass, int link1, int link2){
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
     for(j=1;j<6;j++){
+      sets[0].aIons[j][i] = ((sets[0].aIons[0][i]+1.007276466*j)/j);
       sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
+      sets[0].cIons[j][i] = ((sets[0].cIons[0][i]+1.007276466*j)/j);
+      sets[0].xIons[j][i] = ((sets[0].xIons[0][i]+1.007276466*j)/j);
       sets[0].yIons[j][i] = ((sets[0].yIons[0][i]+1.007276466*j)/j);
+      sets[0].zIons[j][i] = ((sets[0].zIons[0][i]+1.007276466*j)/j);
     }
   }
 
@@ -178,21 +196,39 @@ void KIons::buildSingletIons(int link){
 	for(i=0;i<ionCount;i++){
     mMass+=aaMass[pep1[i]];
     if(i>=link) { //negative mass indicates that the ion needs a modmass as well
-      sets[0].yIons[0][y--] = pep1Mass-mMass;
-      sets[0].bIons[0][b++] = -mMass;
+      sets[0].xIons[0][y] = pep1Mass-mMass + 25.9792649;
+      sets[0].yIons[0][y] = pep1Mass-mMass;
+      sets[0].zIons[0][y] = pep1Mass-mMass - 16.0187224;   //z.
+      sets[0].aIons[0][b] = -(mMass - 27.9949141);
+      sets[0].bIons[0][b] = -mMass;
+      sets[0].cIons[0][b] = -(mMass + 17.026547);
     } else {
-      sets[0].yIons[0][y--] = -(pep1Mass-mMass);
-      sets[0].bIons[0][b++] = mMass;
+      sets[0].xIons[0][y] = -(pep1Mass-mMass + 25.9792649);
+      sets[0].yIons[0][y] = -(pep1Mass-mMass);
+      sets[0].zIons[0][y] = -(pep1Mass-mMass - 16.0187224);
+      sets[0].aIons[0][b] = mMass - 27.9949141;
+      sets[0].bIons[0][b] = mMass;
+      sets[0].cIons[0][b] = mMass + 17.026547;
     }
+    y--;
+    b++;
 	}
 
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
     for(j=1;j<6;j++){
+      if(sets[0].aIons[0][i]<0) sets[0].aIons[j][i] = ((sets[0].aIons[0][i]-1.007276466*j)/j);
+      else sets[0].aIons[j][i] = ((sets[0].aIons[0][i]+1.007276466*j)/j);
       if(sets[0].bIons[0][i]<0) sets[0].bIons[j][i] = ((sets[0].bIons[0][i]-1.007276466*j)/j);
       else sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
+      if(sets[0].cIons[0][i]<0) sets[0].cIons[j][i] = ((sets[0].cIons[0][i]-1.007276466*j)/j);
+      else sets[0].cIons[j][i] = ((sets[0].cIons[0][i]+1.007276466*j)/j);
+      if(sets[0].xIons[0][i]<0) sets[0].xIons[j][i] = ((sets[0].xIons[0][i]-1.007276466*j)/j);
+      else sets[0].xIons[j][i] = ((sets[0].xIons[0][i]+1.007276466*j)/j);
       if(sets[0].yIons[0][i]<0) sets[0].yIons[j][i] = ((sets[0].yIons[0][i]-1.007276466*j)/j);
       else sets[0].yIons[j][i] = ((sets[0].yIons[0][i]+1.007276466*j)/j);
+      if(sets[0].zIons[0][i]<0) sets[0].zIons[j][i] = ((sets[0].zIons[0][i]-1.007276466*j)/j);
+      else sets[0].zIons[j][i] = ((sets[0].zIons[0][i]+1.007276466*j)/j);
     }
   }
 
@@ -218,14 +254,22 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
 
       for(k=i;k<ionCount;k++){
         for(n=1;n<6;n++){
+          if(s.aIons[0][k]<0) s.aIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.aIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
           if(s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
           else s.bIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+          if(s.cIons[0][k]<0) s.cIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.cIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
         }
       }
       for(k=ionCount-i;k<ionCount;k++){
         for(n=1;n<6;n++){
+          if(s.xIons[0][k]<0) s.xIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.xIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
           if(s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
           else s.yIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+          if(s.zIons[0][k]<0) s.zIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.zIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
         }
       }
       s.mods[i]=aaMod[pep1[i]].mod[j].mass;
@@ -275,14 +319,22 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
       KIonSet s=sets[index];
       for(k=pos;k<ionCount;k++){
         for(n=1;n<6;n++){
+          if(s.aIons[0][k]<0) s.aIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.aIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
           if(s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
           else s.bIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+          if(s.cIons[0][k]<0) s.cIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.cIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
         }
       }
       for(k=ionCount-pos;k<ionCount;k++){
         for(n=1;n<6;n++){
+          if(s.xIons[0][k]<0) s.xIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.xIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
           if(s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
           else s.yIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
+          if(s.zIons[0][k]<0) s.zIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
+          else s.zIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
         }
       }
       s.mods[i]=aaMod[pep1[i]].mod[j].mass;
