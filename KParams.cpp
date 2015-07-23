@@ -43,6 +43,7 @@ bool KParams::parseConfig(char* fname){
     return false;
   }
 
+  cout << "Parsing: " << fname << endl;
   f=fopen(fname,"rt");
   if(f==NULL){
     printf("Cannot open config file!\n");
@@ -122,7 +123,15 @@ void KParams::parse(char* cmd) {
 	//Look up parameter and assign the value
   if(strcmp(param,"cross_link")==0){
     //check first site
+    if(values.size()!=3){
+      printf("Error in cross_link parameter(s)\n");
+      exit(-5);
+    }
     i=atoi(&values[0][0]);
+    if(i<1 || i>5) {
+      printf("Error in cross_link parameter(s)\n");
+      exit(-5);
+    }
     if(params->setA==0) {
       params->setA=i;
       x.siteA=1;
@@ -139,6 +148,10 @@ void KParams::parse(char* cmd) {
     }
     //check second site
     i=atoi(&values[1][0]);
+    if(i<1 || i>5) {
+      printf("Error in cross_link parameter(s)\n");
+      exit(-5);
+    }
     if(params->setA==0) {
       params->setA=i;
       x.siteB=1;
@@ -187,6 +200,10 @@ void KParams::parse(char* cmd) {
 
 	} else if(strcmp(param,"fragment_bin_size")==0){
     params->binSize=atof(&values[0][0]);
+    if(params->binSize<=0){
+      printf("Invalid value for fragment_bin_size parameter\n");
+      exit(-5);
+    }
 
 	} else if(strcmp(param,"instrument")==0){
     params->instrument=atoi(&values[0][0]);
