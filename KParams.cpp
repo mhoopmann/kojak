@@ -190,6 +190,10 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"enzyme")==0){
     strcpy(params->enzyme,&values[0][0]);
 
+  } else if(strcmp(param,"export_percolator")==0){
+    if(atoi(&values[0][0])!=0) params->exportPercolator=true;
+    else params->exportPercolator=false;
+
   } else if(strcmp(param,"fixed_modification")==0){
     m.index=(int)values[0][0];
     m.mass=atof(&values[1][0]);
@@ -208,7 +212,7 @@ void KParams::parse(char* cmd) {
 	} else if(strcmp(param,"instrument")==0){
     params->instrument=atoi(&values[0][0]);
     if(params->instrument<0 || params->instrument>1){
-      warn("Value out of range for instrument. Defaulting to 1=Orbitrap",2);
+      warn("Value out of range for instrument. Defaulting to 1=Orbitrap",3);
       params->instrument=1;
     }
 
@@ -312,10 +316,12 @@ void KParams::parse(char* cmd) {
 		params->ms2Resolution=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"output_file")==0){
-    strcpy(params->outFile,&values[0][0]);
+    //strcpy(params->outFile,&values[0][0]);
+    warn(param,2);
 
 	} else if(strcmp(param,"percolator_file")==0){
-    strcpy(params->percolator,&values[0][0]);
+    //strcpy(params->percolator,&values[0][0]);
+    warn(param,2);
 
   } else if(strcmp(param,"percolator_version")==0){
     params->percVersion=atof(&values[0][0]);
@@ -364,6 +370,9 @@ void KParams::warn(char* c, int i){
 			printf("Unknown parameter: %s\n",c);
 			break;
 		case 2:
+      printf("Parameter %s has been deprecated and will be ignored.\n",c);
+      break;
+    case 3:
 		default:
 			printf("%s\n",c);
 			break;

@@ -42,7 +42,6 @@ public:
   bool      mapPrecursors     ();
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db);
-  bool      outputResults2    (KDatabase& db);
   void      readLinkers       (char* fn);
   bool      readSpectra       ();
   void      setLinker         (kLinker x);

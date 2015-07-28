@@ -20,9 +20,11 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
+bool getBaseFileName(string& base, char* fName);
+
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.3.7-dev, July 23 2015" << endl;
+  cout << "Kojak version 1.3.7-dev, July 28 2015" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File>" << endl;
@@ -34,11 +36,32 @@ int main(int argc, char* argv[]){
   cout << "Time at start: " << ctime(&timeNow) << endl;
   
   unsigned int i;
+  int k;
+  kFile f;
+  vector<kFile> files;
 
-  //Step #1: Read in parameters
+  //Step #1: Read in parameters & batch files for analysis
   kParams params;
   KParams p(&params);
   p.parseConfig(argv[1]);
+
+  if(argc==2){
+    f.input=params.msFile;
+    if(!getBaseFileName(f.base,params.msFile)){
+      cout << "Error reading " << params.msFile << " unknown file or extension." << endl;
+      return -1;
+    }
+    files.push_back(f);
+  } else {
+    for(k=2;k<argc;k++){
+      f.input=argv[k];
+      if(!getBaseFileName(f.base,argv[k])){
+        cout << "Error reading " << argv[k] << " unknown file or extension." << endl;
+        return -1;
+      }
+      files.push_back(f);
+    }
+  }
 
   //Step #2: Read in database and generate peptide lists
   KDatabase db;
@@ -50,46 +73,96 @@ int main(int argc, char* argv[]){
     return -1;
   }
   db.buildPeptides(params.minPepMass,params.maxPepMass,params.miscleave);
+
   
   //Step #3: Read in spectra and map precursors
   KData spec(&params);
   spec.setVersion("1.3.7-dev");
-  if(!spec.readSpectra()){
-    cout << "Error reading MS_data_file. Exiting." << endl;
-    return -2;
-  }
-  spec.mapPrecursors();
-  spec.xCorr(params.xcorr);
-  //for(i=0;i<params.mLink->size();i++) spec.setLinker(params.mLink->at(i));
   for(i=0;i<params.xLink->size();i++) spec.setLinker(params.xLink->at(i));
 
-  time(&timeNow);
-  cout << "Time at analysis: " << ctime(&timeNow) << endl;
+  //Iterate over all input files
+  for(i=0;i<files.size();i++){
+    strcpy(params.msFile,&files[i].input[0]);
+    strcpy(params.outFile,&files[i].base[0]);
 
-  //Step #4: Analyze single peptides, monolinks, and crosslinks
-  KAnalysis anal(params, &db, &spec);
-  
-  cout << "Scoring non-linked peptides. ";
-  anal.doPeptideAnalysis(false);
-  
-  cout << "Scoring linked peptides. ";
-  anal.doPeptideAnalysis(true);
-  
-  cout << "Finalizing XL analysis. ";
-  anal.doRelaxedAnalysis();
+    if(!spec.readSpectra()){
+      cout << "Error reading MS_data_file. Exiting." << endl;
+      return -2;
+    }
+    spec.mapPrecursors();
+    spec.xCorr(params.xcorr);
 
-  //Step #5: Output results
-  //if(params.percolator[0]!='\0') spec.outputPercolator(params.percolator,params.decoy,db,params.truncate);
-  //if(params.enrichment>0)  spec.outputResults(params.outFile,params.decoy,db,true);
-  spec.outputResults2(db);
+    time(&timeNow);
+    cout << "Time at analysis: " << ctime(&timeNow) << endl;
 
-  cout << "Finished." << endl;
+    //Step #4: Analyze single peptides, monolinks, and crosslinks
+    KAnalysis anal(params, &db, &spec);
+    
+    cout << "Scoring non-linked peptides. ";
+    anal.doPeptideAnalysis(false);
+    
+    cout << "Scoring linked peptides. ";
+    anal.doPeptideAnalysis(true);
+    
+    cout << "Finalizing XL analysis. ";
+    anal.doRelaxedAnalysis();
 
-  time(&timeNow);
-  cout << "Time at finish: " << ctime(&timeNow) << endl;
+    //Step #5: Output results
+    spec.outputResults(db);
 
+    cout << "Finished." << endl;
 
-  //printf("XCorr was called %lld times.\n",anal.xCorrCount);
+    time(&timeNow);
+    cout << "Time at finish: " << ctime(&timeNow) << endl;
+
+  }
 
   return 0;
 }
+
+bool getBaseFileName(string& base, char* fName) {
+  char file[256];
+	char ext[256];
+	char *tok;
+	char preExt[256];
+	unsigned int i;
+
+	strcpy(ext,"");
+
+	strcpy(file,fName);
+	tok=strtok(file,".\n");
+	while(tok!=NULL){
+		strcpy(preExt,ext);
+		strcpy(ext,tok);
+		tok=strtok(NULL,".\n");
+	}
+
+	for(i=0;i<strlen(ext);i++) ext[i]=toupper(ext[i]);
+	for(i=0;i<strlen(preExt);i++) preExt[i]=toupper(preExt[i]);
+
+  base=fName;
+  if(strcmp(ext,"MZML")==0) {
+    base[base.size()-5]='\0';
+    return true;
+  }
+  if(strcmp(ext,"MZXML")==0) {
+    base[base.size()-6]='\0';
+    return true;
+  }
+	if(strcmp(ext,"GZ")==0) {
+    if(strcmp(preExt,"MZML")==0){
+      base[base.size()-8]='\0';
+      return true;
+    }
+    if(strcmp(preExt,"MZXML")==0) {
+      base[base.size()-9]='\0';
+      return true;
+    }
+	}
+  if(strcmp(ext,"RAW")==0) {
+    base[base.size()-4]='\0';
+    return true;
+  }
+	return false;
+}
+

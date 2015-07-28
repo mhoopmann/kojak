@@ -414,289 +414,8 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   return true;
 }
 
+//Function deprecated. Should be excised.
 bool KData::outputResults(KDatabase& db){
-
-  unsigned int i,j,k,n,x,d;
-  char peptide[256];
-  char tmp[16];
-
-  kPeptide pep;
-  kPeptide pep2;
-  kScoreCard tmpSC;
-  kScoreCard tmpSC2;
-
-  kResults res;
-
-  bool bTarget1;
-
-  int preIndex;
-  int scoreIndex;
-
-  double topScore;
-  double ppm1;
-  double ppm2;
-
-  FILE* f;
-  FILE* f2;
-
-  f=fopen(params->outFile,"wt");
-  if(f==NULL) return false;
-
-  if(params->percolator[0]!='\0') {
-    f2=fopen(params->percolator,"wt");
-    if(f2==NULL) {
-      fclose(f);
-      return false;
-    }
-    if(params->percVersion>2.04) fprintf(f2,"SpecId\tLabel\tScanNum\tScore\tdScore\t");
-    else fprintf(f2,"SpecId\tLabel\tScore\tdScore\t");
-    fprintf(f2,"NormRank\tPPScoreDiff\t");
-    fprintf(f2,"Loop\tCross\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
-  }
-
-  fprintf(f,"Kojak version %s\n",version);
-  fprintf(f,"Scan Number\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tPep. Diff.\tPeptide #1\tLink #1\tProtein #1\tPeptide #2\tLink #2\tProtein #2\tLinker Mass\n");
-
-  //Output top n (currently 1) scores for each spectrum
-  //Must iterate through all possible precursors for that spectrum
-  for(i=0;i<spec.size();i++) {
-
-    //This block is strictly for exporting the diagnostics
-    //<--------- Start Diagnostics
-    for(d=0;d<params->diag->size();d++){
-      if(spec[i].getScanNumber()==params->diag->at(d)){
-        char diagStr[256];
-        sprintf(diagStr,"diagnostic_%d.txt",params->diag->at(d));
-        FILE* f2=fopen(diagStr,"at");
-        fprintf(f2,"\n");
-        fprintf(f2,"# precursors: %d\n",spec[i].sizePrecursor());
-        for(j=0;j<(unsigned int)spec[i].sizePrecursor();j++) fprintf(f2,"Precursor: %.4lf\t%d\t%.4lf\t%d\n",spec[i].getPrecursor(j).monoMass,spec[i].getPrecursor(j).charge,spec[i].getPrecursor(j).corr,(int)spec[i].getPrecursor(j).label);
-        fprintf(f2,"\n");
-
-        for(j=0;j<20;j++){
-          tmpSC = spec[i].getScoreCard(j);
-          pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
-          db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-          for(n=0;n<strlen(peptide);n++){
-            fprintf(f2,"%c",peptide[n]);
-            for(x=0;x<tmpSC.mods1->size();x++){
-              if(tmpSC.mods1->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods1->at(x).mass);
-            }
-            if(n==tmpSC.k1 || (tmpSC.pep2<0 && n==tmpSC.k2)) fprintf(f2,"[x]");
-          }
-          fprintf(f2,"(%d)",spec[i].getScoreCard(j).k1);
-          if(tmpSC.k1>-1 && link[tmpSC.link].mono==0){
-            if(tmpSC.pep2>-1){
-              fprintf(f2,"\t");
-              pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
-              db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-              for(n=0;n<strlen(peptide);n++){
-                fprintf(f2,"%c",peptide[n]);
-                for(x=0;x<tmpSC.mods2->size();x++){
-                  if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
-                }
-                if(n==tmpSC.k2) fprintf(f2,"[x]");
-              }
-              fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
-            } else {
-              fprintf(f2,"\t(%d)",spec[i].getScoreCard(j).k2);
-            }
-          }
-          if(tmpSC.link==-2){
-            fprintf(f2,"+");
-            pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
-            db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-            for(n=0;n<strlen(peptide);n++){
-              fprintf(f2,"%c",peptide[n]);
-              for(x=0;x<tmpSC.mods2->size();x++){
-                if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
-              }
-            }
-            fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
-          }
-          if(tmpSC.link>-1) fprintf(f2,"\t%.4lf\t%.4lf\t%.4lf\n",tmpSC.simpleScore,tmpSC.mass,link[tmpSC.link].mass);
-          else fprintf(f2,"\t%.4lf\t%.4lf\t--\n",tmpSC.simpleScore,tmpSC.mass);
-        }
-        fclose(f2);
-        break;
-      }
-    }
-    //<--------- End Diagnostics
-
-    scoreIndex=0;
-    tmpSC=spec[i].getScoreCard(scoreIndex);
-    res.scanNumber=spec[i].getScanNumber();
-    if(tmpSC.simpleScore==0){
-      fprintf(f,"%d\t0\t0\t0\t0\t0\t0\t0\t-\t-\t-\t-\t-\t-\t0\n",res.scanNumber);
-      continue;
-    }
-    topScore=tmpSC.simpleScore;
-
-    int count=0;
-    while(tmpSC.simpleScore==topScore){
-
-      count++;
-
-      //Get the best precursor ion for the PSM
-      ppm1=(tmpSC.mass-spec[i].getPrecursor(0).monoMass)/spec[i].getPrecursor(0).monoMass*1e6;
-      preIndex=0;
-      for(j=1;j<(unsigned int)spec[i].sizePrecursor();j++){
-        ppm2=(tmpSC.mass-spec[i].getPrecursor(j).monoMass)/spec[i].getPrecursor(j).monoMass*1e6;
-        if(fabs(ppm1)>fabs(ppm2)){
-          preIndex=j;
-          ppm1=ppm2;
-        } else if(fabs(ppm1)==fabs(ppm2)){
-          if(spec[i].getPrecursor(j).corr>spec[i].getPrecursor(preIndex).corr){
-            preIndex=j;
-            ppm1=ppm2;
-          }
-        }
-      }
-      res.obsMass = spec[i].getPrecursor(preIndex).monoMass;
-      res.charge  = spec[i].getPrecursor(preIndex).charge;
-      res.ppm     = ppm1;
-      res.psmMass = tmpSC.mass;
-
-      //grab the next highest score that matches to the same precursor ion for the delta score
-      //do not count ties - look for the first difference
-      //if no other match has the same precursor, just take the lowest score in the list
-      n=scoreIndex+1;
-      while(n<19){
-        tmpSC2=spec[i].getScoreCard(n++);
-        if(tmpSC2.simpleScore==0) break;
-        if(tmpSC2.simpleScore==topScore) continue;
-        ppm1=(tmpSC2.mass-spec[i].getPrecursor(preIndex).monoMass)/spec[i].getPrecursor(preIndex).monoMass*1e6;
-        if(fabs(ppm1)>params->ppmPrecursor) continue;
-
-        //if peptides and link sites are the same, go to the next one
-        if(tmpSC2.pep1==tmpSC.pep1 && tmpSC2.pep2==tmpSC.pep2 && tmpSC2.k1==tmpSC.k1 && tmpSC2.k2==tmpSC.k2 && tmpSC2.linkable1==tmpSC.linkable1 && tmpSC2.linkable2==tmpSC.linkable2){
-          continue;
-        }
-        break;
-      }
-      res.score       = tmpSC.simpleScore;
-      res.scoreDelta  = tmpSC.simpleScore-tmpSC2.simpleScore;
-      res.scorePepDif = tmpSC.scoreDiff;
-      res.rank        = tmpSC.rank;
-
-      //Get the peptide sequence(s)
-      pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
-      db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-      res.peptide1 = peptide;
-      res.peptide2 = "";
-      if(tmpSC.pep2>=0){
-        pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
-        db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
-        res.peptide2 = peptide;
-      }
-
-      res.modPeptide1 = "";
-      res.modPeptide2 = "";
-      for(j=0;j<res.peptide1.size();j++) {
-        res.modPeptide1 += res.peptide1[j];
-        for(k=0;k<tmpSC.mods1->size();k++){
-          if(j==(unsigned int)tmpSC.mods1->at(k).pos){
-            sprintf(tmp,"[%.2lf]",tmpSC.mods1->at(k).mass);
-            res.modPeptide1 += tmp;
-          }
-        }
-      }
-      for(j=0;j<res.peptide2.size();j++) {
-        res.modPeptide2+=res.peptide2[j];
-        for(k=0;k<tmpSC.mods2->size();k++){
-          if(j==(unsigned int)tmpSC.mods2->at(k).pos){
-            sprintf(tmp,"[%.2lf]",tmpSC.mods2->at(k).mass);
-            res.modPeptide2 += tmp;
-          }
-        }
-      }
-
-      //Get the link positions - relative to the peptide
-      res.link1 = tmpSC.k1;
-      res.link2 = tmpSC.k2;
-      if(res.link1>=0) res.link1++;
-      if(res.link2>=0) res.link2++;
-
-      //set link type
-      res.type=0;
-      if(tmpSC.k1>=0 && tmpSC.k1>=0) res.type=1;
-      if(tmpSC.pep1>=0 && tmpSC.pep2>=0) res.type=2;
-      if(tmpSC.link==-2) res.type=3;
-
-      //Get the peptide indexes
-      res.pep1 = tmpSC.pep1;
-      res.pep2 = tmpSC.pep2;
-      res.linkable1 = tmpSC.linkable1;
-      res.linkable2 = tmpSC.linkable2;
-
-      //Determine if target or decoy
-      bTarget1=false;
-      pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
-      for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
-      if(bTarget1 && tmpSC.pep2>=0){
-        bTarget1=false;
-        pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
-        for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
-      }
-      if(bTarget1) res.decoy=false;
-      else res.decoy=true;
-
-      //Export Results:
-      fprintf(f,"%d",res.scanNumber);
-      fprintf(f,"\t%.4lf",res.obsMass);
-      fprintf(f,"\t%d",res.charge);
-      fprintf(f,"\t%.4lf",res.psmMass);
-      fprintf(f,"\t%.4lf",res.ppm);
-      fprintf(f,"\t%.4lf",res.score);
-      fprintf(f,"\t%.4lf",res.scoreDelta);
-      fprintf(f,"\t%.4lf",res.scorePepDif);
-      fprintf(f,"\t%s",&res.modPeptide1[0]);
-      fprintf(f,"\t%d",res.link1);
-
-      fprintf(f,"\t");
-      pep = db.getPeptide(res.pep1,res.linkable1);
-      for(j=0;j<pep.map->size();j++){
-        fprintf(f,"%s",&db[pep.map->at(j).index].name[0]);
-        if(res.link1>=0) fprintf(f,"(%d);",pep.map->at(j).start+res.link1+1); //put position from start of protein
-      }
-
-      if(res.modPeptide2.size()>1) {
-        fprintf(f,"\t%s",&res.modPeptide2[0]);
-        fprintf(f,"\t%d",res.link2);
-        fprintf(f,"\t");
-        pep = db.getPeptide(res.pep2,res.linkable2);
-        for(j=0;j<pep.map->size();j++){
-          fprintf(f,"%s",&db[pep.map->at(j).index].name[0]);
-          if(res.link1>=0) fprintf(f,"(%d);",pep.map->at(j).start+res.link2+1); //put position from start of protein
-        }
-        if(tmpSC.link>-1)fprintf(f,"\t%.4lf",link[tmpSC.link].mass);
-        else fprintf(f,"\t-");
-      } else if(res.link2>-1){
-        fprintf(f,"\t-\t%d\t-",res.link2);
-        fprintf(f,"\t%.4lf",link[tmpSC.link].mass);
-      } else {
-        fprintf(f,"\t-\t-1\t-\t0");
-      }
-      
-      fprintf(f,"\n");
-      
-      if(params->percolator[0]!='\0') outputPercolator(f2,db,res,count);
-
-      //Get the next entry - it must also be exported if it has the same score
-      scoreIndex++;
-      if(scoreIndex==20) break;
-      tmpSC=spec[i].getScoreCard(scoreIndex);
-    }
-
-  }
-
-  fclose(f);
-  if(params->percolator[0]!='\0') fclose(f2);
-  return true;
-
-}
-
-bool KData::outputResults2(KDatabase& db){
 
   unsigned int i,j,k,n,x,d;
   char fName[256];
@@ -730,23 +449,24 @@ bool KData::outputResults2(KDatabase& db){
 
   //Open all the required output files.
   bBadFiles=false;
-  fOut=fopen(params->outFile,"wt");
+  sprintf(fName,"%s.kojak.txt",params->outFile);
+  fOut=fopen(fName,"wt");
   if(fOut==NULL) bBadFiles=true;
-  if(params->percolator[0]!='\0') {
-    sprintf(fName,"%s-Intra.txt",params->percolator);
+  if(params->exportPercolator) {
+    sprintf(fName,"%s.perc.intra.txt",params->outFile);
     fIntra=fopen(fName,"wt");
     if(fIntra==NULL) bBadFiles=true;
-    sprintf(fName,"%s-Inter.txt",params->percolator);
+    sprintf(fName,"%s.perc.inter.txt",params->outFile);
     fInter=fopen(fName,"wt");
     if(fInter==NULL) bBadFiles=true;
-    sprintf(fName,"%s-Loop.txt",params->percolator);
+    sprintf(fName,"%s.perc.loop.txt",params->outFile);
     fLoop=fopen(fName,"wt");
     if(fLoop==NULL) bBadFiles=true;
-    sprintf(fName,"%s-Single.txt",params->percolator);
+    sprintf(fName,"%s.perc.single.txt",params->outFile);
     fSingle=fopen(fName,"wt");
     if(fSingle==NULL) bBadFiles=true;
     if(params->dimers){
-      sprintf(fName,"%s-Dimer.txt",params->percolator);
+      sprintf(fName,"%s.perc.dimer.txt",params->outFile);
       fDimer=fopen(fName,"wt");
       if(fDimer==NULL) bBadFiles=true;
     }
@@ -764,7 +484,7 @@ bool KData::outputResults2(KDatabase& db){
   //Put the headers on all the files
   fprintf(fOut,"Kojak version %s\n",version);
   fprintf(fOut,"Scan Number\tRet Time\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tPep. Diff.\tPeptide #1\tLink #1\tProtein #1\tPeptide #2\tLink #2\tProtein #2\tLinker Mass\n");
-  if(params->percolator[0]!='\0'){
+  if(params->exportPercolator){
     if(params->percVersion>2.04) {
       fprintf(fIntra,"SpecId\tLabel\tscannr\tScore\tdScore\t");
       fprintf(fInter,"SpecId\tLabel\tscannr\tScore\tdScore\t");
@@ -1029,7 +749,7 @@ bool KData::outputResults2(KDatabase& db){
         }
       }
       
-      if(params->percolator[0]!='\0') {
+      if(params->exportPercolator) {
         switch(res.type){
           case 1:   outputPercolator(fLoop,db,res,count);   break;
           case 2:
@@ -1050,7 +770,7 @@ bool KData::outputResults2(KDatabase& db){
   }
 
   fclose(fOut);
-  if(params->percolator[0]!='\0') {
+  if(params->exportPercolator) {
     fclose(fIntra);
     fclose(fInter);
     fclose(fLoop);
@@ -1097,6 +817,7 @@ bool KData::readSpectra(){
   int i;
   int j;
 
+  spec.clear();
   cout << "Reading spectra ..." << endl;
 
   msr.setFilter(MS2);

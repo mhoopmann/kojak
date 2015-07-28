@@ -34,6 +34,11 @@ typedef struct kDB{
   string sequence;  //FASTA sequence
 } kDB;
 
+typedef struct kFile{
+  string input;
+  string base;
+} kFile;
+
 //structure holds peptide mappings to database
 typedef struct kPepMap{
   int index;  //protein index
@@ -140,6 +145,7 @@ typedef struct kParams {
   int     topCount;
   int     truncate;
   bool    diffModsOnXL;
+  bool    exportPercolator;
   bool    ionSeries[6];
   bool    monoLinksOnXL;
   bool    xcorr;
@@ -155,7 +161,7 @@ typedef struct kParams {
   char    enzyme[32];
   char    msFile[256];
   char    outFile[256];
-  char    percolator[256];
+  //char    percolator[256];
   vector<int>*      diag;
   vector<kLinker>*  xLink;
   vector<kLinker>*  mLink;
@@ -180,6 +186,7 @@ typedef struct kParams {
     topCount=250;
     truncate=0;
     diffModsOnXL=false;
+    exportPercolator=false;
     ionSeries[0]=false; //a-ions
     ionSeries[1]=true;  //b-ions
     ionSeries[2]=false; //c-ions
@@ -200,7 +207,7 @@ typedef struct kParams {
     strcpy(enzyme,"[KR]|");
     msFile[0]='\0';
     outFile[0]='\0';
-    percolator[0]='\0';
+    //percolator[0]='\0';
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
@@ -226,6 +233,7 @@ typedef struct kParams {
     topCount=p.topCount;
     truncate=p.truncate;
     diffModsOnXL=p.diffModsOnXL;
+    exportPercolator=p.exportPercolator;
     monoLinksOnXL=p.monoLinksOnXL;
     xcorr=p.xcorr;
     binOffset=p.binOffset;
@@ -240,7 +248,7 @@ typedef struct kParams {
     strcpy(enzyme,p.enzyme);
     strcpy(msFile,p.msFile);
     strcpy(outFile,p.outFile);
-    strcpy(percolator,p.percolator);
+    //strcpy(percolator,p.percolator);
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
@@ -281,6 +289,7 @@ typedef struct kParams {
       topCount=p.topCount;
       truncate=p.truncate;
       diffModsOnXL=p.diffModsOnXL;
+      exportPercolator=p.exportPercolator;
       monoLinksOnXL=p.monoLinksOnXL;
       xcorr=p.xcorr;
       binOffset=p.binOffset;
@@ -295,7 +304,7 @@ typedef struct kParams {
       strcpy(enzyme,p.enzyme);
       strcpy(msFile,p.msFile);
       strcpy(outFile,p.outFile);
-      strcpy(percolator,p.percolator);
+      //strcpy(percolator,p.percolator);
       delete diag;
       delete xLink;
       delete mLink;
