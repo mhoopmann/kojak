@@ -27,7 +27,7 @@ int main(int argc, char* argv[]){
   cout << "Kojak version 1.3.7-dev, July 28 2015" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
-    cout << "Usage: Kojak <Config File>" << endl;
+    cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
     return 1;
   }
 
