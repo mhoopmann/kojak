@@ -86,6 +86,7 @@ KIonSet& KIonSet::operator=(const KIonSet& k){
     len=k.len;
     mass=k.mass;
     difMass=k.difMass;
+    
     for(j=0;j<6;j++){
       delete [] aIons[j];
       delete [] bIons[j];
@@ -93,12 +94,12 @@ KIonSet& KIonSet::operator=(const KIonSet& k){
       delete [] xIons[j];
       delete [] yIons[j];
       delete [] zIons[j];
-      aIons[j]=new double[len];
-      bIons[j]=new double[len];
-      cIons[j]=new double[len];
-      xIons[j]=new double[len];
-      yIons[j]=new double[len];
-      zIons[j]=new double[len];
+      aIons[j] = new double[len];
+      bIons[j] = new double[len];
+      cIons[j] = new double[len];
+      xIons[j] = new double[len];
+      yIons[j] = new double[len];
+      zIons[j] = new double[len];
       for(i=0;i<len;i++){
         aIons[j][i]=k.aIons[j][i];
         bIons[j][i]=k.bIons[j][i];
@@ -108,6 +109,7 @@ KIonSet& KIonSet::operator=(const KIonSet& k){
         zIons[j][i]=k.zIons[j][i];
       }
     }
+
     delete [] mods;
     mods=new double[len];
     for(i=0;i<len;i++) mods[i]=k.mods[i];
