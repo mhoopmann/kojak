@@ -1161,6 +1161,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
   KSpectrum* s=spec->getSpectrum(specIndex);
   KIonSet* ki=ions[iIndex].at(sIndex);
+  //cout << "KojakScoring: " << ions[iIndex].size();
   
   double dXcorr=0.0;
   double invBinSize=s->getInvBinSize();
@@ -1229,6 +1230,17 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   //Scale score appropriately
   if(dXcorr <= 0.0) dXcorr=0.0;
   else dXcorr *= 0.005;
+
+  //Clean up memory
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = NULL;
+  if (params.ionSeries[1]) ionSeries[k++] = NULL;
+  if (params.ionSeries[2]) ionSeries[k++] = NULL;
+  if (params.ionSeries[3]) ionSeries[k++] = NULL;
+  if (params.ionSeries[4]) ionSeries[k++] = NULL;
+  if (params.ionSeries[5]) ionSeries[k++] = NULL;
+
+  delete[] ionSeries;
 
   return float(dXcorr);
 }
