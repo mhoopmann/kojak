@@ -926,7 +926,6 @@ bool KAnalysis::analyzeSingletsNoLysine(kPeptide& pep, int sIndex, int index, bo
   maxMass+=(maxMass/1000000*params.ppmPrecursor);
 
   //Iterate all spectra from (peptide mass + minimum mass) to (peptide mass + maximum mass)
-  cout << "stray getBoundaries" << endl;
   if(!spec->getBoundaries(minMass,maxMass,scanIndex)) return false;
   for(j=0;j<scanIndex.size();j++){
     scoreSingletSpectra(scanIndex[j],sIndex,ions[iIndex][sIndex].mass,pep.map->at(0).stop-pep.map->at(0).start+1,index,-1,linkable,minMass,iIndex);
