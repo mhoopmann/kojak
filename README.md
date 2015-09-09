@@ -20,6 +20,19 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.4.0 - August 14 2015
+* Fixed bugs in Percolator-formatted results files.
+* Fixed duplication when reporting some results.
+* Fixed bug where precursor ions of zero intensity were identified.
+* Added additional ion-series to the analysis (a,b,c,x,y,z-dot).
+* Added batch analysis of multiple files from the command line.
+* Added toggle Percolator output with export_percolator parameter.
+* Improved parameter reading. Better error checking.
+* Deprecated output_file and percolator_file parameters.
+* Output file names derived from input file names.
+* Extended analysis to allow for ETD spectra.
+* Extended Percolator output to include retention time. Possibly temporary.
+
 #### Version 1.3.6 - June 17 2015
 * Fixed bug where protein site of linkage was offset by 1.
 * Fixed bug where heterobifunctional cross-links were duplicated in the results.
