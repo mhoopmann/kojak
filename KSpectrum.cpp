@@ -341,6 +341,19 @@ void KSpectrum::checkScore(kScoreCard& s){
   //fprintf(f,"%.4f\n",s.simpleScore);
   //fclose(f);
 
+  //edge case for similar precursors: check if already matches top hit identically
+  if(s.simpleScore==topHit[0].simpleScore && s.pep1==topHit[0].pep1 && s.pep2==topHit[0].pep2 && s.k1==topHit[0].k1 && s.k2==topHit[0].k2){
+    if(s.mods1->size()==topHit[0].mods1->size() && s.mods2->size()==topHit[0].mods2->size()){
+      for(i=0;i<s.mods1->size();i++){
+        if(s.mods1->at(i).mass!=topHit[0].mods1->at(i).mass || s.mods1->at(i).pos!=topHit[0].mods1->at(i).pos) break;
+      }
+      for(j=0;j<s.mods2->size();j++){
+        if(s.mods2->at(j).mass!=topHit[0].mods2->at(j).mass || s.mods2->at(j).pos!=topHit[0].mods2->at(j).pos) break;
+      }
+      if(i==s.mods1->size() && j==s.mods2->size()) return;
+    }
+  }
+
   for(i=0;i<20;i++){
     if(s.simpleScore > topHit[i].simpleScore) {
       for(j=19;j>i;j--) {
