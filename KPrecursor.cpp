@@ -317,7 +317,8 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   */
 
   //Average points between mz-1.5 and mz+2
-  averageScansCentroid(vs,s,mz-1.0,mz+1.5);
+  if(params->enrichment>0)averageScansCentroid(vs,s,mz-1.75,mz+1.75);
+  else averageScansCentroid(vs,s,mz-1.0,mz+1.5);
   s.setScanNumber(centBuf->at(precursor).getScanNumber());
 
   //Obtain the possible precursor charge states of the selected ion.
@@ -339,11 +340,11 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   if(params->enrichment>0) {
     hO->GoHardklor(hs2,&s);
 
-    for(j=0;j<h->Size();j++){
-      if(h->operator[](j).corr>corr){
-        monoMass=h->operator[](j).monoMass;
-        charge=h->operator[](j).charge;
-        corr=h->operator[](j).corr;
+    for(j=0;j<hO->Size();j++){
+      if(hO->operator[](j).corr>corr){
+        monoMass=hO->operator[](j).monoMass;
+        charge=hO->operator[](j).charge;
+        corr=hO->operator[](j).corr;
       }
     }
     if(corr>0){
@@ -416,7 +417,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   //Perform the 18O4 Hardklor analysis on the same data if needed
   if(params->enrichment>0) {
     hO->GoHardklor(hs4,&s);
-    for(j=0;j<h->Size();j++){
+    for(j=0;j<hO->Size();j++){
       if(hO->operator[](j).corr>corr){
         monoMass=hO->operator[](j).monoMass;
         charge=hO->operator[](j).charge;
