@@ -342,16 +342,21 @@ void KSpectrum::checkScore(kScoreCard& s){
   //fclose(f);
 
   //edge case for similar precursors: check if already matches top hit identically
-  if(s.simpleScore==topHit[0].simpleScore && s.pep1==topHit[0].pep1 && s.pep2==topHit[0].pep2 && s.k1==topHit[0].k1 && s.k2==topHit[0].k2){
-    if(s.mods1->size()==topHit[0].mods1->size() && s.mods2->size()==topHit[0].mods2->size()){
-      for(i=0;i<s.mods1->size();i++){
-        if(s.mods1->at(i).mass!=topHit[0].mods1->at(i).mass || s.mods1->at(i).pos!=topHit[0].mods1->at(i).pos) break;
+  int k=0;
+  //float topScore=topHit[0].simpleScore;
+  while(k<20 && s.simpleScore==topHit[k].simpleScore){
+    if(/*s.simpleScore==topHit[k].simpleScore && */s.pep1==topHit[k].pep1 && s.pep2==topHit[k].pep2 && s.k1==topHit[k].k1 && s.k2==topHit[k].k2){
+      if(s.mods1->size()==topHit[k].mods1->size() && s.mods2->size()==topHit[k].mods2->size()){
+        for(i=0;i<s.mods1->size();i++){
+          if(s.mods1->at(i).mass!=topHit[k].mods1->at(i).mass || s.mods1->at(i).pos!=topHit[k].mods1->at(i).pos) break;
+        }
+        for(j=0;j<s.mods2->size();j++){
+          if(s.mods2->at(j).mass!=topHit[k].mods2->at(j).mass || s.mods2->at(j).pos!=topHit[k].mods2->at(j).pos) break;
+        }
+        if(i==s.mods1->size() && j==s.mods2->size()) return;
       }
-      for(j=0;j<s.mods2->size();j++){
-        if(s.mods2->at(j).mass!=topHit[0].mods2->at(j).mass || s.mods2->at(j).pos!=topHit[0].mods2->at(j).pos) break;
-      }
-      if(i==s.mods1->size() && j==s.mods2->size()) return;
     }
+    k++;
   }
 
   for(i=0;i<20;i++){

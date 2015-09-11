@@ -24,7 +24,7 @@ bool getBaseFileName(string& base, char* fName);
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.4.1, September 9 2015" << endl;
+  cout << "Kojak version 1.4.1, September 11 2015" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
