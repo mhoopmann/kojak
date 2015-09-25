@@ -20,6 +20,13 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.4.1 - September 11 2015
+* Fixed duplication when reporting enriched cross-link results.
+* Fixed bug when detecting enriched precursor ions.
+* Removed diagnostic message displayed if searching for non-covalent dimers.
+* Removed diagnostic message displayed if searching with enrichment.
+* Corrected improper values included in sample configuration file.
+
 #### Version 1.4.0 - August 14 2015
 * Fixed bugs in Percolator-formatted results files.
 * Fixed duplication when reporting some results.
