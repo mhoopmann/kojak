@@ -111,6 +111,7 @@ bool  KDatabase::buildDB(char* fname) {
 bool  KDatabase::buildPeptides(double min, double max, int mis){
 
   double mass;
+  bool bCutMarked;
 
   int mc;
   int next;
@@ -144,6 +145,102 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
     while(true){
 
+      bCutMarked=false;
+
+      //Check if we cut n-terminal to this AA
+      if(n>0 && enzyme.cutN[vDB[i].sequence[start+n]] && !enzyme.exceptC[vDB[i].sequence[start+n-1]]){
+        if(next==-1) next=start+n-1;
+        if(!bCutMarked) mc++;
+        bCutMarked=true;
+
+        //Add the peptide now (if enough mass)
+        if(mass>min) addPeptide(i,start,n-1,mass,p,vPep,vPepK);
+
+      }
+
+      //Add the peptide mass
+      mass+=AA[vDB[i].sequence[start+n]];
+
+      //Check if we cut c-terminal to this AA
+      if((start+n+1)<seqSize && enzyme.cutC[vDB[i].sequence[start+n]] && !enzyme.exceptN[vDB[i].sequence[start+n+1]]){
+        if(next==-1) next=start+n;
+        if(!bCutMarked) mc++;
+        bCutMarked=true;
+
+        //Add the peptide now (if enough mass)
+        if(mass>min && mass<max) addPeptide(i,start,n,mass,p,vPep,vPepK);
+
+      }
+
+      //Mark sites of cross-linker attachment (if searching for cross-links)
+      if(setA>0) checkAA(p,setA,1,i,start,n,seqSize);
+      if(setB>0) checkAA(p,setB,2,i,start,n,seqSize);
+
+      //Check if we are at the end of the sequence
+      if((start+n+1)==seqSize) {
+
+        //Add the peptide now (if enough mass)
+        if(mass>min && mass<max) addPeptide(i,start,n,mass,p,vPep,vPepK);
+        if(next>-1) {
+          start=next+1;
+          n=0;
+          mc=0;
+          mass=18.0105633;
+          p.vA->clear();
+          p.vB->clear();
+          next=-1;
+        } else {
+          break;
+        }
+
+      }
+
+      //Check if we exceeded peptide mass
+      //Check if we exceeded the number of missed cleavages
+      if(mass>max || mc>mis ) {
+
+        //if we know next cut site
+        if(next>-1) {
+          start=next+1;
+          n=0;
+          mc=0;
+          mass=18.0105633;
+          p.vA->clear();
+          p.vB->clear();
+          next=-1;
+
+        //Otherwise, continue scanning until it is found
+        } else {
+          while((start+n)<seqSize-1){
+            n++;
+            if(n>0 && enzyme.cutN[vDB[i].sequence[start+n]] && !enzyme.exceptC[vDB[i].sequence[start+n-1]]){
+              next=start+n;
+              break;
+            } else if((start+n+1)<seqSize && enzyme.cutC[vDB[i].sequence[start+n]] && !enzyme.exceptN[vDB[i].sequence[start+n+1]]){
+              next=start+n;
+              break;
+            } 
+          }
+          if(next<0) break;
+
+          start=next+1;
+          n=0;
+          mc=0;
+          mass=18.0105633;
+          p.vA->clear();
+          p.vB->clear();
+          next=-1;
+        }  
+      } else {
+        n++;
+        continue;
+      }
+
+    }
+
+
+/*
+
       //Check if we are at the end of the sequence
       if((start+n)==seqSize) {
         //Add to database
@@ -173,7 +270,8 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
       //Check if we found an enzyme cut site. Also add the amino acid mass if cutting C-terminal or not at all.
       if(n>0 && enzyme.cutN[vDB[i].sequence[start+n]] && !enzyme.exceptC[vDB[i].sequence[start+n-1]]){
-        if(next==-1) next=start+n-1;
+        n--;
+        if(next==-1) next=start+n;
         mc++;
       } else if((start+n+1)<seqSize && enzyme.cutC[vDB[i].sequence[start+n]] && !enzyme.exceptN[vDB[i].sequence[start+n+1]]){
         mass+=AA[vDB[i].sequence[start+n]];
@@ -238,7 +336,8 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
           while((start+n)<seqSize-1){
             n++;
             if(n>0 && enzyme.cutN[vDB[i].sequence[start+n]] && !enzyme.exceptC[vDB[i].sequence[start+n-1]]){
-              next=start+n-1;
+              n--;
+              next=start+n;
               break;
             } else if((start+n+1)<seqSize && enzyme.cutC[vDB[i].sequence[start+n]] && !enzyme.exceptN[vDB[i].sequence[start+n+1]]){
               next=start+n;
@@ -261,6 +360,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
       }
 
     }
+    */
 
   }
 
@@ -473,6 +573,10 @@ bool KDatabase::setEnzyme(char* str){
     }
   }
 
+  //for(i=65;i<90;i++){
+  //  cout << (char)i << "\t" << enzyme.cutC[i] << "\t" << enzyme.cutN[i] << "\t" << enzyme.exceptC[i] << "\t" << enzyme.exceptN[i] << endl;
+  //}
+
   return true;
 
 }
@@ -486,6 +590,25 @@ bool KDatabase::setXLType(int a, int b){
 //==============================
 //  Private Functions
 //==============================
+void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& norm, vector<kPeptide>& link){
+  kPepMap  pm;
+                           
+  pm.index=index;
+  pm.start=start;
+  pm.stop=start+len;
+  
+  p.mass=mass;
+  p.map->clear();
+  p.map->push_back(pm);
+  if(p.vA->size()>0 || p.vB->size()>0) link.push_back(p);
+  else norm.push_back(p);
+
+  char str[256];
+  getPeptideSeq(p.map->at(0).index,p.map->at(0).start,p.map->at(0).stop,str);
+  //cout << "Adding: " << str << "\t" << p.vA->size()+p.vB->size() << endl;
+
+}
+
 void KDatabase::checkAA(kPeptide& p, int type, int set, int i, int start, int n, int seqSize){
   vector<int>* v;
   if(set==1) v=p.vA;

@@ -66,7 +66,8 @@ private:
   vector<kPeptide> vPep;   //List of all peptides not linkable
   vector<kPeptide> vPepK;  //List of all peptides with a linkable K
 
-  void checkAA(kPeptide& p, int type, int set, int i, int start, int n, int seqSize);
+  void addPeptide (int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& norm, vector<kPeptide>& link);
+  void checkAA    (kPeptide& p, int type, int set, int i, int start, int n, int seqSize);
 
   //Utility functions (for sorting)
   static int compareMass      (const void *p1, const void *p2);
