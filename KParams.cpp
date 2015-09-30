@@ -333,7 +333,16 @@ void KParams::parse(char* cmd) {
     params->preferPrecursor=atoi(&values[0][0]);
 
   } else if(strcmp(param,"search_dimers")==0){
-    params->dimers=atoi(&values[0][0]);
+    //params->dimers=atoi(&values[0][0]);
+    warn(param,2);
+
+  } else if(strcmp(param,"search_dimers_nc")==0){
+    if(atoi(&values[0][0])==0) params->dimersNC=false;
+    else params->dimersNC=true;
+
+  } else if(strcmp(param,"search_dimers_xl")==0){
+    if(atoi(&values[0][0])==0) params->dimersXL=false;
+    else params->dimersXL=true;
 
   } else if(strcmp(param,"spectrum_processing")==0) {
     params->specProcess=atoi(&values[0][0]);

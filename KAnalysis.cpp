@@ -367,7 +367,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex, bool cross
     if(bt) scoreSpectra(index,j,ions[iIndex][j].difMass,crossLink,pepIndex,-1,-1,-1,-1,iIndex);
     
     //For searching non-covalent dimers - Might remove altogether. Adds 100% more computation for less than 0.01% more IDs
-    if(params.dimers>0) analyzeSingletsNoLysine(*p,j,pepIndex,crossLink,iIndex);
+    if(params.dimersNC) analyzeSingletsNoLysine(*p,j,pepIndex,crossLink,iIndex);
   }
 
   if(!crossLink) return true;
@@ -582,16 +582,20 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
         index=findMass(s,count,sp->getPrecursor(m).monoMass-s[j].mass-spec->getLink(k).mass);
         n=index;
         while(n<count){
+          if(!params.dimersXL && n==j){
+            n++;
+            continue;
+          }
           if(s[n].simpleScore<0 || s[n].k1<0){
             n++;
             continue;
           }
 
           //Make sure we didn't already pair these peptides with a different precursor during this pass
-          for(x=0;x<matches.size();x++){
+          for(x=0;x<(int)matches.size();x++){
             if(matches[x]==n) break;
           }
-          if(x<matches.size()) {
+          if(x<(int)matches.size()) {
             n++;
             continue;
           }
@@ -661,6 +665,10 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
         }
         n=index-1;
         while(n>-1){
+          if(!params.dimersXL && n==j){
+            n--;
+            continue;
+          }
           if(s[n].simpleScore<0 || s[n].k1<0){
             n--;
             continue;
@@ -755,7 +763,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
 
   //Check non-covalent dimers
   //Note that this code is out of date and probably does not present scores or mods correctly.
-  if(params.dimers==0) {
+  if(!params.dimersNC) {
     delete [] s;
     return;
   }

@@ -128,7 +128,7 @@ typedef struct kEnzymeRules{
 
 typedef struct kParams {
   //int     diagnostic;
-  int     dimers;
+  //int     dimers;
   int     instrument;     //0=Orbi, 1=FTICR
   int     maxMods;
   int     maxPeaks;
@@ -145,6 +145,8 @@ typedef struct kParams {
   int     topCount;
   int     truncate;
   bool    diffModsOnXL;
+  bool    dimersNC;
+  bool    dimersXL;
   bool    exportPercolator;
   bool    ionSeries[6];
   bool    monoLinksOnXL;
@@ -169,7 +171,7 @@ typedef struct kParams {
   vector<kMass>*    fMods;
   kParams(){
     //diagnostic=0;
-    dimers=0;
+    //dimers=0;
     instrument=1;
     maxMods=0;
     maxPeaks=0;
@@ -186,6 +188,8 @@ typedef struct kParams {
     topCount=250;
     truncate=0;
     diffModsOnXL=false;
+    dimersNC=false;
+    dimersXL=true;
     exportPercolator=false;
     ionSeries[0]=false; //a-ions
     ionSeries[1]=true;  //b-ions
@@ -216,7 +220,7 @@ typedef struct kParams {
   }
   kParams(const kParams& p){
     //diagnostic=p.diagnostic;
-    dimers=p.dimers;
+    //dimers=p.dimers;
     instrument=p.instrument;
     maxMods=p.maxMods;
     maxPeaks=p.maxPeaks;
@@ -233,6 +237,8 @@ typedef struct kParams {
     topCount=p.topCount;
     truncate=p.truncate;
     diffModsOnXL=p.diffModsOnXL;
+    dimersNC=p.dimersNC;
+    dimersXL=p.dimersXL;
     exportPercolator=p.exportPercolator;
     monoLinksOnXL=p.monoLinksOnXL;
     xcorr=p.xcorr;
@@ -272,7 +278,7 @@ typedef struct kParams {
   kParams& operator=(const kParams& p){
     if(this!=&p){
       //diagnostic=p.diagnostic;
-      dimers=p.dimers;
+      //dimers=p.dimers;
       instrument=p.instrument;
       maxMods=p.maxMods;
       maxPeaks=p.maxPeaks;
@@ -289,6 +295,8 @@ typedef struct kParams {
       topCount=p.topCount;
       truncate=p.truncate;
       diffModsOnXL=p.diffModsOnXL;
+      dimersNC=p.dimersNC;
+      dimersXL=p.dimersXL;
       exportPercolator=p.exportPercolator;
       monoLinksOnXL=p.monoLinksOnXL;
       xcorr=p.xcorr;

@@ -465,7 +465,7 @@ bool KData::outputResults(KDatabase& db){
     sprintf(fName,"%s.perc.single.txt",params->outFile);
     fSingle=fopen(fName,"wt");
     if(fSingle==NULL) bBadFiles=true;
-    if(params->dimers){
+    if(params->dimersNC){
       sprintf(fName,"%s.perc.dimer.txt",params->outFile);
       fDimer=fopen(fName,"wt");
       if(fDimer==NULL) bBadFiles=true;
@@ -490,19 +490,19 @@ bool KData::outputResults(KDatabase& db){
       fprintf(fInter,"SpecId\tLabel\tscannr\tScore\tdScore\t");
       fprintf(fLoop,"SpecId\tLabel\tscannr\tScore\tdScore\t");
       fprintf(fSingle,"SpecId\tLabel\tscannr\tScore\tdScore\t");
-      if(params->dimers) fprintf(fDimer,"SpecId\tLabel\tscannr\tScore\tdScore\t");
+      if(params->dimersNC) fprintf(fDimer,"SpecId\tLabel\tscannr\tScore\tdScore\t");
     } else {
       fprintf(fIntra,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fInter,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fLoop,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fSingle,"SpecId\tLabel\tScore\tdScore\t");
-      if(params->dimers) fprintf(fDimer,"SpecId\tLabel\tScore\tdScore\t");
+      if(params->dimersNC) fprintf(fDimer,"SpecId\tLabel\tScore\tdScore\t");
     }
     fprintf(fIntra,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
     fprintf(fInter,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
     fprintf(fLoop,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
     fprintf(fSingle,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
-    if(params->dimers) fprintf(fDimer,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
+    if(params->dimersNC) fprintf(fDimer,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
   }
   
   //Output top score for each spectrum
@@ -775,7 +775,7 @@ bool KData::outputResults(KDatabase& db){
     fclose(fInter);
     fclose(fLoop);
     fclose(fSingle);
-    if(params->dimers) fclose(fDimer);
+    if(params->dimersNC) fclose(fDimer);
   }
   return true;
 

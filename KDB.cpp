@@ -189,6 +189,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
           p.vA->clear();
           p.vB->clear();
           next=-1;
+          continue;
         } else {
           break;
         }
@@ -603,8 +604,8 @@ void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide&
   if(p.vA->size()>0 || p.vB->size()>0) link.push_back(p);
   else norm.push_back(p);
 
-  char str[256];
-  getPeptideSeq(p.map->at(0).index,p.map->at(0).start,p.map->at(0).stop,str);
+  //char str[256];
+  //getPeptideSeq(p.map->at(0).index,p.map->at(0).start,p.map->at(0).stop,str);
   //cout << "Adding: " << str << "\t" << p.vA->size()+p.vB->size() << endl;
 
 }
