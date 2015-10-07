@@ -248,7 +248,7 @@ bool KAnalysis::doRelaxedAnalysis(){
   fflush(stdout);
 
   for(i=0;i<spec->size();i++){
-    kAnalysisRelStruct* a = new kAnalysisRelStruct(&spec->at(i));
+    kAnalysisRelStruct* a = new kAnalysisRelStruct(&mutexKIonsManager,&spec->at(i));
     threadPool->Launch(a);
   }
 
@@ -330,9 +330,26 @@ void KAnalysis::analyzePeptideNCProc(kAnalysisNCStruct* s){
 */
 
 void KAnalysis::analyzeRelaxedProc(kAnalysisRelStruct* s){
-  analyzeRelaxed(s->spec);
+  int i;
+  Threading::LockMutex(mutexKIonsManager);
+  for(i=0;i<params.threads;i++){
+    if(!bKIonsManager[i]){
+      bKIonsManager[i]=true;
+      break;
+    }
+  }
+  Threading::UnlockMutex(mutexKIonsManager);
+  if(i==params.threads){
+    cout << "Error in KAnalysis::analyzeRelaxedProc" << endl;
+    exit(-1);
+  }
+  s->bKIonsMem = &bKIonsManager[i];
+  analyzeRelaxed(s->spec,i);
   delete s;
   s=NULL;
+  //analyzeRelaxed(s->spec);
+  //delete s;
+  //s=NULL;
 }
 
 //============================
@@ -476,7 +493,7 @@ void KAnalysis::analyzePeptideNC(vector<kPeptideB>* p, int pIndex, int iIndex){
 */
 
 //Stage 2 of relaxed mode analysis. Must be performed after analyzePeptides.
-void KAnalysis::analyzeRelaxed(KSpectrum* sp){
+void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
 
   int i,j,k,m,n,x;
   unsigned int q,d;
@@ -554,6 +571,9 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
   bool bSkip;
   kPeptide p;
   vector<int> matches;
+  kMatchSet msTemplate;
+  kMatchSet msPartner;
+  double dShared;
 
   //Check true cross-links
   for(k=0;k<spec->sizeLink();k++){
@@ -577,8 +597,15 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
       len1=db->at(p.map->at(0).index).sequence.size()-1;
       if( (p.map->at(0).start+s[j].k1)<2) bN1=true;
       else bN1=false;
-
+      
       for(m=0;m<sp->sizePrecursor();m++){
+
+        //Grab bin coordinates of all fragment ions
+        p=db->getPeptide(s[j].pep1,true);
+        ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass);
+        ions[iIndex].buildSingletIons((int)s[j].k1);
+        setBinList(&msTemplate, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[j].mass, sp->getSingletScoreCard(s[j].rank).mods, sp->getSingletScoreCard(s[j].rank).modLen);
+
         index=findMass(s,count,sp->getPrecursor(m).monoMass-s[j].mass-spec->getLink(k).mass);
         n=index;
         while(n<count){
@@ -637,8 +664,23 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
               continue;
             }
 
+            //Grab bin coordinates of all fragment ions
+            ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass);
+            ions[iIndex].buildSingletIons((int)s[n].k1);
+            setBinList(&msPartner, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[n].mass, sp->getSingletScoreCard(s[n].rank).mods, sp->getSingletScoreCard(s[n].rank).modLen);
+            dShared = sharedScore(sp,&msTemplate,&msPartner,sp->getPrecursor(m).charge);
+
+            //if(sp->getScanNumber()==62111 && n==j) {
+            //  cout << s[j].simpleScore*s[j].len << "\t" << s[n].pep1 << endl;
+            //  cout << s[n].simpleScore*s[n].len << "\t" << s[j].pep1 << endl;
+            //  cout << dShared << endl;
+            //  exit(1);
+            //} else {
+            //  cout << s[n].simpleScore*s[n].len << "\t" << dShared << endl;
+            //}
+
             //Add the cross-link
-            sc.simpleScore=s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len;
+            sc.simpleScore=s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared;
             sc.k1=s[j].k1;
             sc.k2=s[n].k1;
             sc.mass=totalMass;
@@ -720,7 +762,22 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp){
               continue;
             }
 
-            sc.simpleScore=s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len;
+            //Grab bin coordinates of all fragment ions
+            ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass);
+            ions[iIndex].buildSingletIons((int)s[n].k1);
+            setBinList(&msPartner, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[n].mass, sp->getSingletScoreCard(s[n].rank).mods, sp->getSingletScoreCard(s[n].rank).modLen);
+            dShared = sharedScore(sp,&msTemplate,&msPartner,sp->getPrecursor(m).charge);
+            
+            //if(sp->getScanNumber()==62111 && n==j) {
+            //  cout << s[j].simpleScore*s[j].len << "\t" << s[n].pep1 << endl;
+            //  cout << s[n].simpleScore*s[n].len << "\t" << s[j].pep1 << endl;
+            //  cout << dShared << endl;
+            //  exit(1);
+            //} else {
+            //  cout << s[n].simpleScore*s[n].len << "\t" << dShared << endl;
+            //}
+
+            sc.simpleScore=s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared;
             sc.k1=s[j].k1;
             sc.k2=s[n].k1;
             sc.mass=totalMass;
@@ -1177,10 +1234,9 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   double mz;
 
   int ionCount=ions[iIndex].getIonCount();
-  int k;
   int maxCharge=s->getCharge();  
 
-  int i,j;
+  int i,j,k;
   int key;
   int pos;
 
@@ -1207,7 +1263,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
     dif=modMass/k;
 
     //Iterate through pfFastXcorrData
-    for(j=0;j<2;j++){
+    for(j=0;j<numIonSeries;j++){
       for(i=0;i<ionCount;i++){
 
         //get key
@@ -1250,6 +1306,319 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   delete[] ionSeries;
 
   return float(dXcorr);
+}
+
+void KAnalysis::setBinList(kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen){
+
+  KIonSet* ki=ions[iIndex].at(0);
+  double** ionSeries;
+  double invBinSize=1.0/params.binSize;
+  double mz;
+  double dif;
+  int key;
+  int pos;
+  int ionCount=ions[iIndex].getIonCount();
+  int i,j,k;
+
+  //set up all modification mass modifiers
+  double* mod;
+  double* modRev;
+  mod = new double[ionCount];
+  modRev = new double[ionCount];
+  for(i=0;i<ionCount;i++){
+    mod[i]=0;
+    modRev[i]=0;
+  }
+  for(i=0;i<(int)modLen;i++){
+    for(j=mods[i].pos;j<ionCount;j++){
+      mod[j]+=mods[i].mass;
+    }
+    for(j=ionCount-mods[i].pos;j<ionCount;j++){
+      modRev[j]+=mods[i].mass;
+    }
+  }
+  
+  if(charge>6) charge=6;
+  m->allocate(ions[iIndex].getIonCount(),charge);
+
+  //populate structure
+  for(i=1;i<charge;i++){
+
+    dif=preMass/i;
+
+    //a-ions
+    if(params.ionSeries[0]) {
+      ionSeries=ki->aIons;
+      for(j=0;j<ionCount;j++) {
+        if(ionSeries[i][j]<0) mz = params.binSize * (int)((dif-(ionSeries[i][j]-mod[j]/i))*invBinSize+params.binOffset);
+        else mz = params.binSize * (int)((ionSeries[i][j]+mod[j]/i)*invBinSize+params.binOffset);
+        key = (int)mz;
+        m->a[i][j].pos = (int)((mz-key)*invBinSize);
+        m->a[i][j].key = key;
+      }
+    }
+
+    //b-ions
+    if(params.ionSeries[1]) {
+      ionSeries=ki->bIons;
+      for(j=0;j<ionCount;j++) {
+        if(ionSeries[i][j]<0) mz = params.binSize * (int)((dif-(ionSeries[i][j]-mod[j]/i))*invBinSize+params.binOffset);
+        else mz = params.binSize * (int)((ionSeries[i][j]+mod[j]/i)*invBinSize+params.binOffset);
+        key = (int)mz;
+        m->b[i][j].pos = (int)((mz-key)*invBinSize);
+        m->b[i][j].key = key;
+      }
+    }
+
+    //c-ions
+    if(params.ionSeries[2]) {
+      ionSeries=ki->cIons;
+      for(j=0;j<ionCount;j++) {
+        if(ionSeries[i][j]<0) mz = params.binSize * (int)((dif-(ionSeries[i][j]-mod[j]/i))*invBinSize+params.binOffset);
+        else mz = params.binSize * (int)((ionSeries[i][j]+mod[j]/i)*invBinSize+params.binOffset);
+        key = (int)mz;
+        m->c[i][j].pos = (int)((mz-key)*invBinSize);
+        m->c[i][j].key = key;
+      }
+    }
+
+    //x-ions
+    if(params.ionSeries[3]) {
+      ionSeries=ki->xIons;
+      for(j=0;j<ionCount;j++) {
+        if(ionSeries[i][j]<0) mz = params.binSize * (int)((dif-(ionSeries[i][j]-modRev[j]/i))*invBinSize+params.binOffset);
+        else mz = params.binSize * (int)((ionSeries[i][j]+modRev[j]/i)*invBinSize+params.binOffset);
+        key = (int)mz;
+        m->x[i][j].pos = (int)((mz-key)*invBinSize);
+        m->x[i][j].key = key;
+      }
+    }
+
+    //y-ions
+    if(params.ionSeries[4]) {
+      ionSeries=ki->yIons;
+      for(j=0;j<ionCount;j++) {
+        if(ionSeries[i][j]<0) mz = params.binSize * (int)((dif-(ionSeries[i][j]-modRev[j]/i))*invBinSize+params.binOffset);
+        else mz = params.binSize * (int)((ionSeries[i][j]+modRev[j]/i)*invBinSize+params.binOffset);
+        key = (int)mz;
+        m->y[i][j].pos = (int)((mz-key)*invBinSize);
+        m->y[i][j].key = key;
+      }
+    }
+
+    //z-ions
+    if(params.ionSeries[5]) {
+      ionSeries=ki->zIons;
+      for(j=0;j<ionCount;j++) {
+        if(ionSeries[i][j]<0) mz = params.binSize * (int)((dif-(ionSeries[i][j]-modRev[j]/i))*invBinSize+params.binOffset);
+        else mz = params.binSize * (int)((ionSeries[i][j]+modRev[j]/i)*invBinSize+params.binOffset);
+        key = (int)mz;
+        m->z[i][j].pos = (int)((mz-key)*invBinSize);
+        m->z[i][j].key = key;
+      }
+    }
+
+  }
+
+  delete [] mod;
+  delete [] modRev;
+
+}
+
+double KAnalysis::sharedScore(KSpectrum* s, kMatchSet* m1, kMatchSet* m2, int charge){
+
+  //cout << "In sharedScore: " << s->getScanNumber() << endl;
+  int i,j,k;
+  double dScore=0;
+
+  /*
+  if(s->getScanNumber()==62111){
+    cout << "Pep 1: " << m1->sz << endl;
+    for(i=0;i<m1->sz;i++) {
+      cout << m1->b[1][i].key << "\t" << m1->b[1][i].pos << endl;
+      cout << m1->b[2][i].key << "\t" << m1->b[2][i].pos << endl;
+    }
+    for(i=0;i<m1->sz;i++) {
+      cout << m1->y[1][i].key << "\t" << m1->y[1][i].pos << endl;
+      cout << m1->y[2][i].key << "\t" << m1->y[2][i].pos << endl;
+    }
+    cout << "Pep 2: " << m2->sz << endl;
+    for(i=0;i<m2->sz;i++) {
+      cout << m2->b[1][i].key << "\t" << m2->b[1][i].pos << endl;
+      cout << m2->b[2][i].key << "\t" << m2->b[2][i].pos << endl;
+    }
+    for(i=0;i<m2->sz;i++) {
+      cout << m2->y[1][i].key << "\t" << m2->y[1][i].pos << endl;
+      cout << m2->y[2][i].key << "\t" << m2->y[2][i].pos << endl;
+    }
+  }
+  */
+
+  //for(i=0;i<s->sizePrecursor();i++){
+  //  cout << "precursor: " << i << "\t" << s->getPrecursor(i).monoMass << endl;
+  //}
+  
+  for(i=1;i<charge;i++){
+    //cout << "SS, charge: " << i << endl;
+    //a-ions
+    if(params.ionSeries[0]) {
+      j=0;
+      k=0;
+      while(j<m1->sz && k<m2->sz){
+        if(m1->a[i][j].key==m2->a[i][k].key){
+          if(m1->a[i][j].pos==m2->a[i][k].pos){
+            if(m2->a[i][k].key>=s->kojakBins) break;
+            if(s->kojakSparseArray[m2->a[i][k].key]!=NULL){
+              dScore+=s->kojakSparseArray[m2->a[i][k].key][m2->a[i][k].pos];
+            }
+            j++;
+            k++;
+          } else {
+            if(m1->a[i][j].pos<m2->a[i][k].pos) j++;
+            else k++;
+          }
+        } else {
+          if(m1->a[i][j].key<m2->a[i][k].key) j++;
+          else k++;
+        }
+      }
+    }
+
+    //b-ions
+    if(params.ionSeries[1]) {
+      //cout << "SS, B" << endl;
+      j=0;
+      k=0;
+      while(j<m1->sz && k<m2->sz){
+        //cout << "J: " << j << " " << m1->b[i][j].key << "," << m1->b[i][j].pos;
+        //cout << "\tK: " << k << " " << m2->b[i][k].key << "," << m2->b[i][k].pos << endl;
+        if(m1->b[i][j].key==m2->b[i][k].key){
+          if(m1->b[i][j].pos==m2->b[i][k].pos){
+            //cout << "Match! max = " << s->kojakBins << endl;
+            if(m2->b[i][k].key>=s->kojakBins) break;
+            if(s->kojakSparseArray[m2->b[i][k].key]!=NULL){
+              dScore+=s->kojakSparseArray[m2->b[i][k].key][m2->b[i][k].pos];
+            }
+            j++;
+            k++;
+          } else {
+            if(m1->b[i][j].pos<m2->b[i][k].pos) j++;
+            else k++;
+          }
+        } else {
+          if(m1->b[i][j].key<m2->b[i][k].key) j++;
+          else k++;
+        }
+      }
+    }
+
+    //c-ions
+    if(params.ionSeries[2]) {
+      j=0;
+      k=0;
+      while(j<m1->sz && k<m2->sz){
+        if(m1->c[i][j].key==m2->c[i][k].key){
+          if(m1->c[i][j].pos==m2->c[i][k].pos){
+            if(m2->c[i][k].key>=s->kojakBins) break;
+            if(s->kojakSparseArray[m2->c[i][k].key]!=NULL){
+              dScore+=s->kojakSparseArray[m2->c[i][k].key][m2->c[i][k].pos];
+            }
+            j++;
+            k++;
+          } else {
+            if(m1->c[i][j].pos<m2->c[i][k].pos) j++;
+            else k++;
+          }
+        } else {
+          if(m1->c[i][j].key<m2->c[i][k].key) j++;
+          else k++;
+        }
+      }
+    }
+
+    //x-ions
+    if(params.ionSeries[3]) {
+      j=0;
+      k=0;
+      while(j<m1->sz && k<m2->sz){
+        if(m1->x[i][j].key==m2->x[i][k].key){
+          if(m1->x[i][j].pos==m2->x[i][k].pos){
+            if(m2->x[i][k].key>=s->kojakBins) break;
+            if(s->kojakSparseArray[m2->x[i][k].key]!=NULL){
+              dScore+=s->kojakSparseArray[m2->x[i][k].key][m2->x[i][k].pos];
+            }
+            j++;
+            k++;
+          } else {
+            if(m1->x[i][j].pos<m2->x[i][k].pos) j++;
+            else k++;
+          }
+        } else {
+          if(m1->x[i][j].key<m2->x[i][k].key) j++;
+          else k++;
+        }
+      }
+    }
+
+    //y-ions
+    if(params.ionSeries[4]) {
+      //cout << "SS, Y" << endl;
+      j=0;
+      k=0;
+      while(j<m1->sz && k<m2->sz){
+        //cout << "J: " << j << " " << m1->y[i][j].key << "," << m1->y[i][j].pos;
+        //cout << "\tK: " << k << " " << m2->y[i][k].key << "," << m2->y[i][k].pos << endl;
+        if(m1->y[i][j].key==m2->y[i][k].key){
+          if(m1->y[i][j].pos==m2->y[i][k].pos){
+            if(m2->y[i][k].key>=s->kojakBins) break;
+            if(s->kojakSparseArray[m2->y[i][k].key]!=NULL){
+              dScore+=s->kojakSparseArray[m2->y[i][k].key][m2->y[i][k].pos];
+            }
+            j++;
+            k++;
+          } else {
+            if(m1->y[i][j].pos<m2->y[i][k].pos) j++;
+            else k++;
+          }
+        } else {
+          if(m1->y[i][j].key<m2->y[i][k].key) j++;
+          else k++;
+        }
+      }
+    }
+
+    //z-ions
+    if(params.ionSeries[5]) {
+      j=0;
+      k=0;
+      while(j<m1->sz && k<m2->sz){
+        if(m1->z[i][j].key==m2->z[i][k].key){
+          if(m1->z[i][j].pos==m2->z[i][k].pos){
+            if(m2->z[i][k].key>=s->kojakBins) break;
+            if(s->kojakSparseArray[m2->z[i][k].key]!=NULL){
+              dScore+=s->kojakSparseArray[m2->z[i][k].key][m2->z[i][k].pos];
+            }
+            j++;
+            k++;
+          } else {
+            if(m1->z[i][j].pos<m2->z[i][k].pos) j++;
+            else k++;
+          }
+        } else {
+          if(m1->z[i][j].key<m2->z[i][k].key) j++;
+          else k++;
+        }
+      }
+    }
+
+  }
+
+  if(dScore <= 0.0) dScore=0.0;
+  else dScore *= 0.005;
+
+  //cout << "Out sharedScore" << endl;
+  return dScore;
+
 }
 
 

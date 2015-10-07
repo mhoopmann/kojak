@@ -71,11 +71,20 @@ struct kAnalysisNCStruct {
 };
 
 struct kAnalysisRelStruct {
+  bool*       bKIonsMem;    //Pointer to the memory manager array to mark memory is in use
+  Mutex*      mutex;        //Pointer to a mutex for protecting memory
   KSpectrum*  spec;
-  kAnalysisRelStruct(KSpectrum* s){
+  kAnalysisRelStruct(Mutex* m, KSpectrum* s){
+    mutex=m;
     spec=s;
   }
   ~kAnalysisRelStruct(){
+    //Mark that memory is not being used, but do not delete it here.
+    Threading::LockMutex(*mutex);
+    if(bKIonsMem!=NULL) *bKIonsMem=false;
+    bKIonsMem=NULL;
+    Threading::UnlockMutex(*mutex);
+    mutex=NULL;   //release mutex
     spec=NULL;
   }
 };
@@ -104,7 +113,7 @@ private:
   //Analysis functions
   static bool analyzePeptide(kPeptide* p, int pepIndex, int iIndex, bool crossLink);
   //static void analyzePeptideNC(vector<kPeptideB>* p, int pIndex, int iIndex);
-  static void analyzeRelaxed(KSpectrum* sp);
+  static void analyzeRelaxed(KSpectrum* sp, int iIndex);
 
   //Private Functions
   bool         allocateMemory          (int threads);
@@ -117,6 +126,8 @@ private:
   static void  scoreSpectra            (vector<int>& index, int sIndex, double modMass, bool linkable, int pep1, int pep2, int k1, int k2, int link, int iIndex);
   static float xCorrScoring            (KSpectrum& s, double modMass, int sIndex, int iIndex);
   static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex);
+  static void  setBinList              (kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen);
+  static double sharedScore            (KSpectrum* s, kMatchSet* m1, kMatchSet* m2, int charge);
 
   //Data Members
   static bool*      bKIonsManager;

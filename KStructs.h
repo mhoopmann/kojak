@@ -546,4 +546,98 @@ typedef struct kResults{
   string  peptide2;
 } kResults;
 
+typedef struct kCKey{
+  int key;
+  int pos;
+} kCKey;
+
+typedef struct kMatchSet{
+  int sz;
+  int charge;
+  kCKey** a;
+  kCKey** b;
+  kCKey** c;
+  kCKey** x;
+  kCKey** y;
+  kCKey** z;
+  kMatchSet(){
+    sz=0;
+    charge=0;
+    a=NULL;
+    b=NULL;
+    c=NULL;
+    x=NULL;
+    y=NULL;
+    z=NULL;
+  }
+  ~kMatchSet(){
+    deAllocate();
+  }
+  void allocate(int s, int ch){
+    deAllocate();
+    sz=s;
+    charge=ch;
+    //kCKey k;
+    //k.key=0;
+    //k.pos=0;
+    a = new kCKey*[charge];
+    b = new kCKey*[charge];
+    c = new kCKey*[charge];
+    x = new kCKey*[charge];
+    y = new kCKey*[charge];
+    z = new kCKey*[charge];
+    for(int i=0;i<charge;i++){
+      a[i] = new kCKey[sz];
+      b[i] = new kCKey[sz];
+      c[i] = new kCKey[sz];
+      x[i] = new kCKey[sz];
+      y[i] = new kCKey[sz];
+      z[i] = new kCKey[sz];
+      //for(int j=0;j<sz;j++){
+      //  a[i][j]=k;
+      //  b[i][j]=k;
+      //  c[i][j]=k;
+      //  x[i][j]=k;
+      //  y[i][j]=k;
+      //  z[i][j]=k;
+      //}
+    }
+  }
+  void deAllocate(){
+    int i;
+    if(a!=NULL){
+      for(i=0;i<charge;i++) delete [] a[i];
+      delete [] a;
+    }
+    if(b!=NULL){
+      for(i=0;i<charge;i++) delete [] b[i];
+      delete [] b;
+    }
+    if(c!=NULL){
+      for(i=0;i<charge;i++) delete [] c[i];
+      delete [] c;
+    }
+    if(x!=NULL){
+      for(i=0;i<charge;i++) delete [] x[i];
+      delete [] x;
+    }
+    if(y!=NULL){
+      for(i=0;i<charge;i++) delete [] y[i];
+      delete [] y;
+    }
+    if(z!=NULL){
+      for(i=0;i<charge;i++) delete [] z[i];
+      delete [] z;
+    }
+    a=NULL;
+    b=NULL;
+    c=NULL;
+    x=NULL;
+    y=NULL;
+    z=NULL;
+  }
+
+} kMatchSet;
+
+
 #endif
