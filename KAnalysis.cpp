@@ -1429,7 +1429,10 @@ double KAnalysis::sharedScore(KSpectrum* s, kMatchSet* m1, kMatchSet* m2, int ch
 
   //cout << "In sharedScore: " << s->getScanNumber() << endl;
   int i,j,k;
+  int maxCharge=charge;
   double dScore=0;
+
+  if(maxCharge>6) maxCharge=6;
 
   /*
   if(s->getScanNumber()==62111){
@@ -1458,7 +1461,7 @@ double KAnalysis::sharedScore(KSpectrum* s, kMatchSet* m1, kMatchSet* m2, int ch
   //  cout << "precursor: " << i << "\t" << s->getPrecursor(i).monoMass << endl;
   //}
   
-  for(i=1;i<charge;i++){
+  for(i=1;i<maxCharge;i++){
     //cout << "SS, charge: " << i << endl;
     //a-ions
     if(params.ionSeries[0]) {
@@ -1570,6 +1573,7 @@ double KAnalysis::sharedScore(KSpectrum* s, kMatchSet* m1, kMatchSet* m2, int ch
         //cout << "\tK: " << k << " " << m2->y[i][k].key << "," << m2->y[i][k].pos << endl;
         if(m1->y[i][j].key==m2->y[i][k].key){
           if(m1->y[i][j].pos==m2->y[i][k].pos){
+            //cout << "Match! max = " << s->kojakBins << endl;
             if(m2->y[i][k].key>=s->kojakBins) break;
             if(s->kojakSparseArray[m2->y[i][k].key]!=NULL){
               dScore+=s->kojakSparseArray[m2->y[i][k].key][m2->y[i][k].pos];
