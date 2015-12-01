@@ -20,6 +20,12 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.4.2 - November 30 2015
+* Fixed c-terminus parsing bug in sequence database.
+* Fixed bug in enzyme digest/database parsing.
+* Improved scoring algorithm: no inflation of scores for shared fragment ions from two peptides.
+* Suppressed warning message when Thermo MSFileReader not installed/active.
+
 #### Version 1.4.1 - September 11 2015
 * Fixed duplication when reporting enriched cross-link results.
 * Fixed bug when detecting enriched precursor ions.
