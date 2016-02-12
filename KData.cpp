@@ -370,7 +370,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   fprintf(f,"\t%d",r.charge);
   fprintf(f,"\t%.4lf",r.psmMass);
   fprintf(f,"\t%.4lf",r.ppm);
-  if(r.pep2>=0){
+  if(r.pep2>=0 && r.peptide2.size()>0){
     if(r.peptide2.size()<r.peptide1.size()) {
       if(r.type==3) fprintf(f,"\t%d\t%d\t%d\t-.%s+%s.-",r.peptide2.size(),r.peptide1.size(),r.peptide1.size()+r.peptide2.size(),&r.modPeptide1[0],&r.modPeptide2[0]);
       else fprintf(f,"\t%d\t%d\t%d\t-.%s(%d)--%s(%d).-",r.peptide2.size(),r.peptide1.size(),r.peptide1.size()+r.peptide2.size(),&r.modPeptide1[0],r.link1,&r.modPeptide2[0],r.link2);
@@ -432,13 +432,18 @@ bool KData::outputResults(KDatabase& db){
   bool bBadFiles;
   bool bInter;
   bool bTarget1;
+  bool bDupe;
 
   int preIndex;
   int scoreIndex;
+  int iDupe;
 
   double topScore;
   double ppm1;
   double ppm2;
+
+  string tmpPep1;
+  string tmpPep2;
 
   FILE* fOut    = NULL;
   FILE* fIntra  = NULL;
@@ -682,13 +687,42 @@ bool KData::outputResults(KDatabase& db){
       res.linkable1 = tmpSC.linkable1;
       res.linkable2 = tmpSC.linkable2;
 
+      //Edge case where single peptide is shared between linked and non-linked peptide lists
+      //This occurs when the peptide appears multiple times in a database: internally and on
+      //the c-terminus for amine reactive cross-linkers, for example.
+      bDupe=false;
+      if(res.type==0){
+        n=scoreIndex+1;
+        iDupe=1;
+        while(n<19){
+          iDupe++;
+          tmpSC2=spec[i].getScoreCard(n++);
+          if(tmpSC2.simpleScore==0) break;
+          if(tmpSC2.simpleScore!=topScore) break;
+
+          //if peptides are the same, but different lists (linked vs. non), use second peptide as location
+          if(tmpSC2.linkable1!=tmpSC.linkable1) {
+            pep = db.getPeptide(res.pep1,res.linkable1);
+            db.getPeptideSeq(pep,tmpPep1);
+            pep2 = db.getPeptide(tmpSC2.pep1,tmpSC2.linkable1);
+            db.getPeptideSeq(pep2,tmpPep2);
+            if(tmpPep1.compare(tmpPep2)==0){
+              res.pep2=tmpSC2.pep1;
+              res.linkable2=tmpSC2.linkable1;
+              bDupe=true;
+              break;
+            }
+          }
+        }
+      }
+
       //Determine if target or decoy
       bTarget1=false;
-      pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
+      pep = db.getPeptide(res.pep1,res.linkable1);
       for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
-      if(bTarget1 && tmpSC.pep2>=0){
-        bTarget1=false;
-        pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
+      if(bTarget1 && res.pep2>=0){
+        if(!bDupe) bTarget1=false;
+        pep = db.getPeptide(res.pep2,res.linkable2);
         for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
       }
       if(bTarget1) res.decoy=false;
@@ -712,6 +746,14 @@ bool KData::outputResults(KDatabase& db){
       for(j=0;j<pep.map->size();j++){
         fprintf(fOut,"%s",&db[pep.map->at(j).index].name[0]);
         if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //put position from start of protein
+        else fprintf(fOut,";");
+      }
+      if(bDupe){
+        pep = db.getPeptide(res.pep2,res.linkable2);
+        for(j=0;j<pep.map->size();j++){
+          fprintf(fOut,"%s;",&db[pep.map->at(j).index].name[0]);
+          //if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //only non-linked peptides
+        }
       }
 
       if(res.modPeptide2.size()>1) {
@@ -762,8 +804,9 @@ bool KData::outputResults(KDatabase& db){
       }
 
       //Get the next entry - it must also be exported if it has the same score
-      scoreIndex++;
-      if(scoreIndex==20) break;
+      if(bDupe) scoreIndex+=iDupe;
+      else scoreIndex++;
+      if(scoreIndex>=20) break;
       tmpSC=spec[i].getScoreCard(scoreIndex);
     }
 
