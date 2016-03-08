@@ -102,6 +102,7 @@ typedef struct kPepSort{
 } kPepSort;
 
 typedef struct kLinker{
+  string label;
   double mass;
   int mono;     //0=cross-link, 1=mono-link
   int siteA;    //number represents site list. 1 for vA, 2 for vB.
@@ -147,6 +148,7 @@ typedef struct kParams {
   bool    diffModsOnXL;
   bool    dimersNC;
   bool    dimersXL;
+  bool    exportPepXML;
   bool    exportPercolator;
   bool    ionSeries[6];
   bool    monoLinksOnXL;
@@ -190,6 +192,7 @@ typedef struct kParams {
     diffModsOnXL=false;
     dimersNC=false;
     dimersXL=true;
+    exportPepXML=false;
     exportPercolator=false;
     ionSeries[0]=false; //a-ions
     ionSeries[1]=true;  //b-ions
@@ -239,6 +242,7 @@ typedef struct kParams {
     diffModsOnXL=p.diffModsOnXL;
     dimersNC=p.dimersNC;
     dimersXL=p.dimersXL;
+    exportPepXML=p.exportPepXML;
     exportPercolator=p.exportPercolator;
     monoLinksOnXL=p.monoLinksOnXL;
     xcorr=p.xcorr;
@@ -297,6 +301,7 @@ typedef struct kParams {
       diffModsOnXL=p.diffModsOnXL;
       dimersNC=p.dimersNC;
       dimersXL=p.dimersXL;
+      exportPepXML=p.exportPepXML;
       exportPercolator=p.exportPercolator;
       monoLinksOnXL=p.monoLinksOnXL;
       xcorr=p.xcorr;
@@ -359,10 +364,14 @@ typedef struct kScoreCard{
   int     link;
   int     pep1;
   int     pep2;
-  int     rank;
+  int     rank1;
+  int     rank2;
   float   simpleScore;
   double  mass;
-  double  scoreDiff;
+  double  mass1;
+  double  mass2;
+  double  score1;
+  double  score2;
   vector<kPepMod>* mods1;
   vector<kPepMod>* mods2;
   kScoreCard(){
@@ -373,10 +382,14 @@ typedef struct kScoreCard{
     link=0;
     pep1=0;
     pep2=0;
-    rank=0;
+    rank1=0;
+    rank2=0;
     simpleScore=0;
     mass=0;
-    scoreDiff=0;
+    mass1=0;
+    mass2=0;
+    score1=0;
+    score2=0;
     mods1=new vector<kPepMod>;
     mods2=new vector<kPepMod>;
     //cout << mods1 << endl;
@@ -391,10 +404,14 @@ typedef struct kScoreCard{
     link=p.link;
     pep1=p.pep1;
     pep2=p.pep2;
-    rank=p.rank;
+    rank1=p.rank1;
+    rank2=p.rank2;
     simpleScore=p.simpleScore;
     mass=p.mass;
-    scoreDiff=p.scoreDiff;
+    mass1=p.mass1;
+    mass2=p.mass2;
+    score1=p.score1;
+    score2=p.score2;
     mods1=new vector<kPepMod>;
     for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
     mods2=new vector<kPepMod>;
@@ -414,10 +431,14 @@ typedef struct kScoreCard{
       link=p.link;
       pep1=p.pep1;
       pep2=p.pep2;
-      rank=p.rank;
+      rank1=p.rank1;
+      rank2=p.rank2;
       simpleScore=p.simpleScore;
       mass=p.mass;
-      scoreDiff=p.scoreDiff;
+      mass1=p.mass1;
+      mass2=p.mass2;
+      score1=p.score1;
+      score2=p.score2;
       delete mods1;
       mods1=new vector<kPepMod>;
       for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
@@ -531,19 +552,29 @@ typedef struct kResults{
   int     pep1;
   int     pep2;
   int     rank;
+  int     rankA;
+  int     rankB;
   int     scanNumber;
   int     type;
   float   rTime;
+  double  massA;
+  double  massB;
   double  obsMass;
   double  ppm;
   double  psmMass;
   double  score;
+  double  scoreA;
+  double  scoreB;
   double  scoreDelta;
   double  scorePepDif;
+  double  xlMass;
   string  modPeptide1;
   string  modPeptide2;
   string  peptide1;
   string  peptide2;
+  string  xlLabel;
+  vector<kPepMod> mods1;
+  vector<kPepMod> mods2;
 } kResults;
 
 typedef struct kCKey{

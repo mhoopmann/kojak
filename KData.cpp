@@ -25,6 +25,8 @@ KData::KData(){
 
 KData::KData(kParams* p){
   params=p;
+  size_t i;
+  for(i=0;i<p->fMods->size();i++) aa.addFixedMod((char)p->fMods->at(i).index,p->fMods->at(i).mass);
 }
 
 KData::~KData(){
@@ -338,6 +340,159 @@ bool KData::mapPrecursors(){
   return true;
 }
 
+bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
+
+  unsigned int i;
+  unsigned int j;
+
+  char c;
+  char n;
+  char score[32];
+  char specID[256];
+
+  string peptide;
+  string protein;
+  string sequence;
+  string tStr;
+
+  kPeptide pep;
+  kScoreCard sc;
+  kScoreCard sc2;
+
+  PXWSpectrumQuery sq;
+  PXWSearchHit sh;
+  PXWSearchHit shB;
+
+  //Export Results:
+  sq.assumed_charge=r.charge;
+  sq.end_scan=r.scanNumber;
+  sq.precursor_neutral_mass=r.obsMass;
+  sq.retention_time_sec=r.rTime;
+  sprintf(specID,"%s.%d.%d.%d",params->outFile,r.scanNumber,r.scanNumber,r.charge);
+  sq.spectrum=specID;
+  sq.start_scan=r.scanNumber;
+
+  sh.hit_rank=1;
+  sh.peptide=r.peptide1;
+  if(r.type==0){
+    sh.calc_neutral_pep_mass=r.psmMass;
+    sh.massdiff=r.psmMass-r.obsMass;
+  } else if(r.type==1){
+    sh.calc_neutral_pep_mass=r.psmMass;
+    sh.massdiff=r.psmMass-r.obsMass;
+  } else {
+    sh.calc_neutral_xl_mass=r.psmMass;
+    sh.xl_massdiff=r.psmMass-r.obsMass;
+    sh.calc_neutral_pep_mass=r.massA;
+    sh.massdiff=r.obsMass-r.massA;
+  }
+  
+  for(i=0;i<r.mods1.size();i++){
+    sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos]));
+  }
+  for(i=0;i<r.peptide1.size();i++){
+    if(aa.getFixedModMass(r.peptide1[i])>0) {
+      sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i]));
+    }
+  }
+
+
+  if(r.type>1){
+    shB.hit_rank=1;
+    shB.peptide=r.peptide2;
+    shB.calc_neutral_pep_mass=r.massB;
+    shB.massdiff=r.obsMass-r.massB;
+    
+    for(i=0;i<r.mods2.size();i++){
+      shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos]));
+    }
+    for(i=0;i<r.peptide2.size();i++){
+      if(aa.getFixedModMass(r.peptide2[i])>0) {
+        shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i]));
+      }
+    }
+  }
+
+  if(r.type>0) {
+    if(r.type==1) {
+      sh.xlink_type="loop";
+      sprintf(score,"%d",r.link1);
+      sh.addXLScore("link",score);
+      sprintf(score,"%d",r.link2);
+      sh.addXLScore("link",score);
+    } else {
+      sh.xlink_type="xl";
+      sprintf(score,"%.4lf",r.scoreA);
+      sh.addXLScore("score",score);
+      sprintf(score,"%d",r.rankA);
+      sh.addXLScore("rank",score);
+      sprintf(score,"%d",r.link1);
+      sh.addXLScore("link",score);
+
+      shB.xlink_type="xl";
+      sprintf(score,"%.4lf",r.scoreB);
+      shB.addXLScore("score",score);
+      sprintf(score,"%d",r.rankB);
+      shB.addXLScore("rank",score);
+      sprintf(score,"%d",r.link2);
+      shB.addXLScore("link",score);
+    }
+    
+  }
+
+  sprintf(score,"%.4lf",r.score);
+  sh.addScore("kojak_score",score);
+  sprintf(score,"%.4lf",r.scoreDelta);
+  sh.addScore("delta_score",score);
+  sprintf(score,"%.4lf",r.ppm);
+  sh.addScore("ppm_error",score);
+
+  //Get proteins
+  pep = db.getPeptide(r.pep1,r.linkable1);
+  sh.num_tot_proteins=pep.map->size();
+  for(j=0;j<pep.map->size();j++){
+    protein="";
+    for(i=0;i<db[pep.map->at(j).index].name.size();i++){
+      if(params->truncate>0 && i==params->truncate) break;
+      protein+=db[pep.map->at(j).index].name[i];
+    }
+    if(pep.map->at(j).start<1) n='-';
+    else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
+    if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
+    else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
+    sh.addProtein(protein,c,n);
+  }
+
+  if(r.type>1){
+    pep = db.getPeptide(r.pep2,r.linkable2);
+    shB.num_tot_proteins=pep.map->size();
+    for(j=0;j<pep.map->size();j++){
+      protein="";
+      for(i=0;i<db[pep.map->at(j).index].name.size();i++){
+        if(params->truncate>0 && i==params->truncate) break;
+        protein+=db[pep.map->at(j).index].name[i];
+      }
+      if(pep.map->at(j).start<1) n='-';
+      else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
+      if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
+      else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
+      shB.addProtein(protein,c,n);
+    }
+  }
+
+  if(r.type==0) {
+    sq.addSearchHit(&sh,NULL,NULL,NULL);
+  } else if(r.type==1) {
+    sq.addSearchHit(&sh,NULL,&r.xlLabel,&r.xlMass);
+  } else {
+    sq.addSearchHit(&sh,&shB,&r.xlLabel,&r.xlMass);
+  }
+
+  p.writeSpectrumQuery(sq);
+
+  return true;
+}
+
 bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
 
   unsigned int i;
@@ -429,6 +584,11 @@ bool KData::outputResults(KDatabase& db){
 
   kResults res;
 
+  PepXMLWriter p;
+  pxwMSMSRunSummary rs;
+  PXWSearchSummary ss;
+
+  bool b;
   bool bBadFiles;
   bool bInter;
   bool bTarget1;
@@ -438,6 +598,7 @@ bool KData::outputResults(KDatabase& db){
   int scoreIndex;
   int iDupe;
 
+  double dbl;
   double topScore;
   double ppm1;
   double ppm2;
@@ -475,6 +636,16 @@ bool KData::outputResults(KDatabase& db){
       fDimer=fopen(fName,"wt");
       if(fDimer==NULL) bBadFiles=true;
     }
+  }
+  if(params->exportPepXML) {
+    sprintf(fName,"%s.pep.xml",params->outFile);
+    rs.base_name=params->outFile;
+    rs.raw_data=".mzML";      //TODO: pull this from input file
+    rs.raw_data_type="raw";
+    rs.search_engine="Kojak";
+    ss.base_name=params->outFile;
+    ss.search_engine="Kojak";
+    if(!p.createPepXML(fName,rs,&ss)) bBadFiles=true;
   }
   if(bBadFiles){
     if(fOut!=NULL)    fclose(fOut);
@@ -634,18 +805,29 @@ bool KData::outputResults(KDatabase& db){
       }
       res.score       = tmpSC.simpleScore;
       res.scoreDelta  = tmpSC.simpleScore-tmpSC2.simpleScore;
-      res.scorePepDif = tmpSC.scoreDiff;
-      res.rank        = tmpSC.rank;
+      if(tmpSC.score1<tmpSC.score2) res.scorePepDif = tmpSC.score1;
+      else res.scorePepDif = tmpSC.score2;
+      res.rank        = tmpSC.rank1+tmpSC.rank2;
+      res.rankA       = tmpSC.rank1+1;
+      res.rankB       = tmpSC.rank2+1;
+      res.scoreA      = tmpSC.score1;
+      res.scoreB      = tmpSC.score2;
+      res.massA       = tmpSC.mass1;
+      res.massB       = tmpSC.mass2;
 
       //Get the peptide sequence(s)
       pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
       db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
       res.peptide1 = peptide;
+      res.mods1.clear();
+      for(j=0;j<tmpSC.mods1->size();j++) res.mods1.push_back(tmpSC.mods1->at(j));
       res.peptide2 = "";
       if(tmpSC.pep2>=0){
         pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
         db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
         res.peptide2 = peptide;
+        res.mods2.clear();
+        for(j=0;j<tmpSC.mods2->size();j++) res.mods2.push_back(tmpSC.mods2->at(j));
       }
 
       res.modPeptide1 = "";
@@ -680,6 +862,11 @@ bool KData::outputResults(KDatabase& db){
       if(tmpSC.k1>=0 && tmpSC.k2>=0) res.type=1;
       if(tmpSC.pep1>=0 && tmpSC.pep2>=0) res.type=2;
       if(tmpSC.link==-2) res.type=3;
+
+      if(res.type>0) {
+        res.xlMass=link[tmpSC.link].mass;
+        res.xlLabel=link[tmpSC.link].label;
+      }
 
       //Get the peptide indexes
       res.pep1 = tmpSC.pep1;
@@ -727,6 +914,40 @@ bool KData::outputResults(KDatabase& db){
       }
       if(bTarget1) res.decoy=false;
       else res.decoy=true;
+
+      //reorder peptides alphabetically
+      if(res.type>1 && res.peptide1.compare(res.peptide2)>0){
+        tmpPep1=res.peptide1;
+        res.peptide1=res.peptide2;
+        res.peptide2=tmpPep1;
+        x=res.link1;
+        res.link1=res.link2;
+        res.link2=x;
+        b=res.linkable1;
+        res.linkable1=res.linkable2;
+        res.linkable2=b;
+        tmpPep1=res.modPeptide1;
+        res.modPeptide1=res.modPeptide2;
+        res.modPeptide2=tmpPep1;
+        x=res.pep1;
+        res.pep1=res.pep2;
+        res.pep2=x;
+        x=res.rankA;
+        res.rankA=res.rankB;
+        res.rankB=x;
+        dbl=res.scoreA;
+        res.scoreA=res.scoreB;
+        res.scoreB=dbl;
+        dbl=res.massA;
+        res.massA=res.massB;
+        res.massB=dbl;
+        vector<kPepMod> vpm;
+        for(j=0;j<res.mods1.size();j++) vpm.push_back(res.mods1[j]);
+        res.mods1.clear();
+        for(j=0;j<res.mods2.size();j++) res.mods1.push_back(res.mods2[j]);
+        res.mods2.clear();
+        for(j=0;j<vpm.size();j++) res.mods2.push_back(vpm[j]);
+      }
 
       //Export Results:
       fprintf(fOut,"%d",res.scanNumber);
@@ -803,6 +1024,10 @@ bool KData::outputResults(KDatabase& db){
         }
       }
 
+      if(params->exportPepXML){
+        outputPepXML(p,db,res);
+      }
+
       //Get the next entry - it must also be exported if it has the same score
       if(bDupe) scoreIndex+=iDupe;
       else scoreIndex++;
@@ -819,6 +1044,9 @@ bool KData::outputResults(KDatabase& db){
     fclose(fLoop);
     fclose(fSingle);
     if(params->dimersNC) fclose(fDimer);
+  }
+  if(params->exportPepXML){
+    p.closePepXML();
   }
   return true;
 

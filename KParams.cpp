@@ -123,7 +123,7 @@ void KParams::parse(char* cmd) {
 	//Look up parameter and assign the value
   if(strcmp(param,"cross_link")==0){
     //check first site
-    if(values.size()!=3){
+    if(values.size()<3 || values.size()>4){
       printf("Error in cross_link parameter(s)\n");
       exit(-5);
     }
@@ -168,6 +168,8 @@ void KParams::parse(char* cmd) {
     }
     x.mass=atof(&values[2][0]);
     x.mono=0;
+    if(values.size()==4) x.label=values[3];
+    else x.label="unlabeled";
     params->xLink->push_back(x);
 
 	} else if(strcmp(param,"database")==0){
@@ -189,6 +191,10 @@ void KParams::parse(char* cmd) {
 
   } else if(strcmp(param,"enzyme")==0){
     strcpy(params->enzyme,&values[0][0]);
+
+  } else if(strcmp(param,"export_pepXML")==0){
+    if(atoi(&values[0][0])!=0) params->exportPepXML=true;
+    else params->exportPepXML=false;
 
   } else if(strcmp(param,"export_percolator")==0){
     if(atoi(&values[0][0])!=0) params->exportPercolator=true;

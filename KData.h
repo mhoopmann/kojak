@@ -18,9 +18,11 @@ limitations under the License.
 #define _KDATA_H
 
 #include "KDB.h"
+#include "KIons.h"
 #include "KPrecursor.h"
 #include "KSpectrum.h"
 #include "MSReader.h"
+#include "pepXMLWriter.h"
 #include <iostream>
 
 class KData {
@@ -40,6 +42,7 @@ public:
   double    getMaxMass        ();
   double    getMinMass        ();
   bool      mapPrecursors     ();
+  bool      outputPepXML      (PepXMLWriter& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db);
   void      readLinkers       (char* fn);
@@ -58,6 +61,7 @@ private:
   vector<kLinker>    link;
   vector<kMass>      massList;
   kParams*           params;
+  KIons              aa;
 
   //Utilities
   void        centroid          (Spectrum& s, Spectrum& out, double resolution, int instrument=0);

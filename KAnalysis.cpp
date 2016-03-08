@@ -689,9 +689,14 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             sc.pep1=s[j].pep1;
             sc.pep2=s[n].pep1;
             sc.link=k;
-            sc.rank=s[j].rank+s[n].rank;
-            if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
-            else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
+            sc.rank1=s[j].rank;
+            sc.rank2=s[n].rank;
+            sc.score1=s[j].simpleScore*s[j].len;
+            sc.score2=s[n].simpleScore*s[n].len;
+            sc.mass1=s[j].mass;
+            sc.mass2=s[n].mass;
+            //if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
+            //else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
             sc.mods1->clear();
             sc.mods2->clear();
             sc1=sp->getSingletScoreCard(s[j].rank);
@@ -786,9 +791,14 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             sc.pep1=s[j].pep1;
             sc.pep2=s[n].pep1;
             sc.link=k;
-            sc.rank=s[j].rank+s[n].rank;
-            if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
-            else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
+            sc.rank1=s[j].rank;
+            sc.rank2=s[n].rank;
+            sc.score1=s[j].simpleScore*s[j].len;
+            sc.score2=s[n].simpleScore*s[n].len;
+            sc.mass1=s[j].mass;
+            sc.mass2=s[n].mass;
+            //if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
+            //else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
             sc.mods1->clear();
             sc.mods2->clear();
             sc1=sp->getSingletScoreCard(s[j].rank);
@@ -849,10 +859,14 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
           sc.pep1=s[j].pep1;
           sc.pep2=s[n].pep1;
           sc.link=-2;
-          sc.rank=s[j].rank+s[n].rank;
-
-          if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
-          else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
+          sc.rank1=s[j].rank;
+          sc.rank2=s[n].rank;
+          sc.score1=s[j].simpleScore*s[j].len;
+          sc.score2=s[n].simpleScore*s[n].len;
+          sc.mass1=s[j].mass;
+          sc.mass2=s[n].mass;
+          //if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
+          //else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
             
           sc.mods1->clear();
           sc.mods2->clear();
@@ -885,10 +899,14 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
           sc.pep1=s[j].pep1;
           sc.pep2=s[n].pep1;
           sc.link=-2;
-          sc.rank=s[j].rank+s[n].rank;
-          
-          if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
-          else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
+          sc.rank1=s[j].rank;
+          sc.rank2=s[n].rank;
+          sc.score1=s[j].simpleScore*s[j].len;
+          sc.score2=s[n].simpleScore*s[n].len;
+          sc.mass1=s[j].mass;
+          sc.mass2=s[n].mass;
+          //if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
+          //else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
             
           sc.mods1->clear();
           sc.mods2->clear();

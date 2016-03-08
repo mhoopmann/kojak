@@ -53,6 +53,8 @@ public:
   void      buildIons         ();
   void      buildLoopIons     (double linkMass, int link1, int link2);
   void      buildSingletIons  (int link);
+  double    getAAMass         (char aa);
+  double    getFixedModMass   (char aa);
   void      modIonsRec        (int start, int link, int index, int depth, bool xl);
   void      modLoopIonsRec    (int start, int link, int link2, int index, int depth, bool xl);
   void      reset             ();
@@ -83,6 +85,7 @@ private:
   void clearSeries();
   
   double  aaMass[128];
+  double  aaFixedModMass[128];
   kMod    aaMod[128];   //inefficient memory usage, but not by much in the grand scheme.
 
   bool  monoModsOnXL;

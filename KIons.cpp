@@ -20,6 +20,7 @@ KIons::KIons(){
   int i;
   for(i=0;i<128;i++){
     aaMass[i]=0;
+    aaFixedModMass[i]=0;
     aaMod[i].count=0;
   }
   aaMass['A']=71.0371103;
@@ -68,6 +69,7 @@ KIonSet* KIons::at(const int& i){
 
 void KIons::addFixedMod(char mod, double mass){
   aaMass[mod]+=mass;
+  aaFixedModMass[mod]=mass;
 }
 
 void KIons::addMod(char mod, bool xl, double mass){
@@ -232,6 +234,13 @@ void KIons::buildSingletIons(int link){
     }
   }
 
+}
+
+double KIons::getAAMass(char aa){
+  return aaMass[aa];
+}
+double KIons::getFixedModMass(char aa){
+  return aaFixedModMass[aa];
 }
 
 void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){

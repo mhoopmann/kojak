@@ -85,7 +85,7 @@ bool  KDatabase::buildDB(char* fname) {
           vDB.push_back(d);
         }
       }
-      d.name=str;
+      d.name=&str[1];
       d.sequence="";
     } else {
       for(unsigned int i=0;i<strlen(str);i++){
@@ -115,7 +115,6 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
   int mc;
   int next;
-  int tmp;
 
   kPepMap  pm;
   kPeptide p;
