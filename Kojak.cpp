@@ -20,11 +20,11 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
-bool getBaseFileName(string& base, char* fName);
+bool getBaseFileName(string& base, char* fName, string& extP);
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.4.3-dev, March 8 2016" << endl;
+  cout << "Kojak version 1.4.3-dev, March 23 2016" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]){
 
   if(argc==2){
     f.input=params.msFile;
-    if(!getBaseFileName(f.base,params.msFile)){
+    if(!getBaseFileName(f.base,params.msFile,f.ext)){
       cout << "Error reading " << params.msFile << " unknown file or extension." << endl;
       return -1;
     }
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]){
   } else {
     for(k=2;k<argc;k++){
       f.input=argv[k];
-      if(!getBaseFileName(f.base,argv[k])){
+      if(!getBaseFileName(f.base,argv[k],f.ext)){
         cout << "Error reading " << argv[k] << " unknown file or extension." << endl;
         return -1;
       }
@@ -84,6 +84,7 @@ int main(int argc, char* argv[]){
   for(i=0;i<files.size();i++){
     strcpy(params.msFile,&files[i].input[0]);
     strcpy(params.outFile,&files[i].base[0]);
+    strcpy(params.ext,&files[i].ext[0]);
 
     if(!spec.readSpectra()){
       cout << "Error reading MS_data_file. Exiting." << endl;
@@ -120,7 +121,7 @@ int main(int argc, char* argv[]){
   return 0;
 }
 
-bool getBaseFileName(string& base, char* fName) {
+bool getBaseFileName(string& base, char* fName, string& extP) {
   char file[256];
 	char ext[256];
 	char *tok;
@@ -143,24 +144,34 @@ bool getBaseFileName(string& base, char* fName) {
   base=fName;
   if(strcmp(ext,"MZML")==0) {
     base[base.size()-5]='\0';
+    extP=".mzML";
     return true;
   }
   if(strcmp(ext,"MZXML")==0) {
     base[base.size()-6]='\0';
+    extP=".mzXML";
     return true;
   }
 	if(strcmp(ext,"GZ")==0) {
     if(strcmp(preExt,"MZML")==0){
       base[base.size()-8]='\0';
+      extP=".mzML.gz";
       return true;
     }
     if(strcmp(preExt,"MZXML")==0) {
       base[base.size()-9]='\0';
+      extP=".mzXML.gz";
       return true;
     }
 	}
   if(strcmp(ext,"RAW")==0) {
     base[base.size()-4]='\0';
+    extP=".raw";
+    return true;
+  }
+  if(strcmp(ext,"MGF")==0) {
+    base[base.size()-4]='\0';
+    extP=".mgf";
     return true;
   }
 	return false;

@@ -371,7 +371,7 @@ double KIons::getModMass(int index){
 }
 
 int KIons::getModMassSize(){
-  return modMassArray.size();
+  return (int)modMassArray.size();
 }
 
 double* KIons::getMods(){

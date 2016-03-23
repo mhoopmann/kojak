@@ -594,7 +594,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
 
       p=db->getPeptide(s[j].pep1,true);
       cp1=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[j].k1];
-      len1=db->at(p.map->at(0).index).sequence.size()-1;
+      len1=(int)db->at(p.map->at(0).index).sequence.size()-1;
       if( (p.map->at(0).start+s[j].k1)<2) bN1=true;
       else bN1=false;
       
@@ -634,7 +634,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             //Check to make sure both peptides pair to the cross-linker
             p=db->getPeptide(s[n].pep1,true);
             cp2=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[n].k1];
-            len2=db->at(p.map->at(0).index).sequence.size()-1;
+            len2=(int)db->at(p.map->at(0).index).sequence.size()-1;
             if( (p.map->at(0).start+s[n].k1)<2) bN2=true;
             else bN2=false;
             
@@ -680,7 +680,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             //}
 
             //Add the cross-link
-            sc.simpleScore=s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared;
+            sc.simpleScore=(float)(s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared);
             sc.k1=s[j].k1;
             sc.k2=s[n].k1;
             sc.mass=totalMass;
@@ -737,7 +737,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             //Check to make sure both peptides pair to the cross-linker
             p=db->getPeptide(s[n].pep1,true);
             cp2=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[n].k1];
-            len2=db->at(p.map->at(0).index).sequence.size()-1;
+            len2=(int)db->at(p.map->at(0).index).sequence.size()-1;
             if( (p.map->at(0).start+s[n].k1)<2) bN2=true;
             else bN2=false;
             
@@ -782,7 +782,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             //  cout << s[n].simpleScore*s[n].len << "\t" << dShared << endl;
             //}
 
-            sc.simpleScore=s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared;
+            sc.simpleScore=(float)(s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared);
             sc.k1=s[j].k1;
             sc.k2=s[n].k1;
             sc.mass=totalMass;
@@ -1334,9 +1334,8 @@ void KAnalysis::setBinList(kMatchSet* m, int iIndex, int charge, double preMass,
   double mz;
   double dif;
   int key;
-  int pos;
   int ionCount=ions[iIndex].getIonCount();
-  int i,j,k;
+  int i,j;
 
   //set up all modification mass modifiers
   double* mod;

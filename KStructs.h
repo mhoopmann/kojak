@@ -37,6 +37,7 @@ typedef struct kDB{
 typedef struct kFile{
   string input;
   string base;
+  string ext;
 } kFile;
 
 //structure holds peptide mappings to database
@@ -163,6 +164,7 @@ typedef struct kParams {
   char    dbFile[256];
   char    decoy[256];
   char    enzyme[32];
+  char    ext[32];
   char    msFile[256];
   char    outFile[256];
   //char    percolator[256];
@@ -212,6 +214,7 @@ typedef struct kParams {
     strcpy(decoy,"random");
     dbFile[0]='\0';
     strcpy(enzyme,"[KR]|");
+    ext[0]='\0';
     msFile[0]='\0';
     outFile[0]='\0';
     //percolator[0]='\0';
@@ -256,6 +259,7 @@ typedef struct kParams {
     strcpy(decoy,p.decoy);
     strcpy(dbFile,p.dbFile);
     strcpy(enzyme,p.enzyme);
+    strcpy(ext,p.ext);
     strcpy(msFile,p.msFile);
     strcpy(outFile,p.outFile);
     //strcpy(percolator,p.percolator);
@@ -315,6 +319,7 @@ typedef struct kParams {
       strcpy(decoy,p.decoy);
       strcpy(dbFile,p.dbFile);
       strcpy(enzyme,p.enzyme);
+      strcpy(ext,p.ext);
       strcpy(msFile,p.msFile);
       strcpy(outFile,p.outFile);
       //strcpy(percolator,p.percolator);

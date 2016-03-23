@@ -25,6 +25,14 @@ limitations under the License.
 #include "pepXMLWriter.h"
 #include <iostream>
 
+#ifdef _MSC_VER
+#include <direct.h>
+#define getcwd _getcwd
+#define slashdir '\\'
+#else
+#define slashdir '/'
+#endif
+
 class KData {
 public:
 
@@ -42,7 +50,7 @@ public:
   double    getMaxMass        ();
   double    getMinMass        ();
   bool      mapPrecursors     ();
-  bool      outputPepXML      (PepXMLWriter& p, KDatabase& db, kResults& r);
+  bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db);
   void      readLinkers       (char* fn);

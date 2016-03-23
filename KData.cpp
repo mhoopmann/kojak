@@ -54,7 +54,7 @@ KSpectrum& KData::at(const int& i){
 }
 
 bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
-  int sz=massList.size();
+  int sz=(int)massList.size();
 
   if(mass1>massList[sz-1].mass) return false;
 
@@ -132,7 +132,7 @@ bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
 
 //Get the list of spectrum array indexes to search based on desired mass
 bool KData::getBoundaries2(double mass, double prec, vector<int>& index){
-  int sz=massList.size();
+  int sz=(int)massList.size();
   int lower=0;
   int mid=sz/2;
   int upper=sz;
@@ -340,7 +340,7 @@ bool KData::mapPrecursors(){
   return true;
 }
 
-bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
+bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
 
   unsigned int i;
   unsigned int j;
@@ -348,7 +348,6 @@ bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
   char c;
   char n;
   char score[32];
-  char specID[256];
 
   string peptide;
   string protein;
@@ -359,18 +358,8 @@ bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
   kScoreCard sc;
   kScoreCard sc2;
 
-  PXWSpectrumQuery sq;
   PXWSearchHit sh;
   PXWSearchHit shB;
-
-  //Export Results:
-  sq.assumed_charge=r.charge;
-  sq.end_scan=r.scanNumber;
-  sq.precursor_neutral_mass=r.obsMass;
-  sq.retention_time_sec=r.rTime;
-  sprintf(specID,"%s.%d.%d.%d",params->outFile,r.scanNumber,r.scanNumber,r.charge);
-  sq.spectrum=specID;
-  sq.start_scan=r.scanNumber;
 
   sh.hit_rank=1;
   sh.peptide=r.peptide1;
@@ -395,7 +384,6 @@ bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
       sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i]));
     }
   }
-
 
   if(r.type>1){
     shB.hit_rank=1;
@@ -449,7 +437,7 @@ bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
 
   //Get proteins
   pep = db.getPeptide(r.pep1,r.linkable1);
-  sh.num_tot_proteins=pep.map->size();
+  sh.num_tot_proteins=(int)pep.map->size();
   for(j=0;j<pep.map->size();j++){
     protein="";
     for(i=0;i<db[pep.map->at(j).index].name.size();i++){
@@ -465,7 +453,7 @@ bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
 
   if(r.type>1){
     pep = db.getPeptide(r.pep2,r.linkable2);
-    shB.num_tot_proteins=pep.map->size();
+    shB.num_tot_proteins=(int)pep.map->size();
     for(j=0;j<pep.map->size();j++){
       protein="";
       for(i=0;i<db[pep.map->at(j).index].name.size();i++){
@@ -487,8 +475,6 @@ bool KData::outputPepXML(PepXMLWriter& p, KDatabase& db, kResults& r){
   } else {
     sq.addSearchHit(&sh,&shB,&r.xlLabel,&r.xlMass);
   }
-
-  p.writeSpectrumQuery(sq);
 
   return true;
 }
@@ -573,9 +559,11 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
 bool KData::outputResults(KDatabase& db){
 
   unsigned int i,j,k,n,x,d;
+  char fPath[1024];
   char fName[256];
   char peptide[256];
   char tmp[16];
+  char specID[256];
 
   kPeptide pep;
   kPeptide pep2;
@@ -587,6 +575,7 @@ bool KData::outputResults(KDatabase& db){
   PepXMLWriter p;
   pxwMSMSRunSummary rs;
   PXWSearchSummary ss;
+  PXWSpectrumQuery sq;
 
   bool b;
   bool bBadFiles;
@@ -638,12 +627,15 @@ bool KData::outputResults(KDatabase& db){
     }
   }
   if(params->exportPepXML) {
-    sprintf(fName,"%s.pep.xml",params->outFile);
-    rs.base_name=params->outFile;
-    rs.raw_data=".mzML";      //TODO: pull this from input file
+    getcwd(fPath,1024);
+    sprintf(fName,"%s%c%s.pep.xml",fPath,slashdir,params->outFile);
+    rs.base_name=fPath;
+    rs.base_name+=slashdir;
+    rs.base_name+=params->outFile;
+    rs.raw_data=params->ext;
     rs.raw_data_type="raw";
     rs.search_engine="Kojak";
-    ss.base_name=params->outFile;
+    ss.base_name=rs.base_name;
     ss.search_engine="Kojak";
     if(!p.createPepXML(fName,rs,&ss)) bBadFiles=true;
   }
@@ -759,6 +751,13 @@ bool KData::outputResults(KDatabase& db){
       continue;
     }
 
+    if(params->exportPepXML){
+      sq.clear();
+      sq.end_scan=res.scanNumber;
+      sq.retention_time_sec=res.rTime;
+      sq.start_scan=res.scanNumber;
+    }
+
     //Export top scoring peptide, plus any ties that occur after it.
     topScore=tmpSC.simpleScore;
     int count=0;
@@ -785,6 +784,13 @@ bool KData::outputResults(KDatabase& db){
       res.charge  = spec[i].getPrecursor(preIndex).charge;
       res.ppm     = ppm1;
       res.psmMass = tmpSC.mass;
+
+      if(params->exportPepXML){
+        sq.assumed_charge=res.charge;
+        sq.precursor_neutral_mass=res.obsMass;
+        sprintf(specID,"%s.%d.%d.%d",params->outFile,res.scanNumber,res.scanNumber,res.charge);
+        sq.spectrum=specID;
+      }
 
       //grab the next highest score that matches to the same precursor ion for the delta score
       //do not count ties - look for the first difference
@@ -1025,7 +1031,7 @@ bool KData::outputResults(KDatabase& db){
       }
 
       if(params->exportPepXML){
-        outputPepXML(p,db,res);
+        outputPepXML(sq,db,res);
       }
 
       //Get the next entry - it must also be exported if it has the same score
@@ -1033,6 +1039,10 @@ bool KData::outputResults(KDatabase& db){
       else scoreIndex++;
       if(scoreIndex>=20) break;
       tmpSC=spec[i].getScoreCard(scoreIndex);
+    }
+
+    if(params->exportPepXML) {
+      p.writeSpectrumQuery(sq);
     }
 
   }

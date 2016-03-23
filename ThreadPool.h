@@ -180,7 +180,7 @@ public:
    int NumParamsQueued()
    {
       Threading::LockMutex(_poolAccessMutex);
-      int numParamsQueued = _params.size();
+      int numParamsQueued = (int)_params.size();
       Threading::UnlockMutex(_poolAccessMutex);
       return numParamsQueued;
    }
@@ -188,7 +188,7 @@ public:
    int NumActiveThreads()
    {
       Threading::LockMutex(_poolAccessMutex);
-      int numActiveThreads = _numCurrThreads - _threads.size();
+      int numActiveThreads = _numCurrThreads - (int)_threads.size();
       Threading::UnlockMutex(_poolAccessMutex);
       return numActiveThreads;
    }
