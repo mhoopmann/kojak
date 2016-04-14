@@ -24,7 +24,7 @@ bool getBaseFileName(string& base, char* fName, string& extP);
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.4.3-dev, March 23 2016" << endl;
+  cout << "Kojak version 1.4.3, April 8 2016" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
@@ -77,7 +77,7 @@ int main(int argc, char* argv[]){
   
   //Step #3: Read in spectra and map precursors
   KData spec(&params);
-  spec.setVersion("1.4.3-dev");
+  spec.setVersion("1.4.3");
   for(i=0;i<params.xLink->size();i++) spec.setLinker(params.xLink->at(i));
 
   //Iterate over all input files

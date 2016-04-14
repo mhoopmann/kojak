@@ -627,8 +627,11 @@ bool KData::outputResults(KDatabase& db){
     }
   }
   if(params->exportPepXML) {
-    getcwd(fPath,1024);
-    sprintf(fName,"%s%c%s.pep.xml",fPath,slashdir,params->outFile);
+    //cout << "export PepXML" << endl;
+    //getcwd(fPath,1024);
+    //sprintf(fName,"%s%c%s.pep.xml",fPath,slashdir,params->outFile);
+    //cout << fName << endl;
+    sprintf(fName, "%s.pep.xml", params->outFile);
     rs.base_name=fPath;
     rs.base_name+=slashdir;
     rs.base_name+=params->outFile;
@@ -640,6 +643,7 @@ bool KData::outputResults(KDatabase& db){
     if(!p.createPepXML(fName,rs,&ss)) bBadFiles=true;
   }
   if(bBadFiles){
+    cout << "Error exporting results. Please make sure drive is writable." << endl;
     if(fOut!=NULL)    fclose(fOut);
     if(fIntra!=NULL)  fclose(fIntra);
     if(fInter!=NULL)  fclose(fInter);
