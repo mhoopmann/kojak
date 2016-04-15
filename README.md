@@ -20,6 +20,10 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.4.3 - April 8 2016
+* Added output in pepXML format
+* Minor bug fixes
+
 #### Version 1.4.2 - November 30 2015
 * Fixed c-terminus parsing bug in sequence database.
 * Fixed bug in enzyme digest/database parsing.
