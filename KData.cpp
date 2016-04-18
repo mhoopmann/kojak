@@ -1201,6 +1201,7 @@ bool KData::readSpectra(){
         for(j=0; j<s.sizeZ(); j++){
           pre.monoMass=s.atZ(j).mh-1.007276466;
           pre.charge=s.atZ(j).z;
+          pls.setCharge(pre.charge);
           pls.addPrecursor(pre);
           pls.setInstrumentPrecursor(true);
         }

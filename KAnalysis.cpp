@@ -1243,7 +1243,6 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
   KSpectrum* s=spec->getSpectrum(specIndex);
   KIonSet* ki=ions[iIndex].at(sIndex);
-  //cout << "KojakScoring: " << ions[iIndex].size();
   
   double dXcorr=0.0;
   double invBinSize=s->getInvBinSize();
@@ -1258,7 +1257,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   int key;
   int pos;
 
-  unsigned int SpecSize=s->size();
+  //unsigned int SpecSize=s->size();
 
   //Assign ion series
   double***  ionSeries;
@@ -1283,7 +1282,6 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
     //Iterate through pfFastXcorrData
     for(j=0;j<numIonSeries;j++){
       for(i=0;i<ionCount;i++){
-
         //get key
         if(ionSeries[j][k][i]<0) mz = params.binSize * (int)((dif-ionSeries[j][k][i])*invBinSize+binOffset);
         else mz = params.binSize * (int)(ionSeries[j][k][i]*invBinSize+binOffset);
