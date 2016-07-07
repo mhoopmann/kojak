@@ -53,11 +53,13 @@ public:
   int                 getProteinDBSize    ();
   bool                setEnzyme           (char* str);
   bool                setXLType           (int a=0, int b=0);
+  void                setXLTable          (char** arr, int szA, int szB);
 
 private:
   
   //Data Members
   double        AA[128];   //Amino acid masses
+  char          xlTable[128][20];
   kEnzymeRules  enzyme;    //Where to cut to generate peptides
   int           setA;
   int           setB;
@@ -66,8 +68,8 @@ private:
   vector<kPeptide> vPep;   //List of all peptides not linkable
   vector<kPeptide> vPepK;  //List of all peptides with a linkable K
 
-  void addPeptide (int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& norm, vector<kPeptide>& link);
-  void checkAA    (kPeptide& p, int type, int set, int i, int start, int n, int seqSize);
+  void addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& norm, vector<kPeptide>& link, bool bLinkable, bool bN, bool bC);
+  bool checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t seqSize, bool& bN, bool& bC);
 
   //Utility functions (for sorting)
   static int compareMass      (const void *p1, const void *p2);

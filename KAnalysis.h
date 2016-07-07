@@ -139,6 +139,7 @@ private:
   static double     minMass;
   static kParams    params;
   static KData*     spec;
+  static char**     xlTable;
 
   static int        numIonSeries;
 

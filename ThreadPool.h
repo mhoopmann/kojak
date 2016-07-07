@@ -28,15 +28,12 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-//Source obtained from http://comet-ms.sourceforge.net/
-//Source Date: 2014-06-03
-
 #ifndef _THREADPOOL_H
 #define _THREADPOOL_H
 
 #include <vector>
 #include <deque>
-//#include <stdint.h>
+#include <stdint.h>
 #include "Threading.h"
 //#include "CometStatus.h"
 
@@ -45,7 +42,7 @@ template<class T> class ThreadManager;
 // This is the pool where the threads reside. New threads are created as
 // needed, but without exceeding the max number specified by the user.
 // Jobs are queued if necessary, until a thread is free to do the work.
-template <class T> class ThreadPool 
+template <class T> class ThreadPool
 {
 public:
    typedef void (*ThreadProc) (T param);
@@ -56,15 +53,18 @@ public:
 // typedef enum NextThreadState { Run, Sleep, Die } ;
    enum NextThreadState { Run, Sleep, Die } ;
 
-   ThreadPool(ThreadProc threadProc, int minThreads, int maxThreads)
+   ThreadPool(ThreadProc threadProc, int minThreads, int maxThreads, int maxNumParamsToQueue = -1)
    {
       _minThreads = minThreads;
       _maxThreads = maxThreads;
       _threadProc = threadProc;
+      _maxQueuedParams = maxNumParamsToQueue;
 
       Threading::CreateMutex(&_poolAccessMutex);
-      
-      for (_numCurrThreads=0; _numCurrThreads < _minThreads; _numCurrThreads++) 
+
+      Threading::CreateSemaphore(&_queueParamsSemaphore);
+
+      for (_numCurrThreads=0; _numCurrThreads < _minThreads; _numCurrThreads++)
       {
          new ThreadManager<T>(this);
       }
@@ -78,6 +78,8 @@ public:
      }
 
      Threading::DestroyMutex(_poolAccessMutex);
+
+     Threading::DestroySemaphore(_queueParamsSemaphore);
    }
 
    ThreadProc GetThreadProc() { return _threadProc; }
@@ -85,7 +87,7 @@ public:
    void Launch(T param)
    {
       Threading::LockMutex(_poolAccessMutex);
-      if (!_threads.empty()) 
+      if (!_threads.empty())
       {
          ThreadManager<T> *pThreadMgr = _threads.back();
          _threads.pop_back();
@@ -94,7 +96,7 @@ public:
          return;
       }
 
-      if (_numCurrThreads < _maxThreads) 
+      if (_numCurrThreads < _maxThreads)
       {
          new ThreadManager<T>(this);
          _numCurrThreads++;
@@ -109,7 +111,7 @@ public:
       Threading::LockMutex(_poolAccessMutex);
 
       // Any parameters queued?  If yes, give it to the thread to process.
-      if (!_params.empty()) 
+      if (!_params.empty())
       {
          T param = _params.front();
          _params.pop_front();
@@ -120,16 +122,16 @@ public:
 
       // Have we exceeded the min num threads allowed?  If yes, reduce
       // the number back down.
-      if (_numCurrThreads > _minThreads) 
+      if (_numCurrThreads > _minThreads)
       {
          _numCurrThreads--;
          Threading::UnlockMutex(_poolAccessMutex);
          return ThreadPool<T>::Die;
       }
 
-      // Has there been an error? If so, we need to kill the thread.
+      // Has there been an error, or has search been cancelled?
       bool bError = false;
-      //g_cometStatus.GetError(bError);
+      // If so, we need to kill the thread.
       if (bError)
       {
          _numCurrThreads--;
@@ -151,7 +153,7 @@ public:
       // Give the threads a chance to start doing work - 1 second at the most!
       const unsigned long ulMaxTotalWaitMilliseconds = 1000;
       const unsigned long ulWaitMilliseconds = 10;
-      unsigned long ulElapsedTimeMilliseconds = 0;     
+      unsigned long ulElapsedTimeMilliseconds = 0;
       while (NumActiveThreads() == 0)
       {
          if (ulElapsedTimeMilliseconds >= ulMaxTotalWaitMilliseconds)
@@ -169,12 +171,23 @@ public:
       }
    }
 
-   void WaitForQueuedParams(int maxNumQueuedParamsAllowed, unsigned long ulWaitPeriodMilliseconds = 10)
+   void WaitForQueuedParams()
    {
-      while (NumParamsQueued() > maxNumQueuedParamsAllowed)
+      if (ShouldCheckQueuedParams() && (NumParamsQueued() > _maxQueuedParams))
       {
-         Threading::ThreadSleep(ulWaitPeriodMilliseconds);
+         Threading::WaitSemaphore(_queueParamsSemaphore);
       }
+   }
+
+   void CheckQueuedParams()
+   {
+       if (ShouldCheckQueuedParams())
+       {
+           if (NumParamsQueued() <= _maxQueuedParams)
+           {
+               QueueMoreParams();
+           }
+       }
    }
 
    int NumParamsQueued()
@@ -194,22 +207,35 @@ public:
    }
 
 protected:
+   bool ShouldCheckQueuedParams()
+   {
+       // Only check for queued params if we have a valid number for _maxQueuedParams
+       return _maxQueuedParams != -1;
+   }
+
+   void QueueMoreParams()
+   {
+      Threading::SignalSemaphore(_queueParamsSemaphore);
+   }
+
    ThreadProc                     _threadProc;
    std::vector<ThreadManager<T>*> _threads;
    std::deque<T>                  _params;
-   Mutex                          _poolAccessMutex; 
-   int                            _maxThreads;      
-   int                            _minThreads;      
+   Mutex                          _poolAccessMutex;
+   int                            _maxThreads;
+   int                            _minThreads;
    int                            _numCurrThreads;
+   int                            _maxQueuedParams;
+   Semaphore                      _queueParamsSemaphore;
 };
 
 
 // Thread manager for individual threads - calls specified thread proc function
 // and takes a prameter of type T. It manages the interactions with the thread
 // pool.
-template<class T> class ThreadManager 
+template<class T> class ThreadManager
 {
-public:  
+public:
    static uint32_t ThreadRoutingFunction(void* pParam)
    {
       ThreadManager<T> *pThreadMgr = reinterpret_cast<ThreadManager<T>*>(pParam);
@@ -226,9 +252,9 @@ public:
 
       Threading::CreateSemaphore(&_wakeSemaphore);
       Threading::CreateSemaphore(&_sleepSemaphore);
-     
+
       // Begin the thread that is being managed
-      Threading::BeginThread( 
+      Threading::BeginThread(
             reinterpret_cast<ThreadProc>(ThreadManager<T>::ThreadRoutingFunction),
             this,   // Parameter to the thread
             &_threadIdentifier);
@@ -267,15 +293,15 @@ public:
    uint32_t Run()
    {
       typename ThreadPool<T>::NextThreadState nextState;
-      while ((nextState = _pPool->RejoinPool(this)) != ThreadPool<T>::Die) 
+      while ((nextState = _pPool->RejoinPool(this)) != ThreadPool<T>::Die)
       {
          // Rejoin will set pParam if possible
-         if (nextState == ThreadPool<T>::Sleep) 
+         if (nextState == ThreadPool<T>::Sleep)
          {
             Sleep();
-         } 
+         }
 
-         // We've been awoken. First check to see if we should die. If not, 
+         // We've been awoken. First check to see if we should die. If not,
          // we run the function we're bound to.
          if (_endThread)
          {
@@ -286,7 +312,10 @@ public:
 
          // So we don't loop endlessly with the same parameter
          SetParam(NULL);
+
+         _pPool->CheckQueuedParams();
       }
+
       // The thread exits if the pool won't accept it's rejoin - deleting itself on exit
       Threading::EndThread();
       delete this;

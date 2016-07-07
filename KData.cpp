@@ -21,16 +21,22 @@ limitations under the License.
 ============================*/
 KData::KData(){
   params=NULL;
+  xlTable = new char*[128];
+  for (int i = 0; i<128; i++) xlTable[i] = new char[20];
 }
 
 KData::KData(kParams* p){
   params=p;
   size_t i;
   for(i=0;i<p->fMods->size();i++) aa.addFixedMod((char)p->fMods->at(i).index,p->fMods->at(i).mass);
+  xlTable = new char*[128];
+  for (int j = 0; j<128; j++) xlTable[j] = new char[20];
 }
 
 KData::~KData(){
   params=NULL;
+  for (int i = 0; i<128; i++) delete[] xlTable[i];
+  delete[] xlTable;
 }
 
 
@@ -45,8 +51,90 @@ KSpectrum& KData::operator [](const int& i){
 /*============================
   Functions
 ============================*/
+void KData::buildXLTable(){
+  int i, j;
+  int xlA, xlB;
+  size_t k;
+
+  //initialize/clear values
+  motifCount=0;
+  for (i = 0; i < 20; i++){
+    motifs[i].motif.clear();
+    for (int j = 0; j<10; j++){
+      motifs[i].xlIndex[j] = -1;
+      motifs[i].counterMotif[j] = -1;
+    }
+  }
+  for (i = 0; i < 128; i++){
+    for (j = 0; j<20; j++) xlTable[i][j] = -1;
+  }
+
+  //Iterate over all cross-linkers
+  for (k = 0; k<link.size(); k++){
+
+    //Add motifA, if needed
+    for (i = 0; i < motifCount; i++){
+      if (motifs[i].motif.compare(link[k].motifA) == 0) break;
+    }
+    if (i == motifCount) {
+      motifs[i].motif = link[k].motifA;
+      motifCount++;
+    }
+    link[k].motifAIndex = i;
+    //set index to cross-linker
+    for (j = 0; j < 10; j++){
+      if (motifs[link[k].motifAIndex].xlIndex[j] == (int)k) break;
+      if (motifs[link[k].motifAIndex].xlIndex[j] == -1) {
+        motifs[link[k].motifAIndex].xlIndex[j] = (int)k;    
+        break;
+      }
+    }
+    xlA = j;
+
+    //Add motifB, if needed
+    for (i = 0; i < motifCount; i++){
+      if (motifs[i].motif.compare(link[k].motifB) == 0) break;
+    }
+    if (i == motifCount) { //Add new motif
+      motifs[i].motif = link[k].motifB;
+      motifCount++;
+    }
+    link[k].motifBIndex = i;
+    //set index
+    for (j = 0; j < 10; j++){
+      if (motifs[link[k].motifBIndex].xlIndex[j] == (int)k) break;
+      if (motifs[link[k].motifBIndex].xlIndex[j] == -1) {
+        motifs[link[k].motifBIndex].xlIndex[j] = (int)k;    
+        break;
+      }
+    }
+    xlB = j;
+
+    //set counter motifs
+    motifs[link[k].motifAIndex].counterMotif[xlA] = link[k].motifBIndex;
+    motifs[link[k].motifBIndex].counterMotif[xlB] = link[k].motifAIndex;
+  }
+
+  //Build table of linked amino acids
+  for (i = 0; i < motifCount; i++){
+    for (k = 0; k < motifs[i].motif.size(); k++){
+      for (j = 0; j < 20; j++){
+        if (xlTable[motifs[i].motif[k]][j] == -1){
+          xlTable[motifs[i].motif[k]][j] = i;
+          break;
+        }
+      }
+    }
+  }
+
+}
+
 KSpectrum* KData::getSpectrum(const int& i){
   return &spec[i];
+}
+
+char** KData::getXLTable(){
+  return xlTable;
 }
 
 KSpectrum& KData::at(const int& i){
@@ -194,6 +282,11 @@ bool KData::getBoundaries2(double mass, double prec, vector<int>& index){
 
 }
 
+int KData::getCounterMotif(int motifIndex, int counterIndex){
+  if (motifIndex>=motifCount) return -1;
+  return motifs[motifIndex].counterMotif[counterIndex];
+}
+
 kLinker& KData::getLink(int i){
   return link[i];
 }
@@ -206,6 +299,11 @@ double KData::getMaxMass(){
 double KData::getMinMass(){
   if(massList.size()==0) return 0;
   else return massList[0].mass;
+}
+
+int KData::getXLIndex(int motifIndex, int xlIndex){
+  if (motifIndex >= motifCount) return -1;
+  return motifs[motifIndex].xlIndex[xlIndex];
 }
 
 //This function tries to assign best possible 18O2 and 18O4 precursor ion mass values
@@ -1235,7 +1333,7 @@ bool KData::readSpectra(){
 }
 
 void KData::setLinker(kLinker x){
-  link.push_back(x);
+  if(x.mono==0) link.push_back(x);
 }
 
 void KData::setVersion(char* v){

@@ -122,7 +122,30 @@ void KParams::parse(char* cmd) {
 
 	//Look up parameter and assign the value
   if(strcmp(param,"cross_link")==0){
+    //Check number of parameters
+    if (values.size() != 4){
+      printf("Error in cross_link parameter(s)\n");
+      exit(-5);
+    }
+    i = atoi(&values[0][0]);
+    if (i > 0) {
+      printf("Error in cross_link parameter(s). Suspected use of deprecated format.\n");
+      exit(-5);
+    }
+    x.motifA = values[0];
+    i = atoi(&values[1][0]);
+    if (i > 0) {
+      printf("Error in cross_link parameter(s). Suspected use of deprecated format.\n");
+      exit(-5);
+    }
+    x.motifB = values[1];
+    x.mass = atof(&values[2][0]);
+    x.mono = 0;
+    x.label = values[3];
+    params->xLink->push_back(x);
+
     //check first site
+    /*
     if(values.size()<3 || values.size()>4){
       printf("Error in cross_link parameter(s)\n");
       exit(-5);
@@ -171,6 +194,7 @@ void KParams::parse(char* cmd) {
     if(values.size()==4) x.label=values[3];
     else x.label="unlabeled";
     params->xLink->push_back(x);
+    */
 
 	} else if(strcmp(param,"database")==0){
     strcpy(params->dbFile,&values[0][0]);
@@ -192,7 +216,7 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"enzyme")==0){
     strcpy(params->enzyme,&values[0][0]);
 
-  } else if(strcmp(param,"export_pepXML")==0){
+  } else if(strcmp(param, "export_pepXML")==0 || strcmp(param, "export_pepxml")==0){
     if(atoi(&values[0][0])!=0) params->exportPepXML=true;
     else params->exportPepXML=false;
 

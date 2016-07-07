@@ -27,6 +27,7 @@ Mutex       KAnalysis::mutexKIonsManager;
 Mutex*      KAnalysis::mutexSpecScore;
 kParams     KAnalysis::params;
 KData*      KAnalysis::spec;
+char**      KAnalysis::xlTable;
 
 int         KAnalysis::numIonSeries;
 
@@ -41,6 +42,7 @@ KAnalysis::KAnalysis(kParams& p, KDatabase* d, KData* dat){
   params=p;
   db=d;
   spec=dat;
+  xlTable = spec->getXLTable();
 
   //Do memory allocations and initialization
   bKIonsManager=NULL;
@@ -93,6 +95,7 @@ KAnalysis::~KAnalysis(){
   deallocateMemory();
   db=NULL;
   spec=NULL;
+  xlTable=NULL;
 
 }
 
@@ -110,7 +113,7 @@ bool KAnalysis::doPeptideAnalysis(bool crossLink){
 
   kScoreCard sc;
 
-  ThreadPool<kAnalysisStruct*>* threadPool = new ThreadPool<kAnalysisStruct*>(analyzePeptideProc,params.threads,params.threads);
+  ThreadPool<kAnalysisStruct*>* threadPool = new ThreadPool<kAnalysisStruct*>(analyzePeptideProc,params.threads,params.threads,1);
 
   //Set progress meter
   iPercent=0;
@@ -123,6 +126,8 @@ bool KAnalysis::doPeptideAnalysis(bool crossLink){
   //Iterate entire peptide list
   for(i=0;i<p->size();i++){
 
+    threadPool->WaitForQueuedParams();
+
     //Peptides are sorted by mass. If greater than max mass, stop checking peptides
     if(!crossLink && p->at(i).mass<minMass) continue;
     if(p->at(i).mass>maxMass) break;
@@ -130,24 +135,17 @@ bool KAnalysis::doPeptideAnalysis(bool crossLink){
     kAnalysisStruct* a = new kAnalysisStruct(&mutexKIonsManager,&p->at(i),i,crossLink);
     threadPool->Launch(a);
 
-  }
-
-  while(iPercent<99){
     //Update progress meter
-    iCount=threadPool->NumParamsQueued();
-    iTmp=100-(int)((double)iCount/p->size()*100);
-    if(iTmp==100) break;
+    iTmp=(int)((double)i/p->size()*100);
     if(iTmp>iPercent){
       iPercent=iTmp;
       printf("\b\b\b%2d%%",iPercent);
       fflush(stdout);
     }
-    Threading::ThreadSleep(10);
   }
 
-  while(threadPool->NumActiveThreads()>0){
-    Threading::ThreadSleep(10);
-  }
+  threadPool->WaitForQueuedParams();
+  threadPool->WaitForThreads();
 
   //Finalize progress meter
   printf("\b\b\b100%%");
@@ -240,7 +238,7 @@ bool KAnalysis::doRelaxedAnalysis(){
   int iPercent;
   int iTmp;
 
-  ThreadPool<kAnalysisRelStruct*>* threadPool = new ThreadPool<kAnalysisRelStruct*>(analyzeRelaxedProc,params.threads,params.threads);
+  ThreadPool<kAnalysisRelStruct*>* threadPool = new ThreadPool<kAnalysisRelStruct*>(analyzeRelaxedProc,params.threads,params.threads,1);
 
   //Set progress meter
   iPercent=0;
@@ -248,30 +246,32 @@ bool KAnalysis::doRelaxedAnalysis(){
   fflush(stdout);
 
   for(i=0;i<spec->size();i++){
+
+    threadPool->WaitForQueuedParams();
+
     kAnalysisRelStruct* a = new kAnalysisRelStruct(&mutexKIonsManager,&spec->at(i));
     threadPool->Launch(a);
-  }
 
-  while(iPercent<99){
     //Update progress meter
-    iCount=threadPool->NumParamsQueued();
-    iTmp=100-(int)((double)iCount/spec->size()*100);
-    if(iTmp==100) break;
+    iTmp=(int)((double)i/spec->size()*100);
     if(iTmp>iPercent){
       iPercent=iTmp;
       printf("\b\b\b%2d%%",iPercent);
       fflush(stdout);
     }
-    Threading::ThreadSleep(10);
+
   }
 
-  while(threadPool->NumActiveThreads()>0){
-    Threading::ThreadSleep(10);
-  }
+  threadPool->WaitForQueuedParams();
+  threadPool->WaitForThreads();
 
   //Finalize progress meter
   printf("\b\b\b100%%");
   cout << endl;
+
+  //clean up memory & release pointers
+  delete threadPool;
+  threadPool = NULL;
 
   return true;
 }
@@ -361,8 +361,9 @@ void KAnalysis::analyzeRelaxedProc(kAnalysisRelStruct* s){
 bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex, bool crossLink){
 
   int j;
-  unsigned int k,k2;
+  size_t k,k2;
   int n;
+  int m;
   double totalMass;
   bool bt;
   vector<int> index;
@@ -394,6 +395,62 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex, bool cross
 
   //also search loop-links
   //check loop-links by iterating through each cross-linker mass
+  string pepSeq;
+  int cm;
+  int xlIndex;
+  int x;
+  db->getPeptideSeq(*p,pepSeq);
+
+  //iterate over every amino acid
+  for (k = 0; k < pepSeq.size(); k++){
+
+    //cout << "Checking " << pepSeq[k] << " in " << &pepSeq[0] << endl;
+
+    //check if aa can be linked
+    x=0;
+    while (xlTable[pepSeq[k]][x]>-1) {
+
+      m = 0;
+      cm = spec->getCounterMotif((int)xlTable[pepSeq[k]][x], m);
+      xlIndex = spec->getXLIndex((int)xlTable[pepSeq[k]][x], m++);
+      while (cm>-1){
+
+        //iterate over remaining amino acids
+        for (k2 = k + 1; k2 < pepSeq.size()-1; k2++){
+
+          n=0;
+          while (xlTable[pepSeq[k2]][n]>-1){
+
+            //cout << "Maybe looping: " << &pepSeq[0] << "\t" << (int)cm << " vs. " << (int)xlTable[pepSeq[k2]][n] << endl;
+          
+            //if we have a matching motif, score loop-link
+            if ((int)xlTable[pepSeq[k2]][n] == cm){
+
+              //cout << "Looping: " << &pepSeq[0] << " " << (int)k << " " << (int)k2 << endl;
+              ions[iIndex].reset();
+              ions[iIndex].buildLoopIons(spec->getLink(xlIndex).mass, k, k2);
+              ions[iIndex].modLoopIonsRec(0, k, k2, 0, 0, true);
+              for (j = 0; j<ions[iIndex].size(); j++){
+                bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index);
+                if (bt) scoreSpectra(index, j, 0, crossLink, pepIndex, -1, k, k2, xlIndex, iIndex);
+              }
+            
+            }
+            n++;
+          }
+
+        }
+
+        
+        cm = spec->getCounterMotif((int)xlTable[pepSeq[k]][x], m);
+        //cout << "Next motif: " << m << " is " << cm << endl;
+        xlIndex = spec->getXLIndex((int)xlTable[pepSeq[k]][x], m++);
+      }
+
+      x++;
+    }
+  }
+  /*
   for(n=0;n<spec->sizeLink();n++){
     if(spec->getLink(n).mono) continue;
     
@@ -450,6 +507,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex, bool cross
     }
 
   }
+  */
 
   return true;
 }
@@ -494,11 +552,14 @@ void KAnalysis::analyzePeptideNC(vector<kPeptideB>* p, int pIndex, int iIndex){
 
 //Stage 2 of relaxed mode analysis. Must be performed after analyzePeptides.
 void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
-
+  
   int i,j,k,m,n,x;
+  int motifCount;
   unsigned int q,d;
   int index;
   int count=sp->getSingletCount();
+  string pepSeq;
+  char aa;
 
   double ppm;
   double totalMass;
@@ -546,10 +607,67 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
     if(sc1.simpleScore>0)s[j].mass=sc1.mass;
     else s[j].mass=0;
     
-    //Determine if peptide belongs to target or decoy proteins, or both
-    k=0; //target protein counts
-    n=0; //decoy protein counts
     pep = db->getPeptide(sc1.pep1,sc1.linkable);
+    db->getPeptideSeq(pep,pepSeq);
+    aa=db->at(pep.map->at(0).index).sequence[pep.map->at(0).start + sc1.k1];
+    //if (sp->getScanNumber() == 26716){
+    //  cout << "pep: " << j << "\tseq: " << &pepSeq[0] << "\tsite: " << (int)sc1.k1 << "\taa: " << aa << endl;
+    //}
+
+    //map the motifs
+    motifCount=0;
+    for (i = 0; i<20;i++){
+      if(xlTable[aa][i]>-1) {
+        motifCount++;
+        //if (sp->getScanNumber() == 26716){
+        //  cout << "pep: " << j << "\tseq: " << &pepSeq[0] << "\tmotif: " << (int)xlTable[aa][i] << endl;
+        //}
+      } 
+      s[j].motif[i] = xlTable[aa][i];
+    }
+    //special case to map n-term or c-term
+    for (i = 0; i<pep.map->size();i++){
+      //add n-term
+      if ((pep.map->at(i).start + sc1.k1) < 2) {
+        for (k = 0; k<20; k++){
+          if (xlTable['n'][k]==-1) break;
+          for (m=0;m<20;m++){
+            if (s[j].motif[m]==-1) break;
+            if (s[j].motif[m] == xlTable['n'][k]) break;
+          }
+          if (m == 20) {
+            cout << "Max motifs reached in KAnalysis. Please report error." << endl;
+            exit(1);
+          } else if (m==motifCount){
+            s[j].motif[motifCount++] = xlTable['n'][k];
+           // if (sp->getScanNumber() == 26716){
+           //   cout << "pep: " << j << "\tseq: " << &pepSeq[0] << "\tNmotif: " << (int)xlTable['n'][k] << endl;
+           // }
+          }
+        }
+      }
+      //add c-term
+      n = (int)db->at(pep.map->at(i).index).sequence.size() - 1;
+      if (n==sc1.k1) {
+        for (k = 0; k<20; k++){
+          if (xlTable['c'][k] == -1)break;
+          for (m = 0; m<20; m++){
+            if (s[j].motif[m] == -1) break;
+            if (s[j].motif[m] == xlTable['c'][k]) break;
+          }
+          if (m == 20) {
+            cout << "Max motifs reached in KAnalysis. Please report error." << endl;
+            exit(1);
+          } else if (m == motifCount){
+            s[j].motif[motifCount++] = xlTable['c'][k];
+          }
+        }
+      }
+    }
+
+    //Determine if peptide belongs to target or decoy proteins, or both
+    k = 0; //target protein counts
+    n = 0; //decoy protein counts
     for(i=0;i<(int)pep.map->size();i++) {
       if(db->at(pep.map->at(i).index).name.find(params.decoy)==string::npos) k++;
       else n++;
@@ -560,124 +678,139 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
   }
   qsort(s,count,sizeof(kSingletScoreCardPlus),compareSSCPlus);
 
+  int cm;
+  int counterMotif;
+  int motifIndex;
   int xlink[6];
   int peplink[6];
+  int xlIndex;
   char cp1;
   char cp2;
   int len1;
   int len2;
-  bool bN1;
-  bool bN2;
-  bool bSkip;
   kPeptide p;
   vector<int> matches;
   kMatchSet msTemplate;
   kMatchSet msPartner;
   double dShared;
 
-  //Check true cross-links
-  for(k=0;k<spec->sizeLink();k++){
-    if(spec->getLink(k).mono>0) continue;
-    for(j=0;j<6;j++) xlink[j]=0;
-    if(spec->getLink(k).siteA==1) xlink[params.setA]++;
-    else xlink[params.setB]++;
-    if(spec->getLink(k).siteB==1) xlink[params.setA]++;
-    else xlink[params.setB]++;
-
-    for(j=0;j<count;j++){
+  //Iterate through sorted list of peptides
+  for(j=0;j<count;j++){
         
-      if(s[j].simpleScore<=0) continue; //skips anything we've already considered
-      if(!s[j].linkable) continue;
-      if(s[j].k1<0) continue;
+    if(s[j].simpleScore<=0) continue; //skips anything we've already considered
+    if(!s[j].linkable) continue;  //holdover from non-covalent dimers?
+    if(s[j].k1<0) continue;
 
-      matches.clear();
+    matches.clear();
 
-      p=db->getPeptide(s[j].pep1,true);
-      cp1=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[j].k1];
-      len1=(int)db->at(p.map->at(0).index).sequence.size()-1;
-      if( (p.map->at(0).start+s[j].k1)<2) bN1=true;
-      else bN1=false;
-      
-      for(m=0;m<sp->sizePrecursor();m++){
+    //Some basic peptide stats
+    p=db->getPeptide(s[j].pep1,true);
+    cp1=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[j].k1];
+    len1=(int)db->at(p.map->at(0).index).sequence.size()-1;
 
-        //Grab bin coordinates of all fragment ions
-        p=db->getPeptide(s[j].pep1,true);
-        ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass);
-        ions[iIndex].buildSingletIons((int)s[j].k1);
-        setBinList(&msTemplate, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[j].mass, sp->getSingletScoreCard(s[j].rank).mods, sp->getSingletScoreCard(s[j].rank).modLen);
+    //if (sp->getScanNumber() == 26716){
+    //  db->getPeptideSeq(p, pepSeq);
+    //  cout << j << " " << &pepSeq[0] << " " << (int)s[k].k1 << endl;
+    //}
 
-        index=findMass(s,count,sp->getPrecursor(m).monoMass-s[j].mass-spec->getLink(k).mass);
-        n=index;
-        while(n<count){
-          if(!params.dimersXL && n==j){
-            n++;
-            continue;
-          }
-          if(s[n].simpleScore<0 || s[n].k1<0){
-            n++;
-            continue;
-          }
+    //iterate through all motifs associated with this peptide
+    for (i=0;i<20;i++){
+      if (s[j].motif[i]==-1) break;
 
-          //Make sure we didn't already pair these peptides with a different precursor during this pass
-          for(x=0;x<(int)matches.size();x++){
-            if(matches[x]==n) break;
-          }
-          if(x<(int)matches.size()) {
-            n++;
-            continue;
-          }
+      //iterate through all countermotifs
+      for (cm = 0; cm < 10; cm++){
+        counterMotif = spec->getCounterMotif((int)s[j].motif[i],cm);
+        if (counterMotif<0) break;
 
-          totalMass=s[j].mass+s[n].mass+spec->getLink(k).mass;
-          ppm = (totalMass-sp->getPrecursor(m).monoMass)/sp->getPrecursor(m).monoMass*1e6;
-          if(fabs( ppm )<=params.ppmPrecursor) {
+        //Get XL index
+        xlIndex = spec->getXLIndex(s[j].motif[i],cm);
+        if (xlIndex < 0) {
+          cout << "Error in xlIndex of analyzedRelaxed() function. Please report." << endl;
+          exit(-1);
+        }
 
-            //Check to make sure both peptides pair to the cross-linker
-            p=db->getPeptide(s[n].pep1,true);
-            cp2=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[n].k1];
-            len2=(int)db->at(p.map->at(0).index).sequence.size()-1;
-            if( (p.map->at(0).start+s[n].k1)<2) bN2=true;
-            else bN2=false;
-            
-            for(x=0;x<6;x++) peplink[x]=0;
+        //if (sp->getScanNumber() == 26716){
+        //  cout << "\tMotif: " << (int)s[j].motif[i] << " CounterMotif: " << counterMotif << " xlIndex: " << xlIndex << endl;
+        //}
 
-            if(cp1=='K' || bN1) peplink[1]++;
-            if(cp1=='D' || cp1=='E' || s[j].k1==len1) peplink[2]++;
-            if(cp1=='C') peplink[3]++;
-						if(cp1=='Q') peplink[4]++;
-            if(cp1=='K' || cp1=='S' || cp1=='T' || cp1=='Y' || bN1) peplink[5]++;
+        //iterate over all precursor masses
+        for(m=0;m<sp->sizePrecursor();m++){
 
-            if(cp2=='K' || bN2) peplink[1]++;
-            if(cp2=='D' || cp2=='E' || s[n].k1==len2) peplink[2]++;
-            if(cp2=='C') peplink[3]++;
-						if(cp2=='Q') peplink[4]++;
-            if(cp2=='K' || cp2=='S' || cp2=='T' || cp2=='Y' || bN2) peplink[5]++;
+          //Grab bin coordinates of all fragment ions
+          p=db->getPeptide(s[j].pep1,true);
+          ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass);
+          ions[iIndex].buildSingletIons((int)s[j].k1);
+          setBinList(&msTemplate, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[j].mass, sp->getSingletScoreCard(s[j].rank).mods, sp->getSingletScoreCard(s[j].rank).modLen);
 
-            bSkip=false;
-            for(x=0;x<6;x++){
-              if(peplink[x]<xlink[x]) {
-                bSkip=true;
-                break;
-              }
+          //if (sp->getScanNumber() == 26716){
+          //  cout << "\t\tPreMass: " << sp->getPrecursor(m).monoMass << " CounterMass: " << sp->getPrecursor(m).monoMass - s[j].mass - spec->getLink(xlIndex).mass << endl;
+          //}
+
+          //get index of paired peptide subset by complement mass
+          index=findMass(s,count,sp->getPrecursor(m).monoMass-s[j].mass-spec->getLink(xlIndex).mass);
+          n=index;
+
+          //iterate over all possible peptide pairs
+          while(n<count){
+            if(!params.dimersXL && n==j){ //skip self if not allowed to dimerize
+              n++;
+              continue;
             }
-            if(bSkip){
+            if(s[n].simpleScore<0 || s[n].k1<0){ //skip peptides with no score contribution. Not sure if this is necessary anymore
               n++;
               continue;
             }
 
+            //Make sure we didn't already pair these peptides with a different precursor during this pass
+            for(x=0;x<(int)matches.size();x++){
+              if(matches[x]==n) break;
+            }
+            if(x<(int)matches.size()) {
+              n++;
+              continue;
+            }
+
+            //compute theoretical mass
+            totalMass=s[j].mass+s[n].mass+spec->getLink(xlIndex).mass;
+            ppm = (totalMass-sp->getPrecursor(m).monoMass)/sp->getPrecursor(m).monoMass*1e6;
+
+            //if (sp->getScanNumber() == 26716){
+            //  cout << "\t\t\tPair: " << n << " total Mass: " << totalMass << " ppm: " << ppm << endl;
+            //}
+
+            //if wrong mass, move on to the next peptide or exit loop if next mass is wrong
+            if (ppm<-params.ppmPrecursor) {
+              n++;
+              continue;
+            }
+            if (ppm>params.ppmPrecursor) break;
+          
+            //Make sure peptide has valid XL motif
+            for (x = 0; x < 20; x++){
+              if (s[n].motif[x]==-1) break;
+              if (s[n].motif[x]==counterMotif) break;
+            }
+            if (x == 20) {
+              n++;
+              continue;
+            } else if (s[n].motif[x] == -1){
+              n++;
+              continue;
+            }
+
+            //if (sp->getScanNumber() == 26716){
+            //  cout << "\t\t\t\tPass Motif test: " << (int)s[n].motif[x] << endl;
+            //}
+
+            p=db->getPeptide(s[n].pep1,true);
+            cp2=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[n].k1];
+            len2=(int)db->at(p.map->at(0).index).sequence.size()-1;
+            
             //Grab bin coordinates of all fragment ions
             ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass);
             ions[iIndex].buildSingletIons((int)s[n].k1);
             setBinList(&msPartner, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[n].mass, sp->getSingletScoreCard(s[n].rank).mods, sp->getSingletScoreCard(s[n].rank).modLen);
             dShared = sharedScore(sp,&msTemplate,&msPartner,sp->getPrecursor(m).charge);
-
-            //if(sp->getScanNumber()==62111 && n==j) {
-            //  cout << s[j].simpleScore*s[j].len << "\t" << s[n].pep1 << endl;
-            //  cout << s[n].simpleScore*s[n].len << "\t" << s[j].pep1 << endl;
-            //  cout << dShared << endl;
-            //  exit(1);
-            //} else {
-            //  cout << s[n].simpleScore*s[n].len << "\t" << dShared << endl;
-            //}
 
             //Add the cross-link
             sc.simpleScore=(float)(s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared);
@@ -688,15 +821,13 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             sc.linkable2=s[n].linkable;
             sc.pep1=s[j].pep1;
             sc.pep2=s[n].pep1;
-            sc.link=k;
+            sc.link=xlIndex;
             sc.rank1=s[j].rank;
             sc.rank2=s[n].rank;
             sc.score1=s[j].simpleScore*s[j].len;
             sc.score2=s[n].simpleScore*s[n].len;
             sc.mass1=s[j].mass;
             sc.mass2=s[n].mass;
-            //if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
-            //else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
             sc.mods1->clear();
             sc.mods2->clear();
             sc1=sp->getSingletScoreCard(s[j].rank);
@@ -705,83 +836,73 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             for(i=0;i<sc1.modLen;i++) sc.mods2->push_back(sc1.mods[i]);
             sp->checkScore(sc);
             matches.push_back(n);
-          } else if(ppm>params.ppmPrecursor) {
-            break;
+
+            n++;
           }
-          n++;
-        }
-        n=index-1;
-        while(n>-1){
-          if(!params.dimersXL && n==j){
-            n--;
-            continue;
-          }
-          if(s[n].simpleScore<0 || s[n].k1<0){
-            n--;
-            continue;
-          }
-
-          //Make sure we didn't already pair these peptides with a different precursor during this pass
-          for(x=0;x<matches.size();x++){
-            if(matches[x]==n) break;
-          }
-          if(x<matches.size()) {
-            n--;
-            continue;
-          }
-
-          totalMass=s[j].mass+s[n].mass+spec->getLink(k).mass;
-          ppm = (totalMass-sp->getPrecursor(m).monoMass)/sp->getPrecursor(m).monoMass*1e6;
-          if(fabs( ppm )<=params.ppmPrecursor) {
-
-            //Check to make sure both peptides pair to the cross-linker
-            p=db->getPeptide(s[n].pep1,true);
-            cp2=db->at(p.map->at(0).index).sequence[p.map->at(0).start+s[n].k1];
-            len2=(int)db->at(p.map->at(0).index).sequence.size()-1;
-            if( (p.map->at(0).start+s[n].k1)<2) bN2=true;
-            else bN2=false;
-            
-            for(x=0;x<6;x++) peplink[x]=0;
-
-            if(cp1=='K' || bN1) peplink[1]++;
-            if(cp1=='D' || cp1=='E' || s[j].k1==len1) peplink[2]++;
-            if(cp1=='C') peplink[3]++;
-						if(cp1=='Q') peplink[4]++;
-            if(cp1=='K' || cp1=='S' || cp1=='T' || cp1=='Y' || bN1) peplink[5]++;
-
-            if(cp2=='K' || bN2) peplink[1]++;
-            if(cp2=='D' || cp2=='E' || s[n].k1==len2) peplink[2]++;
-            if(cp2=='C') peplink[3]++;
-						if(cp2=='Q') peplink[4]++;
-            if(cp2=='K' || cp2=='S' || cp2=='T' || cp2=='Y' || bN2) peplink[5]++;
-
-            bSkip=false;
-            for(x=0;x<6;x++){
-              if(peplink[x]<xlink[x]) {
-                bSkip=true;
-                break;
-              }
-            }
-            if(bSkip){
+      
+          //repeat process walking through peptides in other direction
+          n=index-1;
+          while(n>-1){
+            if(!params.dimersXL && n==j){
               n--;
               continue;
             }
+            if(s[n].simpleScore<0 || s[n].k1<0){
+              n--;
+              continue;
+            }
+
+            //Make sure we didn't already pair these peptides with a different precursor during this pass
+            for(x=0;x<matches.size();x++){
+              if(matches[x]==n) break;
+            }
+            if(x<matches.size()) {
+              n--;
+              continue;
+            }
+
+            //compute theoretical mass
+            totalMass = s[j].mass + s[n].mass + spec->getLink(xlIndex).mass;
+            ppm = (totalMass - sp->getPrecursor(m).monoMass) / sp->getPrecursor(m).monoMass*1e6;
+
+            //if (sp->getScanNumber() == 26716){
+            //  cout << "\t\t\tPair2: " << n << " total Mass: " << totalMass << " ppm: " << ppm << endl;
+            //}
+
+            //if wrong mass, move on to the next peptide or exit loop if next mass is wrong
+            if (ppm>params.ppmPrecursor) {
+              n--;
+              continue;
+            }
+            if (ppm<-params.ppmPrecursor) break;
+
+            //Make sure peptide has valid XL motif
+            for (x = 0; x < 20; x++){
+              if (s[n].motif[x] == -1) break;
+              if (s[n].motif[x] == counterMotif) break;
+            }
+            if (x == 20) {
+              n--;
+              continue;
+            } else if (s[n].motif[x] == -1){
+              n--;
+              continue;
+            }
+
+            //if (sp->getScanNumber() == 26716){
+            //  cout << "\t\t\t\tPass Motif test2: " << (int)s[n].motif[x] << endl;
+            //}
+
+            p = db->getPeptide(s[n].pep1, true);
+            cp2 = db->at(p.map->at(0).index).sequence[p.map->at(0).start + s[n].k1];
+            len2 = (int)db->at(p.map->at(0).index).sequence.size() - 1;
 
             //Grab bin coordinates of all fragment ions
             ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass);
             ions[iIndex].buildSingletIons((int)s[n].k1);
             setBinList(&msPartner, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[n].mass, sp->getSingletScoreCard(s[n].rank).mods, sp->getSingletScoreCard(s[n].rank).modLen);
             dShared = sharedScore(sp,&msTemplate,&msPartner,sp->getPrecursor(m).charge);
-            
-            //if(sp->getScanNumber()==62111 && n==j) {
-            //  cout << s[j].simpleScore*s[j].len << "\t" << s[n].pep1 << endl;
-            //  cout << s[n].simpleScore*s[n].len << "\t" << s[j].pep1 << endl;
-            //  cout << dShared << endl;
-            //  exit(1);
-            //} else {
-            //  cout << s[n].simpleScore*s[n].len << "\t" << dShared << endl;
-            //}
-
+ 
             sc.simpleScore=(float)(s[j].simpleScore*s[j].len+s[n].simpleScore*s[n].len-dShared);
             sc.k1=s[j].k1;
             sc.k2=s[n].k1;
@@ -790,15 +911,13 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             sc.linkable2=s[n].linkable;
             sc.pep1=s[j].pep1;
             sc.pep2=s[n].pep1;
-            sc.link=k;
+            sc.link=xlIndex;
             sc.rank1=s[j].rank;
             sc.rank2=s[n].rank;
             sc.score1=s[j].simpleScore*s[j].len;
             sc.score2=s[n].simpleScore*s[n].len;
             sc.mass1=s[j].mass;
             sc.mass2=s[n].mass;
-            //if((s[j].simpleScore*s[j].len) > (s[n].simpleScore*s[n].len)) sc.scoreDiff=sc.simpleScore - s[j].simpleScore*s[j].len;
-            //else sc.scoreDiff = sc.simpleScore - s[n].simpleScore*s[n].len;
             sc.mods1->clear();
             sc.mods2->clear();
             sc1=sp->getSingletScoreCard(s[j].rank);
@@ -807,22 +926,17 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             for(i=0;i<sc1.modLen;i++) sc.mods2->push_back(sc1.mods[i]);
             sp->checkScore(sc);
             matches.push_back(n);
-          } else if(ppm<-params.ppmPrecursor) {
-            break;
+
+            n--;
           }
-          n--;
-        }
-      }
-      s[j].simpleScore=-s[j].simpleScore;
-    }
-  
-    //reset scores
-    for(j=0;j<count;j++){
-      if(s[j].simpleScore<0) s[j].simpleScore=-s[j].simpleScore;
-    }
+        } //for(m)
+      } //for(cm)
+    } //for(i)
 
+    //Mark peptide as searched
+    s[j].simpleScore=-s[j].simpleScore;
   }
-
+  
   //reset scores
   for(j=0;j<count;j++){
     if(s[j].simpleScore<0) s[j].simpleScore=-s[j].simpleScore;
@@ -926,16 +1040,21 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
   }
 
   delete [] s;
+  
 }
 
 bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, double highLinkMass, int iIndex){
   int i;
-  unsigned int j;
-  unsigned int k;
+  size_t j;
+  int k;
   int len;
   double minMass;
   double maxMass;
   vector<int> scanIndex;
+  string pepSeq;
+
+  //get the peptide sequence
+  db->getPeptideSeq(pep,pepSeq);
 
   //Set Mass boundaries
   minMass=pep.mass+lowLinkMass+params.minPepMass;
@@ -947,47 +1066,35 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   len=(pep.map->at(0).stop-pep.map->at(0).start)+1;
   ions[iIndex].setPeptide(true,&db->at(pep.map->at(0).index).sequence[pep.map->at(0).start],len,pep.mass);
   
-  //Iterate every link site as a site for the monolink
-  for(k=0;k<pep.vA->size();k++){
+  //Iterate every link site
+  for(k=0;k<len;k++){
+    if (k == len - 1 && pep.cTerm){
+      if (xlTable['c'][0] == -1)  continue;
+    } else if (k==len-1) {
+      continue;
+    } else if (xlTable[pepSeq[k]][0]==-1) {
+      if (k == 0 && pep.nTerm){
+        if(xlTable['n'][0] == -1) continue;
+      } else {
+        continue;
+      }
+    }
   
     //build fragment ions and score against all potential spectra
     ions[iIndex].reset();
-    ions[iIndex].buildSingletIons(pep.vA->at(k)-pep.map->at(0).start);
-    ions[iIndex].modIonsRec(0,pep.vA->at(k)-pep.map->at(0).start,0,0,true);
+    ions[iIndex].buildSingletIons(k);
+    ions[iIndex].modIonsRec(0,k,0,0,true);
 
     //iterate through all ion sets
     for(i=0;i<ions[iIndex].size();i++){
 
       //Iterate all spectra from (peptide mass + low linker + minimum mass) to (peptide mass + high linker + maximum mass)
-      if(!spec->getBoundaries(minMass+ions[iIndex][i].difMass,maxMass+ions[iIndex][i].difMass,scanIndex)) continue;
-      for(j=0;j<scanIndex.size();j++){
-        scoreSingletSpectra(scanIndex[j],i,ions[iIndex][i].mass,len,index,(char)(pep.vA->at(k)-pep.map->at(0).start),true,minMass,iIndex);
+      if(!spec->getBoundaries(minMass+ions[iIndex][i].difMass,maxMass+ions[iIndex][i].difMass,scanIndex)) {
+        continue;
       }
-    }
 
-  }
-
-  //Iterate every alternate link site as a site for the monolink
-  for(k=0;k<pep.vB->size();k++){
-
-    //skip n-term if already searched
-    if(k==0 && pep.vB->at(k)<2 && pep.vA->size()>0 && pep.vA->at(0)==pep.vB->at(k)) continue;
-
-    //skip c-term if already searched
-    if(k==pep.vB->size()-1 && pep.vA->size()>0 && pep.vA->at(pep.vA->size()-1)==pep.vB->at(k)) continue;
-
-    //build fragment ions and score against all potential spectra
-    ions[iIndex].reset();
-    ions[iIndex].buildSingletIons(pep.vB->at(k)-pep.map->at(0).start);
-    ions[iIndex].modIonsRec(0,pep.vB->at(k)-pep.map->at(0).start,0,0,true);
-
-    //iterate through all ion sets
-    for(i=0;i<ions[iIndex].size();i++){
-
-      //Iterate all spectra from (peptide mass + low linker + minimum mass) to (peptide mass + high linker + maximum mass)
-      if(!spec->getBoundaries(minMass+ions[iIndex][i].difMass,maxMass+ions[iIndex][i].difMass,scanIndex)) continue;
       for(j=0;j<scanIndex.size();j++){
-        scoreSingletSpectra(scanIndex[j],i,ions[iIndex][i].mass,len,index,pep.vB->at(k)-pep.map->at(0).start,true,minMass,iIndex);
+        scoreSingletSpectra(scanIndex[j],i,ions[iIndex][i].mass,len,index,(char)k,true,minMass,iIndex);
       }
     }
 

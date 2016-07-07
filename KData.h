@@ -44,11 +44,15 @@ public:
   KSpectrum& at(const int& i);
   KSpectrum* getSpectrum(const int& i);
 
+  void      buildXLTable      ();
   bool      getBoundaries     (double mass1, double mass2, vector<int>& index);
   bool      getBoundaries2    (double mass, double prec, vector<int>& index);
+  int       getCounterMotif   (int motifIndex, int counterIndex);
   kLinker&  getLink           (int i);
   double    getMaxMass        ();
   double    getMinMass        ();
+  int       getXLIndex        (int motifIndex, int xlIndex);
+  char**    getXLTable        ();
   bool      mapPrecursors     ();
   bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
@@ -65,11 +69,14 @@ private:
 
   //Data Members
   char               version[32];
+  char**             xlTable;
   vector<KSpectrum>  spec;
-  vector<kLinker>    link;
+  vector<kLinker>    link;  //just cross-links, not mono-links
   vector<kMass>      massList;
   kParams*           params;
   KIons              aa;
+  kXLMotif           motifs[20]; //lets put a cap on this for now
+  int                motifCount;
 
   //Utilities
   void        centroid          (Spectrum& s, Spectrum& out, double resolution, int instrument=0);

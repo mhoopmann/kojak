@@ -103,6 +103,9 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
   kPrecursor pre;
 
   //only estimate if precursor charge is known or assumed
+  if (s.getScanNumber() == 1383){
+    cout << "estimatePrecursor: " << s.getCharge() << "\t" << preCharges.size() << endl;
+  }
   if(s.getCharge()<1 && preCharges.size()==0) return false;  
 
   //Check if precursor charge is already known. If so, use only it.
@@ -114,18 +117,30 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
   for(j=0;j<preCharges.size();j++){
 
     mass = s.getMZ()*preCharges[j]-preCharges[j]*1.007276466;
+    if (s.getScanNumber() == 1383){
+      printf("Guessing mass: %.6lf\t%d\t%.6lf\n",s.getMZ(),preCharges[j],mass);
+    }
     averagine->clear();
     averagine->calcAveragine(mass,hv);
     averagine->getAveragine(formula);
 
     mercury->GoMercury(formula);
     for(i=0;i<mercury->FixedData.size();i++){
+      if (s.getScanNumber() == 1383){
+        printf("\tMercury: %.6lf\t%.6lf\n",mercury->FixedData[i].mass,mercury->FixedData[i].data);
+      }
       if(mercury->FixedData[i].data>99.99) break;
     }
     offset=mercury->FixedData[i].mass-mass;
+    if (s.getScanNumber() == 1383){
+      cout << "offset: " << offset << endl;
+    }
 
     pre.charge=preCharges[j];
     pre.monoMass=mass;
+    if (s.getScanNumber() == 1383){
+      printf("Adding precursor: %.6lf\n",pre.monoMass);
+    }
     s.addPrecursor(pre);
 
     //if base peak is not monoisotopic, try one peak to the left.
@@ -134,6 +149,9 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
     if(i>0){
       dif=mercury->FixedData[i].mass-mercury->FixedData[i-1].mass;
       pre.monoMass=mercury->FixedData[i-1].mass-offset;
+      if (s.getScanNumber() == 1383){
+        printf("Adding another precursor: %.6lf\n",pre.monoMass);
+      }
       s.addPrecursor(pre);
       if(pre.monoMass>3000 && i>1){
         pre.monoMass=mercury->FixedData[i-2].mass-offset;
@@ -154,6 +172,10 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
 }
 
 //Finds the 18O2 and 18O4 precursor monoisotopic masses and charge states for a given MS/MS scan.
+//Return values:
+//0 = No precursor found
+//1 = Found expected precursor
+//2 = Found alternate precursor(s)
 int KPrecursor::getSpecRange(KSpectrum& pls){
 
   unsigned int i;
@@ -270,6 +292,12 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     //cout << "Warning: Precursor not found for " << scanNum << " " << mz << endl;
     return ret;
   }
+
+  if (pls.getScanNumber() == 1383){
+    cout << "Initial precursor is: " << precursor << " of " << centBuf->size();
+    if (precursor<0) cout << " boo!" << endl;
+    else cout << "\t" << centBuf->at(i).getScanNumber() << endl;
+  }
   
   //Get up to +/-15 sec of spectra around the max precursor intensity
   //This is done by extending on both sides until a gap is found or time is reached.
@@ -300,6 +328,11 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     if(k==2) break;
   }
 
+  if (pls.getScanNumber() == 1383){
+    cout << "Scans: " << vs.size() << endl;
+    for (size_t tt = 0; tt<vs.size(); tt++) cout << vs[tt]->getScanNumber() << endl;
+  }
+
   //If total spectra to be combined is small (5 scan events), try 
   //grabbing a +/- 5 sec window around max, regardless of precursor observation
   /*
@@ -321,6 +354,11 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   else averageScansCentroid(vs,s,mz-1.0,mz+1.5);
   s.setScanNumber(centBuf->at(precursor).getScanNumber());
 
+  if (pls.getScanNumber() == 1383){
+    cout << "Average Scan: ";
+    for (int w = 0; w<s.size(); w++) cout << s[w].mz << "\t" << s[w].intensity << endl;
+  }
+
   //Obtain the possible precursor charge states of the selected ion.
   //Find the index of the closest peak to the selected m/z.
   preCharges.clear();
@@ -331,6 +369,11 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   }
   j=j-1;
   h->QuickCharge(s,j,preCharges);
+
+  if (pls.getScanNumber() == 1383){
+    cout << "Charges: " << endl;
+    for (size_t ww = 0; ww<preCharges.size(); ww++) cout << preCharges[ww] << endl;
+  }
 
   //Clear corr
   corr=0;
@@ -362,6 +405,9 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
 
     //If nothing was found, really narrow down the window and try again.
     if(h->Size()==0){
+      if (pls.getScanNumber() == 1383){
+        cout << "Nothing firts try" << endl;
+      }
       averageScansCentroid(vs,s,mz-0.6,mz+1.2);
       s.setScanNumber(centBuf->at(precursor).getScanNumber());
       if(params->enrichment>0) h->GoHardklor(hs2,&s);
@@ -370,6 +416,10 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
 
     float intensity=0;
     for(j=0;j<h->Size();j++){
+
+      if (pls.getScanNumber() == 1383){
+        cout << "Hardklor results: " << h->operator[](j).monoMass << "\t" << h->operator[](j).intensity << "\t" << h->operator[](j).corr << endl;
+      }
 
       //Must have highest intensity and intersect isolated peak.
       if(h->operator[](j).intensity<intensity) continue;
@@ -383,7 +433,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
           ret=1;
           break;
         }
-        tmz+=(1.003/h->operator[](j).charge);
+        tmz+=(1.00335483/h->operator[](j).charge);
       }
     }
 
@@ -398,6 +448,9 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
           ret=2;
         }
       }
+      if (pls.getScanNumber() == 1383){
+        cout << "Sad Hardklor result: " << h->Size() << "\t" << monoMass << "\t" << intensity << "\t" << corr << endl;
+      }
     }
 
     if(corr>0){
@@ -406,6 +459,13 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       pre.corr=corr;
       if(params->enrichment>0) pre.label=1;
       else pre.label=0;
+      pls.addPrecursor(pre);
+      if (pls.getScanNumber() == 1383){
+        cout << "Final Hardklor result: " << pre.monoMass << "\t" << pre.charge << "\t" << pre.corr << endl;
+      }
+      //also add isotope error
+      pre.monoMass-=1.00335483;
+      pre.corr=-1;
       pls.addPrecursor(pre);
     }
 

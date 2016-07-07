@@ -24,7 +24,7 @@ bool getBaseFileName(string& base, char* fName, string& extP);
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.4.4-dev, April 18 2016" << endl;
+  cout << "Kojak version 1.4.4-dev, July 6 2016" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
@@ -62,12 +62,16 @@ int main(int argc, char* argv[]){
       files.push_back(f);
     }
   }
+  KData spec(&params);
+  spec.setVersion("1.4.4-dev");
+  for(i=0;i<params.xLink->size();i++) spec.setLinker(params.xLink->at(i));
+  spec.buildXLTable();
 
   //Step #2: Read in database and generate peptide lists
   KDatabase db;
   for(i=0;i<params.fMods->size();i++) db.addFixedMod(params.fMods->at(i).index,params.fMods->at(i).mass);
   if(!db.setEnzyme(params.enzyme)) exit(-3);
-  db.setXLType(params.setA,params.setB);
+  db.setXLTable(spec.getXLTable(),128,20);
   if(!db.buildDB(params.dbFile)){
     cout << "Error opening database file: " << params.dbFile << endl;
     return -1;
@@ -76,10 +80,6 @@ int main(int argc, char* argv[]){
 
   
   //Step #3: Read in spectra and map precursors
-  KData spec(&params);
-  spec.setVersion("1.4.4-dev");
-  for(i=0;i<params.xLink->size();i++) spec.setLinker(params.xLink->at(i));
-
   //Iterate over all input files
   for(i=0;i<files.size();i++){
     strcpy(params.msFile,&files[i].input[0]);

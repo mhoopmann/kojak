@@ -22,9 +22,6 @@
 // to access the interface methods.
 ///////////////////////////////////////////////////////////////////////////////
 
-//Source obtained from http://comet-ms.sourceforge.net/
-//Source Date: 2014-05-31
-
 #ifndef _THREADING_H
 #define _THREADING_H
 
@@ -47,7 +44,7 @@ public:
    static void BeginThread(ThreadProc pFunction, void* arg, ThreadId* pThreadId);
    static void ThreadSleep(unsigned long dwMilliseconds);
    static void EndThread();
-  
+
    // Semaphore methods
    static void CreateSemaphore(Semaphore* pSem);
    static void WaitSemaphore(Semaphore& sem);

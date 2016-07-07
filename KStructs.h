@@ -49,42 +49,34 @@ typedef struct kPepMap{
 
 //Peptide reference to an entry in pldbDB
 typedef struct kPeptide{
+  bool cTerm;
+  bool nTerm;
   double mass;            //monoisotopic, zero mass
   vector<kPepMap>* map;   //array of mappings where peptides appear in more than one place
-  vector<int>* vA;        //List of linkage sites for set A
-  vector<int>* vB;        //List of linkage sites for set B
   kPeptide(){
+    cTerm=false;
+    nTerm=false;
     mass=0;
     map=new vector<kPepMap>;
-    vA=new vector<int>;
-    vB=new vector<int>;
   }
   kPeptide(const kPeptide& m){
+    cTerm=m.cTerm;
+    nTerm=m.nTerm;
     mass=m.mass;
     map=new vector<kPepMap>;
-    vA=new vector<int>;
-    vB=new vector<int>;
     for(unsigned int i=0;i<m.map->size();i++) map->push_back(m.map->at(i));
-    for(unsigned int i=0;i<m.vA->size();i++) vA->push_back(m.vA->at(i));
-    for(unsigned int i=0;i<m.vB->size();i++) vB->push_back(m.vB->at(i));
   }
   ~kPeptide(){
     delete map;
-    delete vA;
-    delete vB;
   }
   kPeptide& operator=(const kPeptide& m){
     if(this!=&m){
+      cTerm = m.cTerm;
+      nTerm = m.nTerm;
       mass=m.mass;
       delete map;
-      delete vA;
-      delete vB;
       map=new vector<kPepMap>;
-      vA=new vector<int>;
-      vB=new vector<int>;
       for(unsigned int i=0;i<m.map->size();i++) map->push_back(m.map->at(i));
-      for(unsigned int i=0;i<m.vA->size();i++) vA->push_back(m.vA->at(i));
-      for(unsigned int i=0;i<m.vB->size();i++) vB->push_back(m.vB->at(i));
     }
     return (*this);
   }
@@ -104,10 +96,12 @@ typedef struct kPepSort{
 
 typedef struct kLinker{
   string label;
+  string motifA;
+  string motifB;
   double mass;
   int mono;     //0=cross-link, 1=mono-link
-  int siteA;    //number represents site list. 1 for vA, 2 for vB.
-  int siteB;    //number represents site list. 1 for vA, 2 for vB.
+  int motifAIndex;    //for reference to motif list
+  int motifBIndex;    //for reference to motif list
 } kLinker;
 
 typedef struct kMass {
@@ -528,6 +522,7 @@ typedef struct kSingletScoreCardPlus{
   bool    linkable;
   char    k1;
   double  mass;
+  char    motif[20];
   int     pep1;
   int     rank;
   float   simpleScore;
@@ -675,5 +670,10 @@ typedef struct kMatchSet{
 
 } kMatchSet;
 
+typedef struct kXLMotif {
+  string motif;
+  int xlIndex[10];
+  int counterMotif[10];
+} kXLMotif;
 
 #endif
