@@ -243,10 +243,45 @@ double KIons::getFixedModMass(char aa){
   return aaFixedModMass[aa];
 }
 
-void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
-  int i,j,k,n;
+void KIons::addModIonSet(int index, char aa, int pos, int modIndex){
+  int k,n;
 
-  for(i=start;i<pep1Len-1;i++){
+  //Add masses
+  KIonSet s = sets[index];
+
+  for (k = pos; k<ionCount; k++){
+    for (n = 1; n<6; n++){
+      if (s.aIons[0][k]<0) s.aIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
+      else s.aIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
+      if (s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
+      else s.bIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
+      if (s.cIons[0][k]<0) s.cIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
+      else s.cIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
+    }
+  }
+  for (k = ionCount - pos; k<ionCount; k++){
+    for (n = 1; n<6; n++){
+      if (s.xIons[0][k]<0) s.xIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
+      else s.xIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
+      if (s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
+      else s.yIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
+      if (s.zIons[0][k]<0) s.zIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
+      else s.zIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
+    }
+  }
+  s.mods[pos] = aaMod[aa].mod[modIndex].mass;
+  s.mass += aaMod[aa].mod[modIndex].mass;
+  s.difMass += aaMod[aa].mod[modIndex].mass;
+
+  //Add to list
+  sets.push_back(s);
+
+}
+
+void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
+  int i,j;
+
+  for(i=start;i<pep1Len;i++){
 
     //don't modify site where the cross-linker is bound.
     if(i==link) continue;
@@ -258,104 +293,104 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
       if(xl && !aaMod[pep1[i]].mod[j].xl && !diffModsOnXL) continue;
       if(xl && aaMod[pep1[i]].mod[j].xl && !monoModsOnXL) continue;
 
+      //skip mods if it is xl mod on a cut site
+      if (aaMod[pep1[i]].mod[j].xl && i == pep1Len - 1 && !cPep1) continue;
+
       //Add masses
-      KIonSet s=sets[index];
-
-      for(k=i;k<ionCount;k++){
-        for(n=1;n<6;n++){
-          if(s.aIons[0][k]<0) s.aIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.aIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.bIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.cIons[0][k]<0) s.cIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.cIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-        }
-      }
-      for(k=ionCount-i;k<ionCount;k++){
-        for(n=1;n<6;n++){
-          if(s.xIons[0][k]<0) s.xIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.xIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.yIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.zIons[0][k]<0) s.zIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.zIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-        }
-      }
-      s.mods[i]=aaMod[pep1[i]].mod[j].mass;
-      s.mass+=aaMod[pep1[i]].mod[j].mass;
-      s.difMass+=aaMod[pep1[i]].mod[j].mass;
-
-      //Add to list
-      sets.push_back(s);
+      addModIonSet(index,pep1[i],i,j);
 
       //solve another one
       if(depth+1<maxModCount) modIonsRec(i+1,link,(int)(sets.size())-1,depth+1,xl);
     }
+
+    //Special case for n-terminus
+    if (i == 0 && nPep1) {
+      for (j = 0; j<aaMod['n'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['n'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index,'n', i, j);
+        //solve another one
+        if (depth + 1<maxModCount) modIonsRec(i + 1, link, (int)(sets.size()) - 1, depth + 1, xl);
+      }
+    }
+
+    //Special case for c-terminus -- DOUBLE CHECK THAT THIS IS WORKING RIGHT; might grab c-1 position
+    if (i == pep1Len - 1 && cPep1){
+      for (j = 0; j<aaMod['c'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['c'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index, 'c', i, j);
+        //solve another one
+        if (depth + 1<maxModCount) modIonsRec(i + 1, link, (int)(sets.size()) - 1, depth + 1, xl);
+      }
+    }
+  
   }
 
 }
 
 void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth, bool xl){
-  int i,j,k,n;
-  int a,b; //first and second link positions
+  int i,j;
   int pos;
 
-  //always order the links from first to second position
-  if(link<link2){
-    a=link;
-    b=link2;
-  } else {
-    a=link2;
-    b=link;
-  }
-
-  for(i=start;i<pep1Len-1;i++){
+  for(i=start;i<pep1Len;i++){
 
     //don't modify site where the cross-linker is bound.
-    if(i==a || i==b) continue;
+    if(i==link || i==link2) continue;
 
-    if(i<a) pos=i;
-    else if(i<b) pos=a;
-    else pos=i-b+a;
+    //mod position applied to left or right side of link.
+    if(i<link) pos=i;
+    else if(i<link2) pos=link;
+    else pos=i-link2+link;
 
     //Check if amino acid is on the modification list
     for(j=0;j<aaMod[pep1[i]].count;j++){
 
       //skip mods not allowed on this peptide
-      if(xl && !aaMod[pep1[i]].mod[j].xl) continue;
+      //if (xl && !aaMod[pep1[i]].mod[j].xl) continue;
+      if (xl && !aaMod[pep1[i]].mod[j].xl && !diffModsOnXL) continue;
+      if (xl && aaMod[pep1[i]].mod[j].xl && !monoModsOnXL) continue;
+
+      //skip mod if it is xl on a cut site
+      if (aaMod[pep1[i]].mod[j].xl && i == pep1Len - 1 && !cPep1) continue;
 
       //Add masses
-      KIonSet s=sets[index];
-      for(k=pos;k<ionCount;k++){
-        for(n=1;n<6;n++){
-          if(s.aIons[0][k]<0) s.aIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.aIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.bIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.cIons[0][k]<0) s.cIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.cIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-        }
-      }
-      for(k=ionCount-pos;k<ionCount;k++){
-        for(n=1;n<6;n++){
-          if(s.xIons[0][k]<0) s.xIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.xIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.yIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-          if(s.zIons[0][k]<0) s.zIons[n][k] -= (aaMod[pep1[i]].mod[j].mass/n);
-          else s.zIons[n][k] += (aaMod[pep1[i]].mod[j].mass/n);
-        }
-      }
-      s.mods[i]=aaMod[pep1[i]].mod[j].mass;
-      s.mass+=aaMod[pep1[i]].mod[j].mass;
-      s.difMass+=aaMod[pep1[i]].mod[j].mass;
-
-      //Add to list
-      sets.push_back(s);
+      addModIonSet(index, pep1[i], pos,j);
 
       //solve another one
       if(depth+1<maxModCount) modLoopIonsRec(i+1,link,link2,(int)(sets.size())-1,depth+1,xl);
     }
+
+    //Special case for n-terminus
+    if (i == 0 && nPep1) {
+      for (j = 0; j<aaMod['n'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['n'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index, 'n', pos, j);
+        //solve another one
+        if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2,(int)(sets.size()) - 1, depth + 1, xl);
+      }
+    }
+
+    //Special case for c-terinus -- DOUBLE CHECK THAT THIS IS WORKING RIGHT; might grab c-1 position
+    if (i == pep1Len - 1 && cPep1){
+      for (j = 0; j<aaMod['c'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['c'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index, 'c', pos, j);
+        //solve another one
+        if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2,(int)(sets.size()) - 1, depth + 1, xl);
+      }
+    }
+
   }
 
 }
@@ -421,11 +456,13 @@ void KIons::setModFlags(bool monoMods, bool difMods){
   diffModsOnXL=difMods;
 }
 
-void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass){
+void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm){
   if(bPepOne){
     pep1=seq;
     pep1Len=len;
     pep1Mass=mass;
+    nPep1=nTerm;
+    cPep1=cTerm;
 
     sets.clear();
     KIonSet k(pep1Len,pep1Mass);
@@ -435,6 +472,8 @@ void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass){
     pep2=seq;
     pep2Len=len;
     pep2Mass=mass;
+    nPep2=nTerm;
+    cPep2=cTerm;
   }
 
 }

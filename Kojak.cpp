@@ -24,7 +24,7 @@ bool getBaseFileName(string& base, char* fName, string& extP);
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.4.4-dev, July 6 2016" << endl;
+  cout << "Kojak version 1.4.4-dev, July 8 2016" << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
@@ -99,11 +99,8 @@ int main(int argc, char* argv[]){
     //Step #4: Analyze single peptides, monolinks, and crosslinks
     KAnalysis anal(params, &db, &spec);
     
-    cout << "Scoring non-linked peptides. ";
-    anal.doPeptideAnalysis(false);
-    
-    cout << "Scoring linked peptides. ";
-    anal.doPeptideAnalysis(true);
+    cout << "Scoring peptides. ";
+    anal.doPeptideAnalysis();
     
     cout << "Finalizing XL analysis. ";
     anal.doRelaxedAnalysis();

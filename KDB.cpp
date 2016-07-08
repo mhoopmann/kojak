@@ -112,12 +112,13 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
   double mass;
   bool bCutMarked;
-  bool bLinkable;
   bool bNTerm;
   bool bCTerm;
 
   int mc;
   int next;
+
+  char xlSites;
 
   kPepMap  pm;
   kPeptide p;
@@ -130,7 +131,6 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
   size_t start;
 
   vPep.clear();
-  vPepK.clear();
 
   for(i=0;i<DBSize;i++){
     seqSize=vDB[i].sequence.size();
@@ -142,9 +142,9 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
     next=0; //allow for next start site to be amino acid after initial M.
 
     pm.index=(int)i;
-    bLinkable=false;
     bNTerm=false;
     bCTerm=false;
+    xlSites=0;
 
     while(true){
 
@@ -157,7 +157,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         bCutMarked=true;
 
         //Add the peptide now (if enough mass)
-        if (mass>min) addPeptide((int)i, (int)start, (int)n - 1, mass, p, vPep, vPepK, bLinkable, bNTerm, bCTerm);
+        if (mass>min) addPeptide((int)i, (int)start, (int)n - 1, mass, p, vPep, bNTerm, bCTerm, xlSites);
 
       }
 
@@ -171,26 +171,26 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         bCutMarked=true;
 
         //Add the peptide now (if enough mass)
-        if(mass>min && mass<max) addPeptide((int)i,(int)start,(int)n,mass,p,vPep,vPepK,bLinkable,bNTerm,bCTerm);
+        if(mass>min && mass<max) addPeptide((int)i,(int)start,(int)n,mass,p,vPep,bNTerm,bCTerm,xlSites);
 
       }
 
       //Mark sites of cross-linker attachment (if searching for cross-links)
-      if(checkAA(p,i,start,n,seqSize,bNTerm,bCTerm)) bLinkable=true;
+      if(checkAA(p,i,start,n,seqSize,bNTerm,bCTerm)) xlSites++;
 
       //Check if we are at the end of the sequence
       if((start+n+1)==seqSize) {
 
         //Add the peptide now (if enough mass)
-        if (mass>min && mass<max) addPeptide((int)i, (int)start, (int)n, mass, p, vPep, vPepK, bLinkable, bNTerm, bCTerm);
+        if (mass>min && mass<max) addPeptide((int)i, (int)start, (int)n, mass, p, vPep, bNTerm, bCTerm, xlSites);
         if(next>-1) {
           start=next+1;
           n=0;
           mc=0;
           mass=18.0105633;
-          bLinkable=false;
           bNTerm = false;
           bCTerm = false;
+          xlSites=0;
           next=-1;
           continue;
         } else {
@@ -209,9 +209,9 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
           n=0;
           mc=0;
           mass=18.0105633;
-          bLinkable=false;
           bNTerm = false;
           bCTerm = false;
+          xlSites = 0;
           next=-1;
 
         //Otherwise, continue scanning until it is found
@@ -232,9 +232,9 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
           n=0;
           mc=0;
           mass=18.0105633;
-          bLinkable=false;
           bNTerm = false;
           bCTerm = false;
+          xlSites = 0;
           next=-1;
         }  
       } else {
@@ -249,25 +249,21 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
   //merge duplicates
   kPepSort ps;
   vector<kPepSort> vPS;
-  vector<kPepSort> vPSK;
   for(i=0;i<vPep.size();i++){
     ps.index=(int)i;
     getPeptideSeq(vPep[i].map->at(0).index,vPep[i].map->at(0).start,vPep[i].map->at(0).stop,ps.sequence);
     vPS.push_back(ps);
   }
-  for(i=0;i<vPepK.size();i++){
-    ps.index=(int)i;
-    getPeptideSeq(vPepK[i].map->at(0).index,vPepK[i].map->at(0).start,vPepK[i].map->at(0).stop,ps.sequence);
-    vPSK.push_back(ps);
-  }
   qsort(&vPS[0],vPS.size(),sizeof(kPepSort),compareSequence);
-  qsort(&vPSK[0],vPSK.size(),sizeof(kPepSort),compareSequence);
 
   vector<kPeptide> vtp;
   for(i=vPS.size()-1;i>0;i--){
     if(vPS[i].sequence.compare(vPS[i-1].sequence)==0){
       for(k=0;k<vPep[vPS[i].index].map->size();k++){
         vPep[vPS[i-1].index].map->push_back(vPep[vPS[i].index].map->at(k));
+        if (vPep[vPS[i].index].cTerm) vPep[vPS[i - 1].index].cTerm = vPep[vPS[i].index].cTerm;
+        if (vPep[vPS[i].index].nTerm) vPep[vPS[i - 1].index].nTerm = vPep[vPS[i].index].nTerm;
+        if (vPep[vPS[i].index].xlSites>vPep[vPS[i - 1].index].xlSites) vPep[vPS[i - 1].index].xlSites = vPep[vPS[i].index].xlSites;
       }
       vPep[vPS[i].index].mass=-1;
     }
@@ -276,28 +272,14 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
     if(vPep[i].mass>0) vtp.push_back(vPep[i]);
   }
   vPep.clear();
-  for(i=0;i<vtp.size();i++) vPep.push_back(vtp[i]);
-
-  for(i=vPSK.size()-1;i>0;i--){
-    if(vPSK[i].sequence.compare(vPSK[i-1].sequence)==0){
-      for(k=0;k<vPepK[vPSK[i].index].map->size();k++){
-        vPepK[vPSK[i-1].index].map->push_back(vPepK[vPSK[i].index].map->at(k));
-      }
-      vPepK[vPSK[i].index].mass=-1;
-    }
+  n=0;
+  for(i=0;i<vtp.size();i++) {
+    if (vtp[i].xlSites>0)n++;
+    vPep.push_back(vtp[i]);
   }
-  vtp.clear();
-  for(i=0;i<vPepK.size();i++){
-    if(vPepK[i].mass>0) vtp.push_back(vPepK[i]);
-  }
-  vPepK.clear();
-  for(i=0;i<vtp.size();i++) vPepK.push_back(vtp[i]);
 
-  cout << vPep.size() << " peptides to search." << endl;
-  cout << vPepK.size() << " linkable peptides to search." << endl;
-
+  cout << vPep.size() << " peptides to search (" << n << " linkable)." << endl;
   qsort(&vPep[0],vPep.size(),sizeof(kPeptide),compareMass);
-  qsort(&vPepK[0],vPepK.size(),sizeof(kPeptide),compareMass);
 
   //Reporting list
   /*
@@ -323,31 +305,6 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
 }
 
-//Deprecated function for counting number of cross-link combinations.
-//Only correct when counting K-K linkages.
-void KDatabase::combo(){
-  qsort(&vPep[0],vPep.size(),sizeof(kPeptide),compareMass);
-  unsigned int i,j,k;
-
-  k=0;
-  for(i=0;i<vPep.size();i++){
-    if(vPep[i].mass<8000) k++;
-  }
-
-  for(i=0;i<vPepK.size();i++){
-    //check mono links
-    if(vPepK[i].mass<8000) k+=3;
-
-    //check crosslinks
-    for(j=i+1;j<vPepK.size();j++){
-      if(vPepK[i].mass+vPepK[j].mass<8000) k++;
-      else break;
-    }
-  }
-  cout << "Combos to check: " << k << endl;
-
-}
-
 //==============================
 //  Accessors & Modifiers
 //==============================
@@ -359,19 +316,16 @@ kDB& KDatabase::at(const int& i){
   return vDB[i];
 }
 
-kPeptide& KDatabase::getPeptide(int index, bool linkable){
-  if(linkable) return vPepK[index];
-  else return vPep[index];
+kPeptide& KDatabase::getPeptide(int index){
+  return vPep[index];
 }
 
-vector<kPeptide>* KDatabase::getPeptideList(bool linkable){
-  if(linkable) return &vPepK;
-  else return &vPep;
+vector<kPeptide>* KDatabase::getPeptideList(){
+  return &vPep;
 }
 
-int KDatabase::getPeptideListSize(bool linkable){
-  if(linkable) return (int)vPepK.size();
-  else return (int)vPep.size();
+int KDatabase::getPeptideListSize(){
+  return (int)vPep.size();
 }
 
 bool KDatabase::getPeptideSeq(int index, int start, int stop, char* str){
@@ -480,7 +434,7 @@ bool KDatabase::setXLType(int a, int b){
 //==============================
 //  Private Functions
 //==============================
-void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& norm, vector<kPeptide>& link, bool bLinkable, bool bN, bool bC){
+void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, char xlSites){
   kPepMap  pm;
                            
   pm.index=index;
@@ -489,11 +443,11 @@ void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide&
   
   p.nTerm=bN;
   p.cTerm=bC;
+  p.xlSites=xlSites;
   p.mass=mass;
   p.map->clear();
   p.map->push_back(pm);
-  if(bLinkable) link.push_back(p);
-  else norm.push_back(p);
+  vP.push_back(p);
 
   //char str[256];
   //getPeptideSeq(p.map->at(0).index,p.map->at(0).start,p.map->at(0).stop,str);
@@ -502,19 +456,19 @@ void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide&
 }
 
 bool KDatabase::checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t seqSize, bool& bN, bool& bC){
-  if (xlTable[vDB[i].sequence[start + n]][0] > -1) return true;
-  if (xlTable['n'][0]>-1 && start + n == 0) {
+  if (start + n == 0){
     bN=true;
-    return true;
+    if (xlTable['n'][0]>-1) return true;
   }
-  if (xlTable['n'][0]>-1 && start + n == 1 && start == 1) {
+  if (start + n == 1 && start == 1) {
     bN=true;
-    return true;
+    if (xlTable['n'][0]>-1) return true;
   }
-  if (xlTable['c'][0]>-1 && start + n == seqSize-1) {
+  if (start + n == seqSize-1) {
     bC=true;
-    return true;
+    if (xlTable['c'][0]>-1) return true;
   }
+  if (xlTable[vDB[i].sequence[start + n]][0] > -1) return true;
   return false;
 }
 

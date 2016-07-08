@@ -144,58 +144,6 @@ void KParams::parse(char* cmd) {
     x.label = values[3];
     params->xLink->push_back(x);
 
-    //check first site
-    /*
-    if(values.size()<3 || values.size()>4){
-      printf("Error in cross_link parameter(s)\n");
-      exit(-5);
-    }
-    i=atoi(&values[0][0]);
-    if(i<1 || i>5) {
-      printf("Error in cross_link parameter(s)\n");
-      exit(-5);
-    }
-    if(params->setA==0) {
-      params->setA=i;
-      x.siteA=1;
-    } else if(params->setA==i) {
-      x.siteA=1;
-    } else if(params->setB==0) {
-      params->setB=i;
-      x.siteA=2;
-    } else if(params->setB==i) {
-      x.siteA=2;
-    } else {
-      printf("Error in cross_link parameter(s)\n");
-      exit(-5);
-    }
-    //check second site
-    i=atoi(&values[1][0]);
-    if(i<1 || i>5) {
-      printf("Error in cross_link parameter(s)\n");
-      exit(-5);
-    }
-    if(params->setA==0) {
-      params->setA=i;
-      x.siteB=1;
-    } else if(params->setA==i) {
-      x.siteB=1;
-    } else if(params->setB==0) {
-      params->setB=i;
-      x.siteB=2;
-    } else if(params->setB==i) {
-      x.siteB=2;
-    } else {
-      printf("Error in cross_link parameter(s)\n");
-      exit(-5);
-    }
-    x.mass=atof(&values[2][0]);
-    x.mono=0;
-    if(values.size()==4) x.label=values[3];
-    else x.label="unlabeled";
-    params->xLink->push_back(x);
-    */
-
 	} else if(strcmp(param,"database")==0){
     strcpy(params->dbFile,&values[0][0]);
 
@@ -292,38 +240,21 @@ void KParams::parse(char* cmd) {
     if(!checkMod(m)) params->mods->push_back(m);
 
   } else if(strcmp(param,"mono_link")==0){
-    m.xl=true;
-    m.mass=atof(&values[1][0]);
-    i=atoi(&values[0][0]);
-    if(i==1){
-      m.index=75;
-      if(!checkMod(m)) params->mods->push_back(m);
-      m.index=64;
-      if(!checkMod(m)) params->mods->push_back(m);
-    } else if(i==2){
-      m.index=68;
-      if(!checkMod(m)) params->mods->push_back(m);
-      m.index=69;
-      if(!checkMod(m)) params->mods->push_back(m);
-      m.index=36;
-      if(!checkMod(m)) params->mods->push_back(m);
-    } else if(i==3){
-      m.index=67;
-      if(!checkMod(m)) params->mods->push_back(m);
-    } else if(i==4){
-      m.index=81;
-      if(!checkMod(m)) params->mods->push_back(m);
-    } else if(i==5){
-      m.index=75;
-      if(!checkMod(m)) params->mods->push_back(m);
-      m.index=64;
-      if(!checkMod(m)) params->mods->push_back(m);
-      m.index=83;
-      if(!checkMod(m)) params->mods->push_back(m);
-      m.index=84;
-      if(!checkMod(m)) params->mods->push_back(m);
-      m.index=89;
-      if(!checkMod(m)) params->mods->push_back(m);
+    //Check number of parameters
+    if (values.size() != 2){
+      printf("Error in mono_link parameter(s)\n");
+      exit(-5);
+    }
+    i = atoi(&values[0][0]);
+    if (i > 0) {
+      printf("Error in mono_link parameter(s). Suspected use of deprecated format.\n");
+      exit(-5);
+    }
+    m.xl = true;
+    m.mass = atof(&values[1][0]);
+    for (i = 0; i < values[0].size(); i++){
+      m.index = (int)values[0][i];
+      if (!checkMod(m)) params->mods->push_back(m);
     }
 
   } else if(strcmp(param,"mono_links_on_xl")==0){
@@ -346,11 +277,9 @@ void KParams::parse(char* cmd) {
 		params->ms2Resolution=atoi(&values[0][0]);
 
 	} else if(strcmp(param,"output_file")==0){
-    //strcpy(params->outFile,&values[0][0]);
     warn(param,2);
 
 	} else if(strcmp(param,"percolator_file")==0){
-    //strcpy(params->percolator,&values[0][0]);
     warn(param,2);
 
   } else if(strcmp(param,"percolator_version")==0){
@@ -363,12 +292,7 @@ void KParams::parse(char* cmd) {
     params->preferPrecursor=atoi(&values[0][0]);
 
   } else if(strcmp(param,"search_dimers")==0){
-    //params->dimers=atoi(&values[0][0]);
     warn(param,2);
-
-  } else if(strcmp(param,"search_dimers_nc")==0){
-    if(atoi(&values[0][0])==0) params->dimersNC=false;
-    else params->dimersNC=true;
 
   } else if(strcmp(param,"search_dimers_xl")==0){
     if(atoi(&values[0][0])==0) params->dimersXL=false;

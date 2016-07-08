@@ -292,12 +292,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     //cout << "Warning: Precursor not found for " << scanNum << " " << mz << endl;
     return ret;
   }
-
-  if (pls.getScanNumber() == 1383){
-    cout << "Initial precursor is: " << precursor << " of " << centBuf->size();
-    if (precursor<0) cout << " boo!" << endl;
-    else cout << "\t" << centBuf->at(i).getScanNumber() << endl;
-  }
   
   //Get up to +/-15 sec of spectra around the max precursor intensity
   //This is done by extending on both sides until a gap is found or time is reached.
@@ -328,11 +322,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     if(k==2) break;
   }
 
-  if (pls.getScanNumber() == 1383){
-    cout << "Scans: " << vs.size() << endl;
-    for (size_t tt = 0; tt<vs.size(); tt++) cout << vs[tt]->getScanNumber() << endl;
-  }
-
   //If total spectra to be combined is small (5 scan events), try 
   //grabbing a +/- 5 sec window around max, regardless of precursor observation
   /*
@@ -354,11 +343,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   else averageScansCentroid(vs,s,mz-1.0,mz+1.5);
   s.setScanNumber(centBuf->at(precursor).getScanNumber());
 
-  if (pls.getScanNumber() == 1383){
-    cout << "Average Scan: ";
-    for (int w = 0; w<s.size(); w++) cout << s[w].mz << "\t" << s[w].intensity << endl;
-  }
-
   //Obtain the possible precursor charge states of the selected ion.
   //Find the index of the closest peak to the selected m/z.
   preCharges.clear();
@@ -369,11 +353,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   }
   j=j-1;
   h->QuickCharge(s,j,preCharges);
-
-  if (pls.getScanNumber() == 1383){
-    cout << "Charges: " << endl;
-    for (size_t ww = 0; ww<preCharges.size(); ww++) cout << preCharges[ww] << endl;
-  }
 
   //Clear corr
   corr=0;
@@ -405,9 +384,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
 
     //If nothing was found, really narrow down the window and try again.
     if(h->Size()==0){
-      if (pls.getScanNumber() == 1383){
-        cout << "Nothing firts try" << endl;
-      }
       averageScansCentroid(vs,s,mz-0.6,mz+1.2);
       s.setScanNumber(centBuf->at(precursor).getScanNumber());
       if(params->enrichment>0) h->GoHardklor(hs2,&s);
@@ -416,10 +392,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
 
     float intensity=0;
     for(j=0;j<h->Size();j++){
-
-      if (pls.getScanNumber() == 1383){
-        cout << "Hardklor results: " << h->operator[](j).monoMass << "\t" << h->operator[](j).intensity << "\t" << h->operator[](j).corr << endl;
-      }
 
       //Must have highest intensity and intersect isolated peak.
       if(h->operator[](j).intensity<intensity) continue;
@@ -448,9 +420,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
           ret=2;
         }
       }
-      if (pls.getScanNumber() == 1383){
-        cout << "Sad Hardklor result: " << h->Size() << "\t" << monoMass << "\t" << intensity << "\t" << corr << endl;
-      }
     }
 
     if(corr>0){
@@ -460,9 +429,6 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       if(params->enrichment>0) pre.label=1;
       else pre.label=0;
       pls.addPrecursor(pre);
-      if (pls.getScanNumber() == 1383){
-        cout << "Final Hardklor result: " << pre.monoMass << "\t" << pre.charge << "\t" << pre.corr << endl;
-      }
       //also add isotope error
       pre.monoMass-=1.00335483;
       pre.corr=-1;

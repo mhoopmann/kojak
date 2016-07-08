@@ -534,7 +534,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   sh.addScore("ppm_error",score);
 
   //Get proteins
-  pep = db.getPeptide(r.pep1,r.linkable1);
+  pep = db.getPeptide(r.pep1);
   sh.num_tot_proteins=(int)pep.map->size();
   for(j=0;j<pep.map->size();j++){
     protein="";
@@ -550,7 +550,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   }
 
   if(r.type>1){
-    pep = db.getPeptide(r.pep2,r.linkable2);
+    pep = db.getPeptide(r.pep2);
     shB.num_tot_proteins=(int)pep.map->size();
     for(j=0;j<pep.map->size();j++){
       protein="";
@@ -625,7 +625,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   
 
   //export proteins
-  pep = db.getPeptide(r.pep1,r.linkable1);
+  pep = db.getPeptide(r.pep1);
   for(j=0;j<pep.map->size();j++){
     protein="";
     for(i=0;i<db[pep.map->at(j).index].name.size();i++){
@@ -636,7 +636,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
     fprintf(f,"\t%s",&protein[0]);
   }
   if(r.pep2>=0){
-    pep = db.getPeptide(r.pep2,r.linkable2);
+    pep = db.getPeptide(r.pep2);
     for(j=0;j<pep.map->size();j++){
       protein="";
       for(i=0;i<db[pep.map->at(j).index].name.size();i++){
@@ -718,15 +718,10 @@ bool KData::outputResults(KDatabase& db){
     sprintf(fName,"%s.perc.single.txt",params->outFile);
     fSingle=fopen(fName,"wt");
     if(fSingle==NULL) bBadFiles=true;
-    if(params->dimersNC){
-      sprintf(fName,"%s.perc.dimer.txt",params->outFile);
-      fDimer=fopen(fName,"wt");
-      if(fDimer==NULL) bBadFiles=true;
-    }
   }
   if(params->exportPepXML) {
     //cout << "export PepXML" << endl;
-    //getcwd(fPath,1024);
+    getcwd(fPath,1024);
     //sprintf(fName,"%s%c%s.pep.xml",fPath,slashdir,params->outFile);
     //cout << fName << endl;
     sprintf(fName, "%s.pep.xml", params->outFile);
@@ -760,19 +755,16 @@ bool KData::outputResults(KDatabase& db){
       fprintf(fInter,"SpecId\tLabel\tscannr\tScore\tdScore\t");
       fprintf(fLoop,"SpecId\tLabel\tscannr\tScore\tdScore\t");
       fprintf(fSingle,"SpecId\tLabel\tscannr\tScore\tdScore\t");
-      if(params->dimersNC) fprintf(fDimer,"SpecId\tLabel\tscannr\tScore\tdScore\t");
     } else {
       fprintf(fIntra,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fInter,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fLoop,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fSingle,"SpecId\tLabel\tScore\tdScore\t");
-      if(params->dimersNC) fprintf(fDimer,"SpecId\tLabel\tScore\tdScore\t");
     }
     fprintf(fIntra,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
     fprintf(fInter,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
     fprintf(fLoop,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
     fprintf(fSingle,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
-    if(params->dimersNC) fprintf(fDimer,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
   }
   
   //Output top score for each spectrum
@@ -794,7 +786,7 @@ bool KData::outputResults(KDatabase& db){
 
         for(j=0;j<20;j++){
           tmpSC = spec[i].getScoreCard(j);
-          pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
+          pep = db.getPeptide(tmpSC.pep1);
           db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
           for(n=0;n<strlen(peptide);n++){
             fprintf(f2,"%c",peptide[n]);
@@ -807,7 +799,7 @@ bool KData::outputResults(KDatabase& db){
           if(tmpSC.k1>-1 && link[tmpSC.link].mono==0){
             if(tmpSC.pep2>-1){
               fprintf(f2,"\t");
-              pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
+              pep = db.getPeptide(tmpSC.pep2);
               db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
               for(n=0;n<strlen(peptide);n++){
                 fprintf(f2,"%c",peptide[n]);
@@ -823,7 +815,7 @@ bool KData::outputResults(KDatabase& db){
           }
           if(tmpSC.link==-2){
             fprintf(f2,"+");
-            pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
+            pep = db.getPeptide(tmpSC.pep2);
             db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
             for(n=0;n<strlen(peptide);n++){
               fprintf(f2,"%c",peptide[n]);
@@ -906,7 +898,7 @@ bool KData::outputResults(KDatabase& db){
         if(fabs(ppm1)>params->ppmPrecursor) continue;
 
         //if peptides and link sites are the same, go to the next one
-        if(tmpSC2.pep1==tmpSC.pep1 && tmpSC2.pep2==tmpSC.pep2 && tmpSC2.k1==tmpSC.k1 && tmpSC2.k2==tmpSC.k2 && tmpSC2.linkable1==tmpSC.linkable1 && tmpSC2.linkable2==tmpSC.linkable2){
+        if(tmpSC2.pep1==tmpSC.pep1 && tmpSC2.pep2==tmpSC.pep2 && tmpSC2.k1==tmpSC.k1 && tmpSC2.k2==tmpSC.k2){
           continue;
         }
         break;
@@ -924,14 +916,14 @@ bool KData::outputResults(KDatabase& db){
       res.massB       = tmpSC.mass2;
 
       //Get the peptide sequence(s)
-      pep = db.getPeptide(tmpSC.pep1,tmpSC.linkable1);
+      pep = db.getPeptide(tmpSC.pep1);
       db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
       res.peptide1 = peptide;
       res.mods1.clear();
       for(j=0;j<tmpSC.mods1->size();j++) res.mods1.push_back(tmpSC.mods1->at(j));
       res.peptide2 = "";
       if(tmpSC.pep2>=0){
-        pep = db.getPeptide(tmpSC.pep2,tmpSC.linkable2);
+        pep = db.getPeptide(tmpSC.pep2);
         db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
         res.peptide2 = peptide;
         res.mods2.clear();
@@ -997,9 +989,9 @@ bool KData::outputResults(KDatabase& db){
 
           //if peptides are the same, but different lists (linked vs. non), use second peptide as location
           if(tmpSC2.linkable1!=tmpSC.linkable1) {
-            pep = db.getPeptide(res.pep1,res.linkable1);
+            pep = db.getPeptide(res.pep1);
             db.getPeptideSeq(pep,tmpPep1);
-            pep2 = db.getPeptide(tmpSC2.pep1,tmpSC2.linkable1);
+            pep2 = db.getPeptide(tmpSC2.pep1);
             db.getPeptideSeq(pep2,tmpPep2);
             if(tmpPep1.compare(tmpPep2)==0){
               res.pep2=tmpSC2.pep1;
@@ -1013,11 +1005,11 @@ bool KData::outputResults(KDatabase& db){
 
       //Determine if target or decoy
       bTarget1=false;
-      pep = db.getPeptide(res.pep1,res.linkable1);
+      pep = db.getPeptide(res.pep1);
       for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
       if(bTarget1 && res.pep2>=0){
         if(!bDupe) bTarget1=false;
-        pep = db.getPeptide(res.pep2,res.linkable2);
+        pep = db.getPeptide(res.pep2);
         for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
       }
       if(bTarget1) res.decoy=false;
@@ -1071,14 +1063,14 @@ bool KData::outputResults(KDatabase& db){
       fprintf(fOut,"\t%d",res.link1);
 
       fprintf(fOut,"\t");
-      pep = db.getPeptide(res.pep1,res.linkable1);
+      pep = db.getPeptide(res.pep1);
       for(j=0;j<pep.map->size();j++){
         fprintf(fOut,"%s",&db[pep.map->at(j).index].name[0]);
         if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //put position from start of protein
         else fprintf(fOut,";");
       }
       if(bDupe){
-        pep = db.getPeptide(res.pep2,res.linkable2);
+        pep = db.getPeptide(res.pep2);
         for(j=0;j<pep.map->size();j++){
           fprintf(fOut,"%s;",&db[pep.map->at(j).index].name[0]);
           //if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //only non-linked peptides
@@ -1089,7 +1081,7 @@ bool KData::outputResults(KDatabase& db){
         fprintf(fOut,"\t%s",&res.modPeptide2[0]);
         fprintf(fOut,"\t%d",res.link2);
         fprintf(fOut,"\t");
-        pep = db.getPeptide(res.pep2,res.linkable2);
+        pep = db.getPeptide(res.pep2);
         for(j=0;j<pep.map->size();j++){
           fprintf(fOut,"%s",&db[pep.map->at(j).index].name[0]);
           if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link2); //put position from start of protein
@@ -1107,8 +1099,8 @@ bool KData::outputResults(KDatabase& db){
 
       if(res.type==2){
         bInter=true;
-        pep = db.getPeptide(res.pep1,res.linkable1);
-        pep2 = db.getPeptide(res.pep2,res.linkable2);
+        pep = db.getPeptide(res.pep1);
+        pep2 = db.getPeptide(res.pep2);
         for(j=0;j<pep.map->size();j++){
           for(k=0;k<pep2.map->size();k++){
             if(pep.map->at(j).index==pep2.map->at(k).index){
@@ -1155,7 +1147,6 @@ bool KData::outputResults(KDatabase& db){
     fclose(fInter);
     fclose(fLoop);
     fclose(fSingle);
-    if(params->dimersNC) fclose(fDimer);
   }
   if(params->exportPepXML){
     p.closePepXML();

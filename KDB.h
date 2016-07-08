@@ -38,14 +38,13 @@ public:
   //User Functions
   bool  buildDB       (char* fname);                     //Reads FASTA file and populates vDB
   bool  buildPeptides (double min, double max, int mis); //Make peptide list within mass boundaries and miscleavages.
-  void  combo         ();
 
   //Accessors & Modifiers
   void                addFixedMod         (char mod, double mass);
   kDB&                at                  (const int& i);
-  kPeptide&           getPeptide          (int index, bool linkable);
-  vector<kPeptide>*   getPeptideList      (bool linkable);
-  int                 getPeptideListSize  (bool linkable);
+  kPeptide&           getPeptide          (int index);
+  vector<kPeptide>*   getPeptideList      ();
+  int                 getPeptideListSize  ();
   bool                getPeptideSeq       (int index, int start, int stop, char* str);
   bool                getPeptideSeq       (int index, int start, int stop, string& str);
   bool                getPeptideSeq       (kPeptide& p, string& str);
@@ -66,9 +65,8 @@ private:
 
   vector<kDB>      vDB;    //Entire FASTA database stored in memory
   vector<kPeptide> vPep;   //List of all peptides not linkable
-  vector<kPeptide> vPepK;  //List of all peptides with a linkable K
 
-  void addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& norm, vector<kPeptide>& link, bool bLinkable, bool bN, bool bC);
+  void addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, char xlSites);
   bool checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t seqSize, bool& bN, bool& bC);
 
   //Utility functions (for sorting)

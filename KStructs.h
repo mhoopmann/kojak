@@ -51,17 +51,20 @@ typedef struct kPepMap{
 typedef struct kPeptide{
   bool cTerm;
   bool nTerm;
+  char xlSites;
   double mass;            //monoisotopic, zero mass
   vector<kPepMap>* map;   //array of mappings where peptides appear in more than one place
   kPeptide(){
     cTerm=false;
     nTerm=false;
+    xlSites=0;
     mass=0;
     map=new vector<kPepMap>;
   }
   kPeptide(const kPeptide& m){
     cTerm=m.cTerm;
     nTerm=m.nTerm;
+    xlSites=m.xlSites;
     mass=m.mass;
     map=new vector<kPepMap>;
     for(unsigned int i=0;i<m.map->size();i++) map->push_back(m.map->at(i));
@@ -73,6 +76,7 @@ typedef struct kPeptide{
     if(this!=&m){
       cTerm = m.cTerm;
       nTerm = m.nTerm;
+      xlSites = m.xlSites;
       mass=m.mass;
       delete map;
       map=new vector<kPepMap>;
@@ -141,7 +145,6 @@ typedef struct kParams {
   int     topCount;
   int     truncate;
   bool    diffModsOnXL;
-  bool    dimersNC;
   bool    dimersXL;
   bool    exportPepXML;
   bool    exportPercolator;
@@ -186,7 +189,6 @@ typedef struct kParams {
     topCount=250;
     truncate=0;
     diffModsOnXL=false;
-    dimersNC=false;
     dimersXL=true;
     exportPepXML=false;
     exportPercolator=false;
@@ -237,7 +239,6 @@ typedef struct kParams {
     topCount=p.topCount;
     truncate=p.truncate;
     diffModsOnXL=p.diffModsOnXL;
-    dimersNC=p.dimersNC;
     dimersXL=p.dimersXL;
     exportPepXML=p.exportPepXML;
     exportPercolator=p.exportPercolator;
@@ -297,7 +298,6 @@ typedef struct kParams {
       topCount=p.topCount;
       truncate=p.truncate;
       diffModsOnXL=p.diffModsOnXL;
-      dimersNC=p.dimersNC;
       dimersXL=p.dimersXL;
       exportPepXML=p.exportPepXML;
       exportPercolator=p.exportPercolator;

@@ -31,12 +31,10 @@ struct kAnalysisStruct {
   Mutex*      mutex;        //Pointer to a mutex for protecting memory
   kPeptide*   pep;
   int         pepIndex;
-  bool        crossLink;
-  kAnalysisStruct(Mutex* m, kPeptide* p, int i, bool b){
+  kAnalysisStruct(Mutex* m, kPeptide* p, int i){
     mutex=m;
     pep=p;
     pepIndex=i;
-    crossLink=b;
   }
   ~kAnalysisStruct(){
     //Mark that memory is not being used, but do not delete it here.
@@ -97,7 +95,7 @@ public:
   ~KAnalysis ();
 
   //Master Functions
-  bool doPeptideAnalysis   (bool crossLink);
+  bool doPeptideAnalysis   ();
   //bool doPeptideAnalysisNC ();
   bool doRelaxedAnalysis   ();
   
@@ -107,23 +105,20 @@ private:
 
   //Thread-start functions
   static void analyzePeptideProc(kAnalysisStruct* s); 
-  //static void analyzePeptideNCProc(kAnalysisNCStruct* s);  
   static void analyzeRelaxedProc(kAnalysisRelStruct* s);
 
   //Analysis functions
-  static bool analyzePeptide(kPeptide* p, int pepIndex, int iIndex, bool crossLink);
-  //static void analyzePeptideNC(vector<kPeptideB>* p, int pIndex, int iIndex);
+  static bool analyzePeptide(kPeptide* p, int pepIndex, int iIndex);
   static void analyzeRelaxed(KSpectrum* sp, int iIndex);
 
   //Private Functions
   bool         allocateMemory          (int threads);
   static bool  analyzeSinglets         (kPeptide& pep, int index, double lowLinkMass, double highLinkMass, int iIndex);
-  static bool  analyzeSingletsNoLysine (kPeptide& pep, int sIndex, int index, bool linkable, int iIndex);
+  static int   checkXLMotif            (int motifA, char* motifB);
   void         deallocateMemory        ();
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);
-  //static void  scoreNCSpectra          (vector<int>& index, double mass, bool linkable1, bool linkable2, int pep1, int pep2, int iIndex);
-  static void  scoreSingletSpectra     (int index, int sIndex, double mass, int len, int pep, char k, bool linkable, double minMass, int iIndex);
-  static void  scoreSpectra            (vector<int>& index, int sIndex, double modMass, bool linkable, int pep1, int pep2, int k1, int k2, int link, int iIndex);
+  static void  scoreSingletSpectra     (int index, int sIndex, double mass, int len, int pep, char k, double minMass, int iIndex);
+  static void  scoreSpectra            (vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex);
   static float xCorrScoring            (KSpectrum& s, double modMass, int sIndex, int iIndex);
   static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex);
   static void  setBinList              (kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen);

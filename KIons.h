@@ -74,13 +74,14 @@ public:
   //Modifiers
   void  setMaxModCount  (int i);
   void  setModFlags     (bool monoMods, bool difMods);
-  void  setPeptide      (bool bPepOne, char* seq, int len, double mass);
+  void  setPeptide      (bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm);
 
   //Data Members
   double* modList;
 
 private:
 
+  void addModIonSet(int index, char aa, int pos, int modIndex);
   void buildSeries(int setNum);
   void clearSeries();
   
@@ -102,6 +103,11 @@ private:
 
   char* pep1;
   char* pep2;
+
+  bool nPep1; //peptide has n-terminus
+  bool nPep2; //peptide has n-terminus
+  bool cPep1; //peptide has c-terminus
+  bool cPep2; //peptide has c-terminus
 
   vector<kModPos> modQueue;
   vector<double>  modMassArray;
