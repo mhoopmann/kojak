@@ -130,6 +130,7 @@ typedef struct kParams {
   //int     diagnostic;
   //int     dimers;
   int     instrument;     //0=Orbi, 1=FTICR
+  int     isotopeError;
   int     maxMods;
   int     maxPeaks;
   int     miscleave;
@@ -150,6 +151,7 @@ typedef struct kParams {
   bool    exportPercolator;
   bool    ionSeries[6];
   bool    monoLinksOnXL;
+  bool    turbo;
   bool    xcorr;
   double  binOffset;
   double  binSize;
@@ -174,6 +176,7 @@ typedef struct kParams {
     //diagnostic=0;
     //dimers=0;
     instrument=1;
+    isotopeError=1;
     maxMods=0;
     maxPeaks=0;
     miscleave=2;
@@ -199,6 +202,7 @@ typedef struct kParams {
     ionSeries[4]=true;  //y-ions
     ionSeries[5]=false; //z-ions
     monoLinksOnXL=false;
+    turbo=true;
     xcorr=false;
     binSize=0.03;
     binOffset=0.0;
@@ -224,6 +228,7 @@ typedef struct kParams {
     //diagnostic=p.diagnostic;
     //dimers=p.dimers;
     instrument=p.instrument;
+    isotopeError=p.isotopeError;
     maxMods=p.maxMods;
     maxPeaks=p.maxPeaks;
     miscleave=p.miscleave;
@@ -243,6 +248,7 @@ typedef struct kParams {
     exportPepXML=p.exportPepXML;
     exportPercolator=p.exportPercolator;
     monoLinksOnXL=p.monoLinksOnXL;
+    turbo=p.turbo;
     xcorr=p.xcorr;
     binOffset=p.binOffset;
     binSize=p.binSize;
@@ -283,6 +289,7 @@ typedef struct kParams {
       //diagnostic=p.diagnostic;
       //dimers=p.dimers;
       instrument=p.instrument;
+      isotopeError = p.isotopeError;
       maxMods=p.maxMods;
       maxPeaks=p.maxPeaks;
       miscleave=p.miscleave;
@@ -302,6 +309,7 @@ typedef struct kParams {
       exportPepXML=p.exportPepXML;
       exportPercolator=p.exportPercolator;
       monoLinksOnXL=p.monoLinksOnXL;
+      turbo = p.turbo;
       xcorr=p.xcorr;
       binOffset=p.binOffset;
       binSize=p.binSize;
@@ -391,8 +399,6 @@ typedef struct kScoreCard{
     score2=0;
     mods1=new vector<kPepMod>;
     mods2=new vector<kPepMod>;
-    //cout << mods1 << endl;
-    //cout << mods2 << endl;
   }
   kScoreCard(const kScoreCard& p){
     unsigned int i;
@@ -557,6 +563,7 @@ typedef struct kResults{
   int     scanNumber;
   int     type;
   float   rTime;
+  double  hk;
   double  massA;
   double  massB;
   double  obsMass;

@@ -51,6 +51,8 @@ public:
   kLinker&  getLink           (int i);
   double    getMaxMass        ();
   double    getMinMass        ();
+  kXLMotif& getMotif          (int motifIndex);
+  int       getMotifCount     ();
   int       getXLIndex        (int motifIndex, int xlIndex);
   char**    getXLTable        ();
   bool      mapPrecursors     ();
@@ -68,6 +70,7 @@ public:
 private:
 
   //Data Members
+  bool* bScans;
   char               version[32];
   char**             xlTable;
   vector<KSpectrum>  spec;

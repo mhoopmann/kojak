@@ -65,7 +65,6 @@ bool  KDatabase::buildDB(char* fname) {
   kDB    d;
 
   d.name="NIL";
-  cout << "Reading DB...";
 
   vDB.clear();
   f=fopen(fname,"rt");
@@ -80,7 +79,7 @@ bool  KDatabase::buildDB(char* fname) {
     if(str[0]=='>') {
       if(d.name.compare("NIL")!=0) {
         if(d.sequence.length()>65000){
-          cout << "WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
+          cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
         } else {
           vDB.push_back(d);
         }
@@ -89,7 +88,7 @@ bool  KDatabase::buildDB(char* fname) {
       d.sequence="";
     } else {
       for(unsigned int i=0;i<strlen(str);i++){
-        if(AA[str[i]]==0) cout << "WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space." << endl;
+        if(AA[str[i]]==0) cout << "  WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space." << endl;
         if(str[i]==' ' || str[i]=='\t') continue;
         d.sequence+=toupper(str[i]);
       }
@@ -97,12 +96,12 @@ bool  KDatabase::buildDB(char* fname) {
   }
   fclose(f);
   if(d.sequence.length()>65000){
-    cout << "WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
+    cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
    } else {
     vDB.push_back(d);
   }
 
-  cout << "Done!  Total Proteins: " << vDB.size() << endl;
+  cout << "  Total Proteins: " << vDB.size() << endl;
   return true;
 }
 
@@ -278,7 +277,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
     vPep.push_back(vtp[i]);
   }
 
-  cout << vPep.size() << " peptides to search (" << n << " linkable)." << endl;
+  cout << "  " << vPep.size() << " peptides to search (" << n << " linkable)." << endl;
   qsort(&vPep[0],vPep.size(),sizeof(kPeptide),compareMass);
 
   //Reporting list

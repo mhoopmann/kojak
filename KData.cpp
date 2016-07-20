@@ -20,12 +20,14 @@ limitations under the License.
   Constructors
 ============================*/
 KData::KData(){
+  bScans=NULL;
   params=NULL;
   xlTable = new char*[128];
   for (int i = 0; i<128; i++) xlTable[i] = new char[20];
 }
 
 KData::KData(kParams* p){
+  bScans=NULL;
   params=p;
   size_t i;
   for(i=0;i<p->fMods->size();i++) aa.addFixedMod((char)p->fMods->at(i).index,p->fMods->at(i).mass);
@@ -35,6 +37,7 @@ KData::KData(kParams* p){
 
 KData::~KData(){
   params=NULL;
+  if(bScans!=NULL) delete[] bScans;
   for (int i = 0; i<128; i++) delete[] xlTable[i];
   delete[] xlTable;
 }
@@ -127,6 +130,16 @@ void KData::buildXLTable(){
     }
   }
 
+  //Output for diagnostic purposes
+  /*
+  for (i = 0; i < motifCount; i++){
+    cout << "Motif " << i << ": " << &motifs[i].motif[0] << endl;
+    for(k=0;k<10;k++){
+      if(motifs[i].counterMotif[k]<0) break;
+      cout << "  XLink index: " << (int)motifs[i].xlIndex[k] << "\tCounter Motif: " << (int)motifs[i].counterMotif[k] << endl;
+    }
+  }
+  */
 }
 
 KSpectrum* KData::getSpectrum(const int& i){
@@ -203,6 +216,16 @@ bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
   if(mid<0) return false;
   high=mid;
 
+  sz=(int)spec.size();
+  memset(bScans,false,sz);
+  for (i = low; i <= high; i++) bScans[massList[i].index]=true;
+  index.clear();
+  for (i = 0; i < sz; i++) {
+    if(bScans[i]) index.push_back(i);
+  }
+  return true;
+
+  /* old method
   for(i=low;i<=high;i++) v.push_back(massList[i].index);
 
   //Sort indexes and copy to final array, removing duplicates.
@@ -215,6 +238,7 @@ bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
     if(v[i]!=v[i-1]) index.push_back(v[i]);
   }
 	return true;
+  */
 
 }
 
@@ -268,6 +292,15 @@ bool KData::getBoundaries2(double mass, double prec, vector<int>& index){
     v.push_back(massList[i].index);
 	}
 
+  sz = (int)spec.size();
+  memset(bScans, false, sz);
+  for (i = 0; i < (int)v.size(); i++) bScans[v[i]] = true;
+  index.clear();
+  for (i = 0; i < sz; i++) {
+    if (bScans[i]) index.push_back(i);
+  }
+  return true;
+
   //Sort indexes and copy to final array, removing duplicates.
   //This may be a potentially slow step and should be profiled
   qsort(&v[0],v.size(),sizeof(int),compareInt);
@@ -301,6 +334,10 @@ double KData::getMinMass(){
   else return massList[0].mass;
 }
 
+int KData::getMotifCount(){
+  return motifCount;
+}
+
 int KData::getXLIndex(int motifIndex, int xlIndex){
   if (motifIndex >= motifCount) return -1;
   return motifs[motifIndex].xlIndex[xlIndex];
@@ -331,7 +368,7 @@ bool KData::mapPrecursors(){
   //if(!pre.setFile(&p)) return false;
 
   //Print progress
-  printf("Mapping precursors: %2d%%",iPercent);
+  printf("  Mapping precursors ... %2d%%",iPercent);
   fflush(stdout);
 
   //Iterate all MS/MS spectra
@@ -353,8 +390,19 @@ bool KData::mapPrecursors(){
       continue;
     }
 
+    //if (spec[i].getScanNumber() == 25028) {
+    //  cout << "Current precursors: " << spec[i].sizePrecursor() << endl;
+    //  for (j = 0; j<spec[i].sizePrecursor(); j++) cout << spec[i].getPrecursor(j).monoMass << " " << spec[i].getPrecursor(j).charge << endl;
+    //}
+
     //Find precursor using object function. Take results and copy them to spectra
     ret=pre.getSpecRange(spec[i]);
+
+    //if (spec[i].getScanNumber() == 25028) {
+    //  cout << "Current precursors: " << spec[i].sizePrecursor() << "\tret = " << ret << endl;
+    //  for (j = 0; j<spec[i].sizePrecursor(); j++) cout << spec[i].getPrecursor(j).monoMass << " " << spec[i].getPrecursor(j).charge << endl;
+    //}
+
     if(ret>0){
 
       //if supplementing instrument predicted precursor, then chance for precursor
@@ -371,6 +419,11 @@ bool KData::mapPrecursors(){
       //precursors using presumed charge states and the selected ion.
       if(ret==2) {
         pre.estimatePrecursor(spec[i]);
+
+        //if (spec[i].getScanNumber() == 25028) {
+        //  cout << "Current precursors: " << spec[i].sizePrecursor() << endl;
+        //  for (j = 0; j<spec[i].sizePrecursor(); j++) cout << spec[i].getPrecursor(j).monoMass << " " << spec[i].getPrecursor(j).charge << endl;
+        //}
 
         //if supplementing instrument predicted precursor, then chance for precursor
         //to be seen twice (first by instrument, then by charge prediction). Keep instrument.
@@ -418,7 +471,7 @@ bool KData::mapPrecursors(){
   printf("\b\b\b100%%");
   cout << endl;
 
-  cout << specCounts << " spectra with " << peakCounts << " peaks will be analyzed." << endl;
+  cout << "  " << specCounts << " spectra with " << peakCounts << " peaks will be analyzed." << endl;
 
   //Build mass list - this orders all precursor masses, with an index pointing to the actual
   //array position for the spectrum. This is because all spectra will have more than 1
@@ -434,6 +487,9 @@ bool KData::mapPrecursors(){
 
   //sort mass list from low to high
   qsort(&massList[0],massList.size(),sizeof(kMass),compareMassList);
+
+  if(bScans!=NULL) delete[] bScans;
+  bScans = new bool[spec.size()];
 
   return true;
 }
@@ -878,6 +934,7 @@ bool KData::outputResults(KDatabase& db){
       res.charge  = spec[i].getPrecursor(preIndex).charge;
       res.ppm     = ppm1;
       res.psmMass = tmpSC.mass;
+      res.hk = spec[i].getPrecursor(preIndex).corr;
 
       if(params->exportPepXML){
         sq.assumed_charge=res.charge;
@@ -1051,6 +1108,7 @@ bool KData::outputResults(KDatabase& db){
 
       //Export Results:
       fprintf(fOut,"%d",res.scanNumber);
+      fprintf(fOut, "\t%.4lf",res.hk);
       fprintf(fOut,"\t%.4f",res.rTime);
       fprintf(fOut,"\t%.4lf",res.obsMass);
       fprintf(fOut,"\t%d",res.charge);
@@ -1151,6 +1209,7 @@ bool KData::outputResults(KDatabase& db){
   if(params->exportPepXML){
     p.closePepXML();
   }
+
   return true;
 
 }
@@ -1175,26 +1234,31 @@ void KData::readLinkers(char* fn){
 //Reads in raw/mzXML/mzML files. Other formats supported in MSToolkit as well.
 bool KData::readSpectra(){
 
-  MSReader    msr;
-  Spectrum    s;
-  Spectrum    c;
+  MSReader   msr;
+  Spectrum   s;
+  Spectrum   c;
   KSpectrum  pls(params->topCount,params->binSize,params->binOffset);
-  kSpecPoint   sp;
-  float       max;
+  kSpecPoint sp;
+  float      max;
   kPrecursor pre;
 
   int totalScans=0;
   int totalPeaks=0;
   int collapsedPeaks=0;
   int finalPeaks=0;
+  int iPercent=0;
+  int iTmp;
 
   int i;
   int j;
 
   spec.clear();
-  cout << "Reading spectra ..." << endl;
-
   msr.setFilter(MS2);
+
+  //Set progress meter
+  printf("%2d%%", iPercent);
+  fflush(stdout);
+
   if(!msr.readFile(params->msFile,s)) return false;
   while(s.getScanNumber()>0){
 
@@ -1284,12 +1348,14 @@ bool KData::readSpectra(){
       if(s.getMonoMZ()>0 && s.getCharge()>0){
         pre.monoMass=s.getMonoMZ()*s.getCharge()-s.getCharge()*1.007276466;
         pre.charge=s.getCharge();
+        pre.corr=0;
         pls.addPrecursor(pre);
         pls.setInstrumentPrecursor(true);
       } else if(s.sizeZ()>0){
         for(j=0; j<s.sizeZ(); j++){
           pre.monoMass=s.atZ(j).mh-1.007276466;
           pre.charge=s.atZ(j).z;
+          pre.corr=-5;
           pls.setCharge(pre.charge);
           pls.addPrecursor(pre);
           pls.setInstrumentPrecursor(true);
@@ -1312,10 +1378,22 @@ bool KData::readSpectra(){
       }
     }
 
+    //Update progress meter
+    iTmp = msr.getPercent();
+    if (iTmp>iPercent){
+      iPercent = iTmp;
+      printf("\b\b\b%2d%%", iPercent);
+      fflush(stdout);
+    }
+
     msr.readFile(NULL,s);
   }
 
-  cout << spec.size() << " total spectra have enough data points for searching." << endl;
+  //Finalize progress meter
+  if(iPercent<100) printf("\b\b\b100%%");
+  cout << endl;
+
+  cout << "  " << spec.size() << " total spectra have enough data points for searching." << endl;
   //cout << totalScans << " total scans were loaded." <<  endl;
   //cout << totalPeaks << " total peaks in original data." << endl;
   //cout << collapsedPeaks << " peaks after collapsing." << endl;
@@ -1340,9 +1418,30 @@ int KData::sizeLink(){
 }
 
 void KData::xCorr(bool b){
-  if(b) cout << "Using XCorr scores." << endl;
-  else  cout << "Using Kojak modified XCorr scores." << endl;
-  for(unsigned int i=0;i<spec.size();i++) spec[i].xCorrScore(b);
+  if(b) cout << "  Using XCorr scores." << endl;
+  else  cout << "  Using Kojak modified XCorr scores." << endl;
+
+  cout << "  Transforming spectra ... ";
+  int iTmp;
+  int iPercent = 0;
+  printf("%2d%%", iPercent);
+  fflush(stdout);
+  for(size_t i=0;i<spec.size();i++) {
+    spec[i].xCorrScore(b);
+
+    //Update progress meter
+    iTmp = (int)((double)i / spec.size() * 100);
+    if (iTmp>iPercent){
+      iPercent = iTmp;
+      printf("\b\b\b%2d%%", iPercent);
+      fflush(stdout);
+    }
+
+  }
+
+  //Finalize progress meter
+  if(iPercent<100) printf("\b\b\b100%%");
+  cout << endl;
 }
 
 /*============================

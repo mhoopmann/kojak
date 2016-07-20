@@ -43,6 +43,9 @@ KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
 
   kojakSparseArray=NULL;
   kojakBins=0;
+
+  cc=0;
+  sc=0;
 }
 
 KSpectrum::KSpectrum(const KSpectrum& p){
@@ -65,6 +68,9 @@ KSpectrum::KSpectrum(const KSpectrum& p){
   rTime = p.rTime;
   xCorrArraySize = p.xCorrArraySize;
   xCorrSparseArraySize = p.xCorrSparseArraySize;
+
+  cc=p.cc;
+  sc=p.sc;
 
   singletCount=p.singletCount;
   singletMax=p.singletMax;
@@ -156,6 +162,9 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
     rTime = p.rTime;
     xCorrArraySize = p.xCorrArraySize;
     xCorrSparseArraySize = p.xCorrSparseArraySize;
+
+    cc = p.cc;
+    sc = p.sc;
 
     singletCount=p.singletCount;
     singletMax=p.singletMax;

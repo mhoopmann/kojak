@@ -243,7 +243,7 @@ double KIons::getFixedModMass(char aa){
   return aaFixedModMass[aa];
 }
 
-void KIons::addModIonSet(int index, char aa, int pos, int modIndex){
+void KIons::addModIonSet(int index, char aa, int pos, int modIndex, int loopPos){
   int k,n;
 
   //Add masses
@@ -269,7 +269,8 @@ void KIons::addModIonSet(int index, char aa, int pos, int modIndex){
       else s.zIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
     }
   }
-  s.mods[pos] = aaMod[aa].mod[modIndex].mass;
+  if (loopPos>-1) s.mods[loopPos] = aaMod[aa].mod[modIndex].mass;
+  else s.mods[pos] = aaMod[aa].mod[modIndex].mass;
   s.mass += aaMod[aa].mod[modIndex].mass;
   s.difMass += aaMod[aa].mod[modIndex].mass;
 
@@ -359,7 +360,7 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
       if (aaMod[pep1[i]].mod[j].xl && i == pep1Len - 1 && !cPep1) continue;
 
       //Add masses
-      addModIonSet(index, pep1[i], pos,j);
+      addModIonSet(index, pep1[i], pos,j,i);
 
       //solve another one
       if(depth+1<maxModCount) modLoopIonsRec(i+1,link,link2,(int)(sets.size())-1,depth+1,xl);

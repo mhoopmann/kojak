@@ -64,7 +64,7 @@ private:
   int           setB;
 
   vector<kDB>      vDB;    //Entire FASTA database stored in memory
-  vector<kPeptide> vPep;   //List of all peptides not linkable
+  vector<kPeptide> vPep;   //List of all peptides
 
   void addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, char xlSites);
   bool checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t seqSize, bool& bN, bool& bC);

@@ -138,6 +138,17 @@ private:
 
   static int        numIonSeries;
 
+  static int* pepMassSize;
+  static double**   pepMass;
+  static bool** pepBin;
+  static int* pepBinSize;
+  static void makePepLists();
+  static bool findCompMass(int motif, double low, double high);
+  static int skipCount;
+  static int nonSkipCount;
+
+  static bool scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex);
+
   static Mutex  mutexKIonsManager; 
   static Mutex* mutexSpecScore; 
 

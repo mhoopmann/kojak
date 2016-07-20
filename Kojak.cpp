@@ -20,20 +20,25 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
+#define VERSION "1.5.0-dev"
+#define BDATE "July 20 2016"
+
 bool getBaseFileName(string& base, char* fName, string& extP);
 
 int main(int argc, char* argv[]){
 
-  cout << "Kojak version 1.4.4-dev, July 8 2016" << endl;
+  cout << "\nKojak version " << VERSION << ", " << BDATE << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
     return 1;
   }
 
+  cout << "\n****** Begin Kojak Analysis ******" << endl;
+
   time_t timeNow;
   time(&timeNow);
-  cout << "Time at start: " << ctime(&timeNow) << endl;
+  cout << " Time at start: " << ctime(&timeNow) << endl;
   
   unsigned int i;
   int k;
@@ -41,6 +46,7 @@ int main(int argc, char* argv[]){
   vector<kFile> files;
 
   //Step #1: Read in parameters & batch files for analysis
+  cout << " Parameter file: " << argv[1] << endl;
   kParams params;
   KParams p(&params);
   p.parseConfig(argv[1]);
@@ -48,7 +54,7 @@ int main(int argc, char* argv[]){
   if(argc==2){
     f.input=params.msFile;
     if(!getBaseFileName(f.base,params.msFile,f.ext)){
-      cout << "Error reading " << params.msFile << " unknown file or extension." << endl;
+      cout << "  Error with input file parameter: " << params.msFile << " - unknown file or extension." << endl;
       return -1;
     }
     files.push_back(f);
@@ -56,14 +62,14 @@ int main(int argc, char* argv[]){
     for(k=2;k<argc;k++){
       f.input=argv[k];
       if(!getBaseFileName(f.base,argv[k],f.ext)){
-        cout << "Error reading " << argv[k] << " unknown file or extension." << endl;
+        cout << "  Error with batch file parameter:  " << argv[k] << " - unknown file or extension." << endl;
         return -1;
       }
       files.push_back(f);
     }
   }
   KData spec(&params);
-  spec.setVersion("1.4.4-dev");
+  spec.setVersion(VERSION);
   for(i=0;i<params.xLink->size();i++) spec.setLinker(params.xLink->at(i));
   spec.buildXLTable();
 
@@ -72,8 +78,9 @@ int main(int argc, char* argv[]){
   for(i=0;i<params.fMods->size();i++) db.addFixedMod(params.fMods->at(i).index,params.fMods->at(i).mass);
   if(!db.setEnzyme(params.enzyme)) exit(-3);
   db.setXLTable(spec.getXLTable(),128,20);
+  cout << "\n Reading FASTA database: " << params.dbFile << endl;
   if(!db.buildDB(params.dbFile)){
-    cout << "Error opening database file: " << params.dbFile << endl;
+    cout << "  Error opening database file: " << params.dbFile << endl;
     return -1;
   }
   db.buildPeptides(params.minPepMass,params.maxPepMass,params.miscleave);
@@ -86,34 +93,35 @@ int main(int argc, char* argv[]){
     strcpy(params.outFile,&files[i].base[0]);
     strcpy(params.ext,&files[i].ext[0]);
 
+    cout << "\n Reading spectra data file: " << &files[i].input[0] << " ... ";
     if(!spec.readSpectra()){
-      cout << "Error reading MS_data_file. Exiting." << endl;
+      cout << "  Error reading MS_data_file. Exiting." << endl;
       return -2;
     }
     spec.mapPrecursors();
     spec.xCorr(params.xcorr);
 
-    time(&timeNow);
-    cout << "Time at analysis: " << ctime(&timeNow) << endl;
-
     //Step #4: Analyze single peptides, monolinks, and crosslinks
     KAnalysis anal(params, &db, &spec);
-    
-    cout << "Scoring peptides. ";
-    anal.doPeptideAnalysis();
-    
-    cout << "Finalizing XL analysis. ";
-    anal.doRelaxedAnalysis();
-
-    //Step #5: Output results
-    spec.outputResults(db);
-
-    cout << "Finished." << endl;
 
     time(&timeNow);
-    cout << "Time at finish: " << ctime(&timeNow) << endl;
+    cout << "\n Start spectral search: " << ctime(&timeNow);
+    cout << "  Scoring peptides ... ";
+    anal.doPeptideAnalysis();
+    
+    cout << "  Finalizing XL analysis ... ";
+    anal.doRelaxedAnalysis();
+
+    time(&timeNow);
+    cout << " Finished spectral search: " << ctime(&timeNow) << endl;
+
+    //Step #5: Output results
+    cout << " Exporting Results." << endl;
+    spec.outputResults(db);
 
   }
+
+  cout << "\n****** Finished Kojak Analysis ******" << endl;
 
   return 0;
 }

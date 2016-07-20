@@ -43,7 +43,6 @@ bool KParams::parseConfig(char* fname){
     return false;
   }
 
-  cout << "Parsing: " << fname << endl;
   f=fopen(fname,"rt");
   if(f==NULL){
     printf("Cannot open config file!\n");
@@ -124,18 +123,18 @@ void KParams::parse(char* cmd) {
   if(strcmp(param,"cross_link")==0){
     //Check number of parameters
     if (values.size() != 4){
-      printf("Error in cross_link parameter(s)\n");
+      warn("ERROR: bad cross_link parameter(s).",3);
       exit(-5);
     }
     i = atoi(&values[0][0]);
     if (i > 0) {
-      printf("Error in cross_link parameter(s). Suspected use of deprecated format.\n");
+      warn("ERROR: bad cross_link parameter(s). Suspected use of deprecated format.",3);
       exit(-5);
     }
     x.motifA = values[0];
     i = atoi(&values[1][0]);
     if (i > 0) {
-      printf("Error in cross_link parameter(s). Suspected use of deprecated format.\n");
+      warn("ERROR: bad cross_link parameter(s). Suspected use of deprecated format.",3);
       exit(-5);
     }
     x.motifB = values[1];
@@ -148,7 +147,6 @@ void KParams::parse(char* cmd) {
     strcpy(params->dbFile,&values[0][0]);
 
   } else if(strcmp(param,"diagnostic")==0){
-    //params->diagnostic=atoi(&values[0][0]);
     params->diag->push_back(atoi(&values[0][0]));
 
   } else if(strcmp(param,"diff_mods_on_xl")==0){
@@ -183,15 +181,15 @@ void KParams::parse(char* cmd) {
 	} else if(strcmp(param,"fragment_bin_size")==0){
     params->binSize=atof(&values[0][0]);
     if(params->binSize<=0){
-      printf("Invalid value for fragment_bin_size parameter\n");
+      warn("ERROR: Invalid value for fragment_bin_size parameter. Stopping analysis.",3);
       exit(-5);
     }
 
 	} else if(strcmp(param,"instrument")==0){
     params->instrument=atoi(&values[0][0]);
     if(params->instrument<0 || params->instrument>1){
-      warn("Value out of range for instrument. Defaulting to 1=Orbitrap",3);
-      params->instrument=1;
+      warn("ERROR: instrument value out of range for instrument. Stopping analysis.",3);
+      exit(-5);
     }
 
   } else if(strcmp(param,"ion_series_A")==0){
@@ -218,6 +216,13 @@ void KParams::parse(char* cmd) {
     if(atoi(&values[0][0])==0) params->ionSeries[5]=false;
     else params->ionSeries[5]=true;
 
+  } else if (strcmp(param, "isotope_error")==0){
+    params->isotopeError = atoi(&values[0][0]);
+    if (params->isotopeError < 0 || params->isotopeError>2){
+      warn("ERROR: isotope_error has invalid value. Stopping analysis.",3);
+      exit(-5);
+    }
+
 	} else if(strcmp(param,"max_miscleavages")==0){
     params->miscleave=atoi(&values[0][0]);
 
@@ -242,12 +247,12 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"mono_link")==0){
     //Check number of parameters
     if (values.size() != 2){
-      printf("Error in mono_link parameter(s)\n");
+      warn("ERROR: bad mono_link parameter(s)",3);
       exit(-5);
     }
     i = atoi(&values[0][0]);
     if (i > 0) {
-      printf("Error in mono_link parameter(s). Suspected use of deprecated format.\n");
+      warn("ERROR: bad mono_link parameter(s). Suspected use of deprecated format.",3);
       exit(-5);
     }
     m.xl = true;
@@ -304,7 +309,7 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"threads")==0) {
     params->threads=atoi(&values[0][0]);
     if(params->threads<1) {
-      printf("Invalid threads parameter. Setting to 1\n");
+      warn("WARNING: Invalid threads parameter. Setting to 1.",3);
       params->threads=1;
     }
 
@@ -313,6 +318,10 @@ void KParams::parse(char* cmd) {
 
   } else if(strcmp(param,"truncate_prot_names")==0) {
     params->truncate=atoi(&values[0][0]);
+
+  } else if (strcmp(param, "turbo_button") == 0){
+    if (atoi(&values[0][0]) != 0) params->turbo = true;
+    else params->turbo = false;
 
   } else if(strcmp(param,"use_comet_xcorr")==0){
     if(atoi(&values[0][0])!=0) params->xcorr=true;
@@ -327,17 +336,17 @@ void KParams::parse(char* cmd) {
 void KParams::warn(char* c, int i){
 	switch(i){
 		case 0:
-			printf("Parameter %s has no value.",c);
+			printf("  WARNING: Parameter %s has no value.",c);
 			break;
 		case 1:
-			printf("Unknown parameter: %s\n",c);
+			printf("  WARNING: Unknown parameter: %s\n",c);
 			break;
 		case 2:
-      printf("Parameter %s has been deprecated and will be ignored.\n",c);
+      printf("  WARNING: Parameter %s has been deprecated and will be ignored.\n",c);
       break;
     case 3:
 		default:
-			printf("%s\n",c);
+			printf("  %s\n",c);
 			break;
 	}
 }

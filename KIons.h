@@ -81,7 +81,7 @@ public:
 
 private:
 
-  void addModIonSet(int index, char aa, int pos, int modIndex);
+  void addModIonSet(int index, char aa, int pos, int modIndex, int loopPos=-1);
   void buildSeries(int setNum);
   void clearSeries();
   

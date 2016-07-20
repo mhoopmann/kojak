@@ -42,6 +42,9 @@ public:
   char**          kojakSparseArray;
   int             kojakBins;
 
+  int cc;
+  int sc;
+
   //Accessors
   double              getBinOffset          ();
   int                 getCharge             ();

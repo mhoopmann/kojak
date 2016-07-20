@@ -103,9 +103,6 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
   kPrecursor pre;
 
   //only estimate if precursor charge is known or assumed
-  if (s.getScanNumber() == 1383){
-    cout << "estimatePrecursor: " << s.getCharge() << "\t" << preCharges.size() << endl;
-  }
   if(s.getCharge()<1 && preCharges.size()==0) return false;  
 
   //Check if precursor charge is already known. If so, use only it.
@@ -117,30 +114,19 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
   for(j=0;j<preCharges.size();j++){
 
     mass = s.getMZ()*preCharges[j]-preCharges[j]*1.007276466;
-    if (s.getScanNumber() == 1383){
-      printf("Guessing mass: %.6lf\t%d\t%.6lf\n",s.getMZ(),preCharges[j],mass);
-    }
     averagine->clear();
     averagine->calcAveragine(mass,hv);
     averagine->getAveragine(formula);
 
     mercury->GoMercury(formula);
     for(i=0;i<mercury->FixedData.size();i++){
-      if (s.getScanNumber() == 1383){
-        printf("\tMercury: %.6lf\t%.6lf\n",mercury->FixedData[i].mass,mercury->FixedData[i].data);
-      }
       if(mercury->FixedData[i].data>99.99) break;
     }
     offset=mercury->FixedData[i].mass-mass;
-    if (s.getScanNumber() == 1383){
-      cout << "offset: " << offset << endl;
-    }
 
     pre.charge=preCharges[j];
     pre.monoMass=mass;
-    if (s.getScanNumber() == 1383){
-      printf("Adding precursor: %.6lf\n",pre.monoMass);
-    }
+    pre.corr=-0.5;
     s.addPrecursor(pre);
 
     //if base peak is not monoisotopic, try one peak to the left.
@@ -149,9 +135,6 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
     if(i>0){
       dif=mercury->FixedData[i].mass-mercury->FixedData[i-1].mass;
       pre.monoMass=mercury->FixedData[i-1].mass-offset;
-      if (s.getScanNumber() == 1383){
-        printf("Adding another precursor: %.6lf\n",pre.monoMass);
-      }
       s.addPrecursor(pre);
       if(pre.monoMass>3000 && i>1){
         pre.monoMass=mercury->FixedData[i-2].mass-offset;
@@ -430,9 +413,16 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       else pre.label=0;
       pls.addPrecursor(pre);
       //also add isotope error
-      pre.monoMass-=1.00335483;
-      pre.corr=-1;
-      pls.addPrecursor(pre);
+      if (params->isotopeError>0){
+        pre.monoMass-=1.00335483;
+        pre.corr=-1;
+        pls.addPrecursor(pre);
+      }
+      if (params->isotopeError>1){
+        pre.monoMass -= 1.00335483;
+        pre.corr = -2;
+        pls.addPrecursor(pre);
+      }
     }
 
   }
