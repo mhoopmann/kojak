@@ -21,7 +21,7 @@ limitations under the License.
 #include "KParams.h"
 
 #define VERSION "1.5.0-dev"
-#define BDATE "July 20 2016"
+#define BDATE "July 22 2016"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]){
 
     //Step #5: Output results
     cout << " Exporting Results." << endl;
-    spec.outputResults(db);
+    spec.outputResults(db,p);
 
   }
 

@@ -18,6 +18,7 @@ limitations under the License.
 #define _KPARAMS_H
 
 #include "KStructs.h"
+#include "pepXMLWriter.h"
 
 class KParams {
 public:
@@ -25,12 +26,14 @@ public:
   KParams(kParams* p);
   ~KParams();
 
+  vector<pxwBasicXMLTag> xmlParams;
+  
   bool parseConfig(char* fname);
 
 private:
 
   kParams* params;
-
+  
   bool checkMod(kMass m);
   void parse(char* cmd);
   void warn(char* c, int i);

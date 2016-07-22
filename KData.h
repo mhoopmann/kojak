@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "KDB.h"
 #include "KIons.h"
+#include "KParams.h"
 #include "KPrecursor.h"
 #include "KSpectrum.h"
 #include "MSReader.h"
@@ -58,7 +59,7 @@ public:
   bool      mapPrecursors     ();
   bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
-  bool      outputResults     (KDatabase& db);
+  bool      outputResults     (KDatabase& db, KParams& par);
   void      readLinkers       (char* fn);
   bool      readSpectra       ();
   void      setLinker         (kLinker x);

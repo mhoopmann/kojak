@@ -710,9 +710,10 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
 }
 
 //Function deprecated. Should be excised.
-bool KData::outputResults(KDatabase& db){
+bool KData::outputResults(KDatabase& db, KParams& par){
 
-  unsigned int i,j,k,n,x,d;
+  size_t i;
+  int j,k,n,x,d;
   char fPath[1024];
   char fName[256];
   char peptide[256];
@@ -789,6 +790,13 @@ bool KData::outputResults(KDatabase& db){
     rs.search_engine="Kojak";
     ss.base_name=rs.base_name;
     ss.search_engine="Kojak";
+    ss.search_engine_version=version;
+    ss.search_database=params->dbFile;
+    i=ss.search_database.find_last_of("/\\");
+    ss.search_database=ss.search_database.substr(i+1);
+    for(i=0;i<par.xmlParams.size();i++){
+      ss.parameters->push_back(par.xmlParams[i]);
+    }
     if(!p.createPepXML(fName,rs,&ss)) bBadFiles=true;
   }
   if(bBadFiles){
@@ -837,7 +845,7 @@ bool KData::outputResults(KDatabase& db){
         FILE* f2=fopen(diagStr,"at");
         fprintf(f2,"\n");
         fprintf(f2,"# precursors: %d\n",spec[i].sizePrecursor());
-        for(j=0;j<(unsigned int)spec[i].sizePrecursor();j++) fprintf(f2,"Precursor: %.4lf\t%d\t%.4lf\t%d\n",spec[i].getPrecursor(j).monoMass,spec[i].getPrecursor(j).charge,spec[i].getPrecursor(j).corr,(int)spec[i].getPrecursor(j).label);
+        for(j=0;j<spec[i].sizePrecursor();j++) fprintf(f2,"Precursor: %.4lf\t%d\t%.4lf\t%d\n",spec[i].getPrecursor(j).monoMass,spec[i].getPrecursor(j).charge,spec[i].getPrecursor(j).corr,(int)spec[i].getPrecursor(j).label);
         fprintf(f2,"\n");
 
         for(j=0;j<20;j++){
@@ -918,7 +926,7 @@ bool KData::outputResults(KDatabase& db){
       //Get the best precursor ion for the PSM
       ppm1=(tmpSC.mass-spec[i].getPrecursor(0).monoMass)/spec[i].getPrecursor(0).monoMass*1e6;
       preIndex=0;
-      for(j=1;j<(unsigned int)spec[i].sizePrecursor();j++){
+      for(j=1;j<spec[i].sizePrecursor();j++){
         ppm2=(tmpSC.mass-spec[i].getPrecursor(j).monoMass)/spec[i].getPrecursor(j).monoMass*1e6;
         if(fabs(ppm1)>fabs(ppm2)){
           preIndex=j;
@@ -1894,4 +1902,6 @@ double KData::polynomialBestFit(vector<double>& x, vector<double>& y, vector<dou
 	return r2;
 
 }
+
+
 
