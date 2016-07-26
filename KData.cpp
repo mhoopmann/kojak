@@ -755,7 +755,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   FILE* fInter  = NULL;
   FILE* fLoop   = NULL;
   FILE* fSingle = NULL;
-  FILE* fDimer  = NULL;
 
   //Open all the required output files.
   bBadFiles=false;
@@ -806,7 +805,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     if(fInter!=NULL)  fclose(fInter);
     if(fLoop!=NULL)   fclose(fLoop);
     if(fSingle!=NULL) fclose(fSingle);
-    if(fDimer!=NULL)  fclose(fDimer);
     return false;
   }
 
@@ -1026,7 +1024,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       res.type=0;
       if(tmpSC.k1>=0 && tmpSC.k2>=0) res.type=1;
       if(tmpSC.pep1>=0 && tmpSC.pep2>=0) res.type=2;
-      if(tmpSC.link==-2) res.type=3;
 
       if(res.type>0) {
         res.xlMass=link[tmpSC.link].mass;
@@ -1185,7 +1182,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
             if(bInter)  outputPercolator(fInter,db,res,count);
             else        outputPercolator(fIntra,db,res,count);
             break;
-          case 3:   outputPercolator(fDimer,db,res,count);  break;
           default:  outputPercolator(fSingle,db,res,count); break;
         }
       }
