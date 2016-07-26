@@ -464,7 +464,7 @@ void KParams::parse(char* cmd) {
 
 }
 
-void KParams::warn(char* c, int i){
+void KParams::warn(const char* c, int i){
 	switch(i){
 		case 0:
 			printf("  WARNING: Parameter %s has no value.",c);

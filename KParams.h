@@ -36,7 +36,7 @@ private:
   
   bool checkMod(kMass m);
   void parse(char* cmd);
-  void warn(char* c, int i);
+  void warn(const char* c, int i);
 
 };
 
