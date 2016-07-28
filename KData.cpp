@@ -1113,7 +1113,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
       //Export Results:
       fprintf(fOut,"%d",res.scanNumber);
-      fprintf(fOut, "\t%.4lf",res.hk);
+      //fprintf(fOut, "\t%.4lf",res.hk); //this was for diagnostics of hardklor correlation results (or lack of)
       fprintf(fOut,"\t%.4f",res.rTime);
       fprintf(fOut,"\t%.4lf",res.obsMass);
       fprintf(fOut,"\t%d",res.charge);

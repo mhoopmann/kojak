@@ -317,7 +317,7 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
       }
     }
 
-    //Special case for c-terminus -- DOUBLE CHECK THAT THIS IS WORKING RIGHT; might grab c-1 position
+    //Special case for c-terminus
     if (i == pep1Len - 1 && cPep1){
       for (j = 0; j<aaMod['c'].count; j++){
         //skip mods not allowed on this peptide
@@ -379,7 +379,7 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
       }
     }
 
-    //Special case for c-terinus -- DOUBLE CHECK THAT THIS IS WORKING RIGHT; might grab c-1 position
+    //Special case for c-terinus
     if (i == pep1Len - 1 && cPep1){
       for (j = 0; j<aaMod['c'].count; j++){
         //skip mods not allowed on this peptide

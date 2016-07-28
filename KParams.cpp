@@ -452,11 +452,12 @@ void KParams::parse(char* cmd) {
     xmlParams.push_back(xml);
 
   } else if(strcmp(param,"use_comet_xcorr")==0){
-    if(atoi(&values[0][0])!=0) params->xcorr=true;
-    else params->xcorr=false;
-    xml.name = "use_comet_xcorr";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    warn(param, 2);
+    //if(atoi(&values[0][0])!=0) params->xcorr=true;
+    //else params->xcorr=false;
+    //xml.name = "use_comet_xcorr";
+    //xml.value = values[0];
+    //xmlParams.push_back(xml);
 
 	} else {
 		warn(param,1);
