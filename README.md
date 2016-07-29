@@ -1,6 +1,6 @@
 # Kojak
 
-A database search algorithm for solving cross-linked peptide mass spectra.
+A database search algorithm for solving cross-linked peptide mass spectra. Features, documentation, and additional tools can be found on the primary Kojak website: http://kojak-ms.org
 
 ## License
 
