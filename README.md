@@ -4,7 +4,7 @@ A database search algorithm for solving cross-linked peptide mass spectra.
 
 ## License
 
-Copyright 2014-2015, Michael R. Hoopmann, Institute for Systems Biology
+Copyright 2014-2016, Michael R. Hoopmann, Institute for Systems Biology
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 ## Kojak Release Notes
+
+#### Version 1.5.0 - July 28 2016
+* Changed how cross-link and mono-link sites are defined in the parameters.
+* Fixed bug with modifications on protein termini with loop-links.
+* Disabled and deprecated use_comet_xcorr.
+* Added turbo_button and other speed improvements.
+* Added additional information (version number, parameters, etc.) to the pepXML output.
+* Updated threading code.
 
 #### Version 1.4.3 - April 8 2016
 * Added output in pepXML format
