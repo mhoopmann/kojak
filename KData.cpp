@@ -749,6 +749,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
   string tmpPep1;
   string tmpPep2;
+  string outFile;
 
   FILE* fOut    = NULL;
   FILE* fIntra  = NULL;
@@ -780,10 +781,13 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     getcwd(fPath,1024);
     //sprintf(fName,"%s%c%s.pep.xml",fPath,slashdir,params->outFile);
     //cout << fName << endl;
+    outFile=params->outFile;
+    i = outFile.find_last_of("/\\");
+    outFile = outFile.substr(i+1);
     sprintf(fName, "%s.pep.xml", params->outFile);
     rs.base_name=fPath;
     rs.base_name+=slashdir;
-    rs.base_name+=params->outFile;
+    rs.base_name+=outFile;
     rs.raw_data=params->ext;
     rs.raw_data_type="raw";
     rs.search_engine="Kojak";
@@ -945,7 +949,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       if(params->exportPepXML){
         sq.assumed_charge=res.charge;
         sq.precursor_neutral_mass=res.obsMass;
-        sprintf(specID,"%s.%d.%d.%d",params->outFile,res.scanNumber,res.scanNumber,res.charge);
+        sprintf(specID,"%s.%d.%d.%d",&outFile[0],res.scanNumber,res.scanNumber,res.charge);
         sq.spectrum=specID;
       }
 
