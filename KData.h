@@ -46,8 +46,8 @@ public:
   KSpectrum* getSpectrum(const int& i);
 
   void      buildXLTable      ();
-  bool      getBoundaries     (double mass1, double mass2, vector<int>& index);
-  bool      getBoundaries2    (double mass, double prec, vector<int>& index);
+  bool      getBoundaries     (double mass1, double mass2, vector<int>& index, bool* buffer);
+  bool      getBoundaries2    (double mass, double prec, vector<int>& index, bool* buffer);
   int       getCounterMotif   (int motifIndex, int counterIndex);
   kLinker&  getLink           (int i);
   double    getMaxMass        ();

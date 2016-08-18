@@ -28,6 +28,7 @@ Mutex*      KAnalysis::mutexSpecScore;
 kParams     KAnalysis::params;
 KData*      KAnalysis::spec;
 char**      KAnalysis::xlTable;
+bool**      KAnalysis::scanBuffer;
 
 int         KAnalysis::numIonSeries;
 
@@ -118,7 +119,7 @@ KAnalysis::~KAnalysis(){
   }
 
   //Deallocate memory and release pointers
-  deallocateMemory();
+  deallocateMemory(params.threads);
   db=NULL;
   spec=NULL;
   xlTable=NULL;
@@ -315,7 +316,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
 
   for(j=0;j<ions[iIndex].size();j++){
 
-    bt=spec->getBoundaries2(ions[iIndex][j].mass,params.ppmPrecursor,index);
+    bt=spec->getBoundaries2(ions[iIndex][j].mass,params.ppmPrecursor,index,scanBuffer[iIndex]);
     if(bt) scoreSpectra(index,j,ions[iIndex][j].difMass,pepIndex,-1,-1,-1,-1,iIndex);
     
   }
@@ -360,7 +361,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
             ions[iIndex].buildLoopIons(spec->getLink(xlIndex).mass, (int)k, (int)k2);
             ions[iIndex].modLoopIonsRec(0, (int)k, (int)k2, 0, 0, true);
             for (j = 0; j<ions[iIndex].size(); j++){
-              bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index);
+              bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
               if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex, iIndex);
             }
           }
@@ -392,7 +393,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
             ions[iIndex].buildLoopIons(spec->getLink(xlIndex).mass, (int)k, (int)k2);
             ions[iIndex].modLoopIonsRec(0, (int)k, (int)k2, 0, 0, true);
             for (j = 0; j<ions[iIndex].size(); j++){
-              bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index);
+              bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
               if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex, iIndex);
             }
           }
@@ -853,7 +854,7 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
     for(i=0;i<ions[iIndex].size();i++){
 
       //Iterate all spectra from (peptide mass + low linker + minimum mass) to (peptide mass + high linker + maximum mass)
-      if(!spec->getBoundaries(minMass+ions[iIndex][i].difMass,maxMass+ions[iIndex][i].difMass,scanIndex)) continue;
+      if (!spec->getBoundaries(minMass + ions[iIndex][i].difMass, maxMass + ions[iIndex][i].difMass, scanIndex, scanBuffer[iIndex])) continue;
 
       for(j=0;j<scanIndex.size();j++){
         if (params.turbo){
@@ -883,9 +884,11 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
 bool KAnalysis::allocateMemory(int threads){
   bKIonsManager = new bool[threads];
   ions = new KIons[threads];
+  scanBuffer = new bool*[threads];
   for(int i=0;i<threads;i++) {
     bKIonsManager[i]=false;
     ions[i].setModFlags(params.monoLinksOnXL,params.diffModsOnXL);
+    scanBuffer[i] = new bool[spec->size()];
   }
   return true;
 }
@@ -908,9 +911,13 @@ int KAnalysis::checkXLMotif(int motifA, char* motifB){
   return -1;
 }
 
-void KAnalysis::deallocateMemory(){
+void KAnalysis::deallocateMemory(int threads){
   delete [] bKIonsManager;
   delete [] ions;
+  for (int i = 0; i < threads; i++){
+    delete[] scanBuffer[i];
+  }
+  delete[] scanBuffer;
 }
 
 int KAnalysis::findMass(kSingletScoreCardPlus* s, int sz, double mass){

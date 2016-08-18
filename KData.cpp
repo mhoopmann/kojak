@@ -154,7 +154,7 @@ KSpectrum& KData::at(const int& i){
   return spec[i];
 }
 
-bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
+bool KData::getBoundaries(double mass1, double mass2, vector<int>& index, bool* buffer){
   int sz=(int)massList.size();
 
   if(mass1>massList[sz-1].mass) return false;
@@ -217,11 +217,11 @@ bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
   high=mid;
 
   sz=(int)spec.size();
-  memset(bScans,false,sz);
-  for (i = low; i <= high; i++) bScans[massList[i].index]=true;
+  memset(buffer,false,sz);
+  for (i = low; i <= high; i++) buffer[massList[i].index]=true;
   index.clear();
   for (i = 0; i < sz; i++) {
-    if(bScans[i]) index.push_back(i);
+    if(buffer[i]) index.push_back(i);
   }
   return true;
 
@@ -243,7 +243,7 @@ bool KData::getBoundaries(double mass1, double mass2, vector<int>& index){
 }
 
 //Get the list of spectrum array indexes to search based on desired mass
-bool KData::getBoundaries2(double mass, double prec, vector<int>& index){
+bool KData::getBoundaries2(double mass, double prec, vector<int>& index, bool* buffer){
   int sz=(int)massList.size();
   int lower=0;
   int mid=sz/2;
@@ -293,11 +293,11 @@ bool KData::getBoundaries2(double mass, double prec, vector<int>& index){
 	}
 
   sz = (int)spec.size();
-  memset(bScans, false, sz);
-  for (i = 0; i < (int)v.size(); i++) bScans[v[i]] = true;
+  memset(buffer, false, sz);
+  for (i = 0; i < (int)v.size(); i++) buffer[v[i]] = true;
   index.clear();
   for (i = 0; i < sz; i++) {
-    if (bScans[i]) index.push_back(i);
+    if (buffer[i]) index.push_back(i);
   }
   return true;
 

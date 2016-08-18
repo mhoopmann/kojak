@@ -115,7 +115,7 @@ private:
   bool         allocateMemory          (int threads);
   static bool  analyzeSinglets         (kPeptide& pep, int index, double lowLinkMass, double highLinkMass, int iIndex);
   static int   checkXLMotif            (int motifA, char* motifB);
-  void         deallocateMemory        ();
+  void         deallocateMemory        (int threads);
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);
   static void  scoreSingletSpectra     (int index, int sIndex, double mass, int len, int pep, char k, double minMass, int iIndex);
   static void  scoreSpectra            (vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex);
@@ -135,6 +135,7 @@ private:
   static kParams    params;
   static KData*     spec;
   static char**     xlTable;
+  static bool**     scanBuffer;
 
   static int        numIonSeries;
 
