@@ -783,7 +783,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     //cout << fName << endl;
     outFile=params->outFile;
     i = outFile.find_last_of("/\\");
-    outFile = outFile.substr(i+1);
+    if(i!=string::npos) outFile = outFile.substr(i+1);
     sprintf(fName, "%s.pep.xml", params->outFile);
     rs.base_name=fPath;
     rs.base_name+=slashdir;
