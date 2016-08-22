@@ -716,6 +716,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   int j,k,n,x,d;
   char fPath[1024];
   char fName[256];
+  char outPath[1024];
   char peptide[256];
   char tmp[16];
   char specID[256];
@@ -725,10 +726,12 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   kScoreCard tmpSC;
   kScoreCard tmpSC2;
 
+  kEnzymeRules enzyme;
   kResults res;
 
   PepXMLWriter p;
   pxwMSMSRunSummary rs;
+  pxwSampleEnzyme enz;
   PXWSearchSummary ss;
   PXWSpectrumQuery sq;
 
@@ -781,7 +784,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     getcwd(fPath,1024);
     //sprintf(fName,"%s%c%s.pep.xml",fPath,slashdir,params->outFile);
     //cout << fName << endl;
-    outFile=params->outFile;
+    //outFile=params->outFile;
+    processPath(fPath, params->outFile, outPath);
+    outFile=outPath;
     i = outFile.find_last_of("/\\");
     if(i!=string::npos) outFile = outFile.substr(i+1);
     sprintf(fName, "%s.pep.xml", params->outFile);
@@ -794,13 +799,31 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     ss.base_name=rs.base_name;
     ss.search_engine="Kojak";
     ss.search_engine_version=version;
-    ss.search_database=params->dbFile;
-    i=ss.search_database.find_last_of("/\\");
-    ss.search_database=ss.search_database.substr(i+1);
+    processPath(fPath,params->dbFile,outPath);
+    ss.search_database=outPath;
     for(i=0;i<par.xmlParams.size();i++){
       ss.parameters->push_back(par.xmlParams[i]);
     }
-    if(!p.createPepXML(fName,rs,&ss)) bBadFiles=true;
+    enz.name=params->enzymeName;
+    enz.cut.clear();
+    enz.no_cut.clear();
+    enz.minNumTermini=2;
+    enz.maxNumInternalCleavages=params->miscleave;
+    enzyme = db.getEnzymeRules();
+    for (i = 65; i < 90; i++){
+      if (enzyme.cutC[i]) enz.cut += (char)i;
+      if (enzyme.exceptN[i]) enz.no_cut += (char)i;
+    }
+    if (enz.cut.size()>0){
+      enz.sense = "C";
+    } else {
+      enz.sense = "N";
+      for (i = 65; i < 90; i++){
+        if (enzyme.cutN[i]) enz.cut += (char)i;
+        if (enzyme.exceptC[i]) enz.no_cut += (char)i;
+      }
+    }
+    if(!p.createPepXML(fName,rs,&enz,&ss)) bBadFiles=true;
   }
   if(bBadFiles){
     cout << "Error exporting results. Please make sure drive is writable." << endl;
@@ -1903,5 +1926,63 @@ double KData::polynomialBestFit(vector<double>& x, vector<double>& y, vector<dou
 
 }
 
+//Takes relative path and finds absolute path
+bool KData::processPath(const char* cwd, const char* in_path, char* out_path){
+  //if windows or unix in_path, just copy it to out_path
+  if (strlen(in_path) > 0 && in_path[0] == '/'){ //unix
+    strcpy(out_path,in_path);
+    return true;
+  }
+  if (strlen(in_path) > 1 && in_path[1] == ':'){ //windows
+    strcpy(out_path, in_path);
+    return true;
+  }
+
+  //tokenize cwd
+  char* tok;
+  char str[1024];
+  strcpy(str,cwd);
+  string s;
+  vector<string> v;
+
+  tok = strtok(str, "\\/\n\r");
+  while (tok != NULL){
+    s=tok;
+    v.push_back(s);
+    tok = strtok(NULL, "\\/\n\r");
+  }
+
+  //tokenize in_path
+  strcpy(str,in_path);
+
+  tok = strtok(str, "\\/\n\r");
+  while (tok != NULL){
+    if (strcmp(tok, "..") == 0) {
+      v.pop_back();
+    } else if (strcmp(tok, ".") == 0){
+      //do nothing
+    } else {
+      s=tok;
+      v.push_back(s);
+    }
+    tok = strtok(NULL, "\\/\n\r");
+  }
+
+  //build absolute path
+#ifdef _MSC_VER
+  s.clear();
+#else
+  s.clear();
+  s+=slashdir;
+#endif
+  for (size_t i = 0; i < v.size(); i++){
+    s += v[i];
+    s += slashdir;
+  }
+  s[s.size() - 1] = '\0';
+  strcpy(out_path, &s[0]);
+  return true;
+
+}
 
 

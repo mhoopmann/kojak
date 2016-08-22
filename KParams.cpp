@@ -183,6 +183,8 @@ void KParams::parse(char* cmd) {
     strcpy(params->enzyme,&values[0][0]);
     xml.name = "enzyme";
     xml.value = values[0];
+    if (values.size() > 1) strcpy(params->enzymeName, &values[1][0]);
+    else strcpy(params->enzymeName, "Unnamed");
     xmlParams.push_back(xml);
 
   } else if(strcmp(param, "export_pepXML")==0 || strcmp(param, "export_pepxml")==0){

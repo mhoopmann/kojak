@@ -127,8 +127,6 @@ typedef struct kEnzymeRules{
 } kEnzymeRules;
 
 typedef struct kParams {
-  //int     diagnostic;
-  //int     dimers;
   int     instrument;     //0=Orbi, 1=FTICR
   int     isotopeError;
   int     maxMods;
@@ -163,18 +161,16 @@ typedef struct kParams {
   char    dbFile[256];
   char    decoy[256];
   char    enzyme[32];
+  char    enzymeName[64];
   char    ext[32];
   char    msFile[256];
   char    outFile[256];
-  //char    percolator[256];
   vector<int>*      diag;
   vector<kLinker>*  xLink;
   vector<kLinker>*  mLink;
   vector<kMass>*    mods;
   vector<kMass>*    fMods;
   kParams(){
-    //diagnostic=0;
-    //dimers=0;
     instrument=1;
     isotopeError=1;
     maxMods=0;
@@ -213,11 +209,11 @@ typedef struct kParams {
     ppmPrecursor=25.0;
     strcpy(decoy,"random");
     dbFile[0]='\0';
-    strcpy(enzyme,"[KR]|");
+    strcpy(enzyme,"[KR]|{P}");
+    strcpy(enzymeName, "Trypsin");
     ext[0]='\0';
     msFile[0]='\0';
     outFile[0]='\0';
-    //percolator[0]='\0';
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
@@ -225,8 +221,6 @@ typedef struct kParams {
     fMods = new vector<kMass>;
   }
   kParams(const kParams& p){
-    //diagnostic=p.diagnostic;
-    //dimers=p.dimers;
     instrument=p.instrument;
     isotopeError=p.isotopeError;
     maxMods=p.maxMods;
@@ -260,10 +254,10 @@ typedef struct kParams {
     strcpy(decoy,p.decoy);
     strcpy(dbFile,p.dbFile);
     strcpy(enzyme,p.enzyme);
+    strcpy(enzymeName,p.enzymeName);
     strcpy(ext,p.ext);
     strcpy(msFile,p.msFile);
     strcpy(outFile,p.outFile);
-    //strcpy(percolator,p.percolator);
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
@@ -286,8 +280,6 @@ typedef struct kParams {
   }
   kParams& operator=(const kParams& p){
     if(this!=&p){
-      //diagnostic=p.diagnostic;
-      //dimers=p.dimers;
       instrument=p.instrument;
       isotopeError = p.isotopeError;
       maxMods=p.maxMods;
@@ -321,10 +313,10 @@ typedef struct kParams {
       strcpy(decoy,p.decoy);
       strcpy(dbFile,p.dbFile);
       strcpy(enzyme,p.enzyme);
+      strcpy(enzymeName, p.enzymeName);
       strcpy(ext,p.ext);
       strcpy(msFile,p.msFile);
       strcpy(outFile,p.outFile);
-      //strcpy(percolator,p.percolator);
       delete diag;
       delete xLink;
       delete mLink;

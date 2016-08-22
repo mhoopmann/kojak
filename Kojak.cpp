@@ -20,8 +20,8 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
-#define VERSION "1.5.1"
-#define BDATE "August 19 2016"
+#define VERSION "1.5.2"
+#define BDATE "August 22 2016"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 
@@ -29,6 +29,7 @@ int main(int argc, char* argv[]){
 
   cout << "\nKojak version " << VERSION << ", " << BDATE << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
+  cout << "Visit http://kojak-ms.org for full documentation." << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
     return 1;

@@ -315,6 +315,10 @@ kDB& KDatabase::at(const int& i){
   return vDB[i];
 }
 
+kEnzymeRules& KDatabase::getEnzymeRules(){
+  return enzyme;
+}
+
 kPeptide& KDatabase::getPeptide(int index){
   return vPep[index];
 }
