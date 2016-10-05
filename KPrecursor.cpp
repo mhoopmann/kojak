@@ -56,19 +56,19 @@ KPrecursor::KPrecursor(kParams* p){
   hs.fileFormat=hs2.fileFormat=hs4.fileFormat=ms1;
 
   averagine = new CAveragine(NULL,NULL);
-	mercury = new CMercury8(NULL);
+  mercury = new CMercury8(NULL);
   models = new CModelLibrary(averagine,mercury);
 
   h = new CHardklor2(averagine,mercury,models);
   hO = new CHardklor(averagine,mercury);
 
-	CHardklorVariant hkv;
+  CHardklorVariant hkv;
   vector<CHardklorVariant> pepVariants;
   pepVariants.clear();
-	pepVariants.push_back(hkv);
+  pepVariants.push_back(hkv);
 
-	models->eraseLibrary();
-	models->buildLibrary(2,8,pepVariants);
+  models->eraseLibrary();
+  models->buildLibrary(2,8,pepVariants);
 
   h->Echo(false);
   h->SetResultsToMemory(true);
@@ -84,8 +84,10 @@ KPrecursor::KPrecursor(kParams* p){
 
 KPrecursor::~KPrecursor(){
   delete h;
+  delete hO;
   delete averagine;
   delete mercury;
+  delete models;
   delete centBuf;
   params = NULL;
 }

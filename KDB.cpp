@@ -247,6 +247,8 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
   //merge duplicates
   kPepSort ps;
+  ps.index=0;
+  ps.sequence.clear();
   vector<kPepSort> vPS;
   for(i=0;i<vPep.size();i++){
     ps.index=(int)i;

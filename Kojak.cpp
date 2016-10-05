@@ -40,7 +40,7 @@ int main(int argc, char* argv[]){
   time_t timeNow;
   time(&timeNow);
   cout << " Time at start: " << ctime(&timeNow) << endl;
-  
+
   unsigned int i;
   int k;
   kFile f;
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]){
   }
   db.buildPeptides(params.minPepMass,params.maxPepMass,params.miscleave);
 
-  
+
   //Step #3: Read in spectra and map precursors
   //Iterate over all input files
   for(i=0;i<files.size();i++){

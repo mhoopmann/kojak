@@ -667,14 +667,14 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   fprintf(f,"\t%.4lf",r.ppm);
   if(r.pep2>=0 && r.peptide2.size()>0){
     if(r.peptide2.size()<r.peptide1.size()) {
-      if(r.type==3) fprintf(f,"\t%d\t%d\t%d\t-.%s+%s.-",r.peptide2.size(),r.peptide1.size(),r.peptide1.size()+r.peptide2.size(),&r.modPeptide1[0],&r.modPeptide2[0]);
-      else fprintf(f,"\t%d\t%d\t%d\t-.%s(%d)--%s(%d).-",r.peptide2.size(),r.peptide1.size(),r.peptide1.size()+r.peptide2.size(),&r.modPeptide1[0],r.link1,&r.modPeptide2[0],r.link2);
+      if(r.type==3) fprintf(f,"\t%d\t%d\t%d\t-.%s+%s.-",(int)r.peptide2.size(),(int)r.peptide1.size(),(int)(r.peptide1.size()+r.peptide2.size()),&r.modPeptide1[0],&r.modPeptide2[0]);
+      else fprintf(f,"\t%d\t%d\t%d\t-.%s(%d)--%s(%d).-",(int)r.peptide2.size(),(int)r.peptide1.size(),(int)(r.peptide1.size()+r.peptide2.size()),&r.modPeptide1[0],r.link1,&r.modPeptide2[0],r.link2);
     } else {
-      if(r.type==3) fprintf(f,"\t%d\t%d\t%d\t-.%s+%s.-",r.peptide1.size(),r.peptide2.size(),r.peptide1.size()+r.peptide2.size(),&r.modPeptide2[0],&r.modPeptide1[0]);
-      else fprintf(f,"\t%d\t%d\t%d\t-.%s(%d)--%s(%d).-",r.peptide1.size(),r.peptide2.size(),r.peptide1.size()+r.peptide2.size(),&r.modPeptide2[0],r.link2,&r.modPeptide1[0],r.link1);
+      if(r.type==3) fprintf(f,"\t%d\t%d\t%d\t-.%s+%s.-",(int)r.peptide1.size(),(int)r.peptide2.size(),(int)(r.peptide1.size()+r.peptide2.size()),&r.modPeptide2[0],&r.modPeptide1[0]);
+      else fprintf(f,"\t%d\t%d\t%d\t-.%s(%d)--%s(%d).-",(int)r.peptide1.size(),(int)r.peptide2.size(),(int)(r.peptide1.size()+r.peptide2.size()),&r.modPeptide2[0],r.link2,&r.modPeptide1[0],r.link1);
     }
   } else {
-    fprintf(f,"\t%d\t-.%s",r.peptide1.size(),&r.modPeptide1[0]);
+    fprintf(f,"\t%d\t-.%s",(int)r.peptide1.size(),&r.modPeptide1[0]);
     if(r.type==1) fprintf(f,"(%d,%d)-LOOP",r.link1,r.link2);
     fprintf(f,".-");
   }
@@ -1436,7 +1436,7 @@ void KData::setLinker(kLinker x){
   if(x.mono==0) link.push_back(x);
 }
 
-void KData::setVersion(char* v){
+void KData::setVersion(const char* v){
   strcpy(version,v);
 }
 

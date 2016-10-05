@@ -63,7 +63,7 @@ public:
   void      readLinkers       (char* fn);
   bool      readSpectra       ();
   void      setLinker         (kLinker x);
-  void      setVersion        (char* v);
+  void      setVersion        (const char* v);
   int       size              ();
   int       sizeLink          ();
   void      xCorr             (bool b);
