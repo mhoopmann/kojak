@@ -373,7 +373,7 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
         if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
         if (xl && aaMod['n'].mod[j].xl && !monoModsOnXL) continue;
         //Add masses
-        addModIonSet(index, 'n', pos, j);
+        addModIonSet(index, 'n', pos, j,i);
         //solve another one
         if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2,(int)(sets.size()) - 1, depth + 1, xl);
       }
@@ -386,7 +386,7 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
         if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
         if (xl && aaMod['c'].mod[j].xl && !monoModsOnXL) continue;
         //Add masses
-        addModIonSet(index, 'c', pos, j);
+        addModIonSet(index, 'c', pos, j,i);
         //solve another one
         if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2,(int)(sets.size()) - 1, depth + 1, xl);
       }

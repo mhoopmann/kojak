@@ -1020,6 +1020,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   double low,high,m;
   int lowI,highI;
   bool bScored=false;
+  int max = (int)((params.maxPepMass + 1000) / 0.015);
 
   //cout << "scoreSingletSpectra2" << endl;
 
@@ -1029,7 +1030,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   for (i = 0; i<sz; i++){
     p = s->getPrecursor2(i);
     if (p->monoMass>minMass){
-      
+
       low = p->monoMass;
       high = low;
       m = low / 1000000 * params.ppmPrecursor;
@@ -1040,12 +1041,13 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       high -= m;
       lowI = (int)(low/0.015);
       highI = (int)(high/0.015)+1;
+      if (highI>max) highI=max;
 
       while (lowI < highI){
         if (pepBin[counterMotif][lowI]) break;
         lowI++;
       }
-      if (lowI == highI){
+      if (lowI >= highI){
         //sk++;
         continue;
       }
