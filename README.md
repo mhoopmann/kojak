@@ -20,6 +20,14 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.5.2 - October 6 2016
+* Fixed buffer overrun when using the turbo_button.
+* Fixed incorrect position reporting of differential mods on the n- and c-termini of loop links.
+
+#### Version 1.5.1 - August 19 2016
+* Fixed buffer corruption when using multiple threads.
+* Fixed data file path issues in pepXML output.
+
 #### Version 1.5.0 - July 28 2016
 * Changed how cross-link and mono-link sites are defined in the parameters.
 * Fixed bug with modifications on protein termini with loop-links.
