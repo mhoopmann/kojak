@@ -98,7 +98,6 @@ public:
   bool doPeptideAnalysis   ();
   //bool doPeptideAnalysisNC ();
   bool doRelaxedAnalysis   ();
-  
   //__int64 xCorrCount;
 
 private:

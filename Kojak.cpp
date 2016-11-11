@@ -20,8 +20,8 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
-#define VERSION "1.5.2"
-#define BDATE "October 6 2016"
+#define VERSION "1.5.3"
+#define BDATE "November 11 2016"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 

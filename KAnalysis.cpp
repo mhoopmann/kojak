@@ -303,11 +303,10 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
   bool bt;
   vector<int> index;
   vector<kPepMod> mods;
-  
+
   //char str[256];
   //db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
-  //cout << "Checking: " << str << endl;
-
+  //cout << iIndex << "\tChecking: " << str << "\t" << pepIndex << endl;
   //Set the peptide, calc the ions, and score it against the spectra
   ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm);
   
@@ -403,7 +402,6 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
     }
 
   }//k
-
   return true;
 }
 
@@ -1027,6 +1025,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   KSpectrum* s = spec->getSpectrum(index);
   kPrecursor* p;
   int sz = s->sizePrecursor();
+  //cout << "started loop" << endl;
   for (i = 0; i<sz; i++){
     p = s->getPrecursor2(i);
     if (p->monoMass>minMass){
@@ -1041,6 +1040,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       high -= m;
       lowI = (int)(low/0.015);
       highI = (int)(high/0.015)+1;
+
+      if (lowI<0) lowI=0;
       if (highI>max) highI=max;
 
       while (lowI < highI){
@@ -1098,7 +1099,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   //spec->at(index).sc += sk;
   //spec->at(index).cc += nsk;
   //Threading::UnlockMutex(mutexSpecScore[index]);
-
   return bScored;
 }
 
