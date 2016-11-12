@@ -20,6 +20,9 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.5.3 - November 11 2016
+* Fixed edge-case bug causing a segfault.
+
 #### Version 1.5.2 - October 6 2016
 * Fixed buffer overrun when using the turbo_button.
 * Fixed incorrect position reporting of differential mods on the n- and c-termini of loop links.
