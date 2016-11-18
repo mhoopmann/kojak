@@ -57,6 +57,7 @@ public:
   int       getXLIndex        (int motifIndex, int xlIndex);
   char**    getXLTable        ();
   bool      mapPrecursors     ();
+  bool      outputIntermediate(KDatabase& db);
   bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db, KParams& par);

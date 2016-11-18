@@ -494,6 +494,75 @@ bool KData::mapPrecursors(){
   return true;
 }
 
+//Function deprecated. Should be excised.
+bool KData::outputIntermediate(KDatabase& db){
+
+  size_t i,n;
+  int j, k, x;
+  char fName[256];
+
+  FILE* fOut = NULL;
+
+  kPeptide pep;
+  kSingletScoreCard sc;
+  char strs[256];
+  char strTmp[32];
+  string pepSeq;
+  string protSeq;
+
+  //Open all the required output files.
+  sprintf(fName, "%s.intermediate.xml", params->outFile);
+  fOut = fopen(fName, "wt");
+  if (fOut == NULL) return false;
+
+  for (i = 0; i<spec.size(); i++) {
+
+    fprintf(fOut, "<spectrum scan=\"%d\" retention_time_sec=\"%.4f\" selected_mz=\"%.8lf\">\n", spec[i].getScanNumber(), spec[i].getRTime(), spec[i].getMZ());
+    fprintf(fOut, " <precursorList>\n");
+    for (j = 0; j<spec[i].sizePrecursor(); j++){
+      fprintf(fOut, "  <precursor mono_mass=\"%.8lf\" charge=\"%d\" corr=\"%.4lf\"/>\n", spec[i].getPrecursor(j).monoMass, spec[i].getPrecursor(j).charge, spec[i].getPrecursor(j).corr);
+    }
+    fprintf(fOut, " </precursorList>\n");
+    fprintf(fOut, " <peptideList>\n");
+    for (j = 0; j<params->intermediate; j++){
+      if (j == spec[i].getSingletCount()) break;
+      sc = spec[i].getSingletScoreCard(j);
+      db.getPeptideSeq(db.getPeptideList()->at(sc.pep1).map->at(0).index, db.getPeptideList()->at(sc.pep1).map->at(0).start, db.getPeptideList()->at(sc.pep1).map->at(0).stop, strs);
+      pepSeq.clear();
+      for (k = 0; k<strlen(strs); k++){
+        pepSeq += strs[k];
+        for (x = 0; x<sc.modLen; x++){
+          if (sc.mods[x].pos == k) {
+            sprintf(strTmp, "[%.2lf]", sc.mods[x].mass);
+            pepSeq+=strTmp;
+          }
+        }
+        if (k == sc.k1) pepSeq+="[x]";
+      }
+
+      pep = db.getPeptide(sc.pep1);
+      protSeq.clear();
+      for (n = 0; n<pep.map->size(); n++){
+        protSeq += db[pep.map->at(n).index].name;
+        if (n<pep.map->size()-1) protSeq+='-';
+      }
+      fprintf(fOut, "  <peptide sequence=\"%s\" mass=\"%.8lf\" protein=\"%s\" num_tot_proteins=\"%d\" link_site=\"%d\" score=\"%.4lf\" complement_mass=\"%.8lf\">\n", &pepSeq[0], sc.mass, &protSeq[0], (int)pep.map->size(), sc.k1 + 1, sc.simpleScore*sc.len,spec[i].getPrecursor((int)sc.pre).monoMass-sc.mass);
+      if (sc.modLen>0){
+        fprintf(fOut, "   <modificationList>\n");
+        for (k = 0; k<sc.modLen; k++){
+          fprintf(fOut, "    <modification position=\"%d\" mass=\"%.8lf\"/>\n",sc.mods[k].pos+1,sc.mods[k].mass);
+        }
+        fprintf(fOut, "   </modificationList>\n");
+      }
+      fprintf(fOut, "  </peptide>\n");
+    }
+    fprintf(fOut, " </peptideList>\n");
+    fprintf(fOut, "</spectrum>\n");
+  }
+  fclose(fOut);
+  return true;
+}
+
 bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
 
   unsigned int i;

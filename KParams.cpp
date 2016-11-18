@@ -235,6 +235,13 @@ void KParams::parse(char* cmd) {
     xml.value = values[0];
     xmlParams.push_back(xml);
 
+  } else if (strcmp(param, "intermediate") == 0){
+    params->intermediate = atoi(&values[0][0]);
+    if (params->intermediate < 0){
+      warn("ERROR: intermediate value out of range. Stopping analysis.", 3);
+      exit(-5);
+    }
+
   } else if(strcmp(param,"ion_series_A")==0){
     if(atoi(&values[0][0])==0) params->ionSeries[0]=false;
     else params->ionSeries[0]=true;

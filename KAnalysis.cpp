@@ -1010,6 +1010,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   kPepMod mod;
   double score1 = 0;
   double score2 = 0;
+  int bestPre = 0;
   int i;
   //int sk=0;
   //int nsk=0;
@@ -1056,7 +1057,10 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       //nsk++;
       if (params.xcorr) score1 = xCorrScoring(*s, p->monoMass - mass, sIndex, iIndex);
       else score1 = kojakScoring(index, p->monoMass - mass, sIndex, iIndex);
-      if (score1>score2) score2 = score1;
+      if (score1>score2) {
+        score2 = score1;
+        bestPre = i;
+      }
       bScored=true;
     }
   }
@@ -1067,6 +1071,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   sc.k1 = k;
   sc.linkable = false;
   sc.pep1 = pep;
+  sc.pre = (char)bestPre;
   sc.mass = mass;
   if (sc.simpleScore>0) {
     v.clear();

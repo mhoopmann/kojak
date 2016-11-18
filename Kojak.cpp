@@ -20,8 +20,8 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
-#define VERSION "1.5.3"
-#define BDATE "November 11 2016"
+#define VERSION "1.5.4-dev"
+#define BDATE "November 18 2016"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 
@@ -109,6 +109,8 @@ int main(int argc, char* argv[]){
     cout << "\n Start spectral search: " << ctime(&timeNow);
     cout << "  Scoring peptides ... ";
     anal.doPeptideAnalysis();
+
+    if(params.intermediate>0) spec.outputIntermediate(db);
     
     cout << "  Finalizing XL analysis ... ";
     anal.doRelaxedAnalysis();

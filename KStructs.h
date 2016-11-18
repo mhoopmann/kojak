@@ -128,6 +128,7 @@ typedef struct kEnzymeRules{
 
 typedef struct kParams {
   int     instrument;     //0=Orbi, 1=FTICR
+  int     intermediate;
   int     isotopeError;
   int     maxMods;
   int     maxPeaks;
@@ -172,6 +173,7 @@ typedef struct kParams {
   vector<kMass>*    fMods;
   kParams(){
     instrument=1;
+    intermediate=0;
     isotopeError=1;
     maxMods=0;
     maxPeaks=0;
@@ -222,6 +224,7 @@ typedef struct kParams {
   }
   kParams(const kParams& p){
     instrument=p.instrument;
+    intermediate=p.intermediate;
     isotopeError=p.isotopeError;
     maxMods=p.maxMods;
     maxPeaks=p.maxPeaks;
@@ -281,6 +284,7 @@ typedef struct kParams {
   kParams& operator=(const kParams& p){
     if(this!=&p){
       instrument=p.instrument;
+      intermediate=p.intermediate;
       isotopeError = p.isotopeError;
       maxMods=p.maxMods;
       maxPeaks=p.maxPeaks;
@@ -452,6 +456,7 @@ typedef struct kSingletScoreCard{
   bool                linkable;
   char                k1;
   int                 pep1;
+  char                pre;
   float               simpleScore;
   double              mass;
   char                modLen;
@@ -463,6 +468,7 @@ typedef struct kSingletScoreCard{
     linkable=false;
     k1=0;
     pep1=0;
+    pre=0;
     simpleScore=0;
     mass=0;
     modLen=0;
@@ -475,6 +481,7 @@ typedef struct kSingletScoreCard{
     linkable=k.linkable;
     k1=k.k1;
     pep1=k.pep1;
+    pre=k.pre;
     simpleScore=k.simpleScore;
     mass=k.mass;
     modLen=k.modLen;
@@ -497,6 +504,7 @@ typedef struct kSingletScoreCard{
       linkable=k.linkable;
       k1=k.k1;
       pep1=k.pep1;
+      pre=k.pre;
       simpleScore=k.simpleScore;
       mass=k.mass;
       modLen=k.modLen;
