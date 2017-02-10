@@ -21,29 +21,34 @@ limitations under the License.
 //==============================
 KDatabase::KDatabase(){
   for(int i=0;i<128;i++) AA[i]=0;
-  AA['a']=AA['A']=71.0371103;
-  AA['c']=AA['C']=103.0091803;
-  AA['d']=AA['D']=115.0269385;
-  AA['e']=AA['E']=129.0425877;
-  AA['f']=AA['F']=147.0684087;
-  AA['g']=AA['G']=57.0214611;
-  AA['h']=AA['H']=137.0589059;
-  AA['i']=AA['I']=113.0840579;
-  AA['k']=AA['K']=128.0949557;
-  AA['l']=AA['L']=113.0840579;
-  AA['m']=AA['M']=131.0404787;
-  AA['n']=AA['N']=114.0429222;
-  AA['p']=AA['P']=97.0527595;
-  AA['q']=AA['Q']=128.0585714;
-  AA['r']=AA['R']=156.1011021;
-  AA['s']=AA['S']=87.0320244;
-  AA['t']=AA['T']=101.0476736;
-  AA['v']=AA['V']=99.0684087;
-  AA['w']=AA['W']=186.0793065;
-  AA['y']=AA['Y']=163.0633228;
+  AA['A']=71.0371103;
+  AA['C']=103.0091803;
+  AA['D']=115.0269385;
+  AA['E']=129.0425877;
+  AA['F']=147.0684087;
+  AA['G']=57.0214611;
+  AA['H']=137.0589059;
+  AA['I']=113.0840579;
+  AA['K']=128.0949557;
+  AA['L']=113.0840579;
+  AA['M']=131.0404787;
+  AA['N']=114.0429222;
+  AA['P']=97.0527595;
+  AA['Q']=128.0585714;
+  AA['R']=156.1011021;
+  AA['S']=87.0320244;
+  AA['T']=101.0476736;
+  AA['V']=99.0684087;
+  AA['W']=186.0793065;
+  AA['Y']=163.0633228;
 
   setA=0;
   setB=0;
+
+  fixMassPepC=0;
+  fixMassPepN=0;
+  fixMassProtC=0;
+  fixMassProtN=0;
 }
 
 //==============================
@@ -137,7 +142,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
     n=0;
     k=0;
     mc=0;
-    mass=18.0105633;
+    mass=18.0105633+fixMassPepN+fixMassProtN;
     next=0; //allow for next start site to be amino acid after initial M.
 
     pm.index=(int)i;
@@ -156,7 +161,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         bCutMarked=true;
 
         //Add the peptide now (if enough mass)
-        if (mass>min) addPeptide((int)i, (int)start, (int)n - 1, mass, p, vPep, bNTerm, bCTerm, xlSites);
+        if ((mass+fixMassPepC)>min) addPeptide((int)i, (int)start, (int)n - 1, mass+fixMassPepC, p, vPep, bNTerm, bCTerm, xlSites);
 
       }
 
@@ -170,7 +175,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         bCutMarked=true;
 
         //Add the peptide now (if enough mass)
-        if(mass>min && mass<max) addPeptide((int)i,(int)start,(int)n,mass,p,vPep,bNTerm,bCTerm,xlSites);
+        if((mass+fixMassPepC)>min && (mass+fixMassPepC)<max) addPeptide((int)i,(int)start,(int)n,mass+fixMassPepC,p,vPep,bNTerm,bCTerm,xlSites);
 
       }
 
@@ -181,12 +186,12 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
       if((start+n+1)==seqSize) {
 
         //Add the peptide now (if enough mass)
-        if (mass>min && mass<max) addPeptide((int)i, (int)start, (int)n, mass, p, vPep, bNTerm, bCTerm, xlSites);
+        if ((mass+fixMassPepC+fixMassProtC)>min && (mass+fixMassPepC+fixMassProtC)<max) addPeptide((int)i, (int)start, (int)n, mass+fixMassPepC+fixMassProtC, p, vPep, bNTerm, bCTerm, xlSites);
         if(next>-1) {
           start=next+1;
           n=0;
           mc=0;
-          mass=18.0105633;
+          mass=18.0105633+fixMassPepN;
           bNTerm = false;
           bCTerm = false;
           xlSites=0;
@@ -200,14 +205,14 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
       //Check if we exceeded peptide mass
       //Check if we exceeded the number of missed cleavages
-      if(mass>max || mc>mis ) {
+      if((mass+fixMassPepC)>max || mc>mis ) {
 
         //if we know next cut site
         if(next>-1) {
           start=next+1;
           n=0;
           mc=0;
-          mass=18.0105633;
+          mass=18.0105633+fixMassPepN;
           bNTerm = false;
           bCTerm = false;
           xlSites = 0;
@@ -230,7 +235,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
           start=next+1;
           n=0;
           mc=0;
-          mass=18.0105633;
+          mass=18.0105633+fixMassPepN;
           bNTerm = false;
           bCTerm = false;
           xlSites = 0;
@@ -310,7 +315,11 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 //  Accessors & Modifiers
 //==============================
 void KDatabase::addFixedMod(char mod, double mass){
-  AA[mod]+=mass;
+  if (mod == 'n') fixMassPepN=mass;
+  else if(mod=='c') fixMassPepC=mass;
+  else if(mod=='$') fixMassProtN=mass;
+  else if(mod=='%') fixMassProtC=mass;
+  else AA[mod]+=mass;
 }
 
 kDB& KDatabase::at(const int& i){

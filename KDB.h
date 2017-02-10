@@ -59,6 +59,10 @@ private:
   
   //Data Members
   double        AA[128];   //Amino acid masses
+  double        fixMassPepC;
+  double        fixMassPepN;
+  double        fixMassProtC;
+  double        fixMassProtN;
   char          xlTable[128][20];
   kEnzymeRules  enzyme;    //Where to cut to generate peptides
   int           setA;

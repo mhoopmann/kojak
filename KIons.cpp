@@ -43,6 +43,10 @@ KIons::KIons(){
   aaMass['V']=99.0684087;
   aaMass['W']=186.0793065;
   aaMass['Y']=163.0633228;
+  aaMass['c']=0;
+  aaMass['n']=0;
+  aaMass['$']=0;
+  aaMass['%']=0;
   modList=NULL;
   pep1=NULL;
   pep2=NULL;
@@ -91,9 +95,14 @@ void KIons::buildIons(){
   y=ionCount-1;
 
 	//b- & y-ions from first peptide
-  fragMass=0;
+  fragMass=aaMass['n'];
+  if (nPep1) fragMass+=aaMass['$'];
 	for(i=0;i<ionCount;i++){
     fragMass+=aaMass[pep1[i]];
+    if (i == ionCount - 1) {
+      fragMass += aaMass['c'];
+      if (cPep1) fragMass += aaMass['%'];
+    }
     sets[0].aIons[0][b] = fragMass - 27.9949141;
     sets[0].bIons[0][b] = fragMass;
     sets[0].cIons[0][b] = fragMass + 17.026547;
@@ -148,9 +157,14 @@ void KIons::buildLoopIons(double linkMass, int link1, int link2){
   totalMass=pep1Mass+linkMass;
 
 	//b- & y-ions from first peptide
-  mMass=0;
+  mMass = aaMass['n'];
+  if (nPep1) mMass += aaMass['$'];
 	for(i=0;i<len;i++){
     mMass+=aaMass[pep1[i]];
+    if (i == len - 1) {
+      mMass += aaMass['c'];
+      if (cPep1) mMass += aaMass['%'];
+    }
     if(i>=a1 && i<a2) continue;
     else if(i>=a2) fragMass=mMass+linkMass;
     else fragMass = mMass;
@@ -194,9 +208,14 @@ void KIons::buildSingletIons(int link){
   y=ionCount-1;
 
 	//b- & y-ions from first peptide
-  mMass=0;
+  mMass=aaMass['n'];
+  if (nPep1) mMass += aaMass['$'];
 	for(i=0;i<ionCount;i++){
     mMass+=aaMass[pep1[i]];
+    if (i == ionCount - 1) {
+      mMass += aaMass['n'];
+      if (cPep1) mMass += aaMass['%'];
+    }
     if(i>=link) { //negative mass indicates that the ion needs a modmass as well
       sets[0].xIons[0][y] = pep1Mass-mMass + 25.9792649;
       sets[0].yIons[0][y] = pep1Mass-mMass;
@@ -269,6 +288,8 @@ void KIons::addModIonSet(int index, char aa, int pos, int modIndex, int loopPos)
       else s.zIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
     }
   }
+  if (aa == 'n' || aa=='$') s.modNTerm=true;
+  if (aa == 'c' || aa=='%') s.modCTerm=true;
   if (loopPos>-1) s.mods[loopPos] = aaMod[aa].mod[modIndex].mass;
   else s.mods[pos] = aaMod[aa].mod[modIndex].mass;
   s.mass += aaMod[aa].mod[modIndex].mass;
@@ -304,21 +325,34 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
       if(depth+1<maxModCount) modIonsRec(i+1,link,(int)(sets.size())-1,depth+1,xl);
     }
 
-    //Special case for n-terminus
-    if (i == 0 && nPep1) {
+    //Special case for peptide n-terminus
+    if (i == 0) {
       for (j = 0; j<aaMod['n'].count; j++){
         //skip mods not allowed on this peptide
         if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
         if (xl && aaMod['n'].mod[j].xl && !monoModsOnXL) continue;
         //Add masses
-        addModIonSet(index,'n', i, j);
+        addModIonSet(index, 'n', i, j);
         //solve another one
         if (depth + 1<maxModCount) modIonsRec(i + 1, link, (int)(sets.size()) - 1, depth + 1, xl);
       }
+
+      //Special case for protein n-terminus
+      if (nPep1) {
+        for (j = 0; j<aaMod['$'].count; j++){
+          //skip mods not allowed on this peptide
+          if (xl && !aaMod['$'].mod[j].xl && !diffModsOnXL) continue;
+          if (xl && aaMod['$'].mod[j].xl && !monoModsOnXL) continue;
+          //Add masses
+          addModIonSet(index,'$', i, j);
+          //solve another one
+          if (depth + 1<maxModCount) modIonsRec(i + 1, link, (int)(sets.size()) - 1, depth + 1, xl);
+        }
+      }
     }
 
-    //Special case for c-terminus
-    if (i == pep1Len - 1 && cPep1){
+    //Special case for peptide c-terminus
+    if (i == pep1Len - 1){
       for (j = 0; j<aaMod['c'].count; j++){
         //skip mods not allowed on this peptide
         if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
@@ -327,6 +361,19 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
         addModIonSet(index, 'c', i, j);
         //solve another one
         if (depth + 1<maxModCount) modIonsRec(i + 1, link, (int)(sets.size()) - 1, depth + 1, xl);
+      }
+
+      //Special case for protein c-terminus
+      if (cPep1){
+        for (j = 0; j<aaMod['%'].count; j++){
+          //skip mods not allowed on this peptide
+          if (xl && !aaMod['%'].mod[j].xl && !diffModsOnXL) continue;
+          if (xl && aaMod['%'].mod[j].xl && !monoModsOnXL) continue;
+          //Add masses
+          addModIonSet(index, '%', i, j);
+          //solve another one
+          if (depth + 1<maxModCount) modIonsRec(i + 1, link, (int)(sets.size()) - 1, depth + 1, xl);
+        }
       }
     }
   
@@ -366,8 +413,8 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
       if(depth+1<maxModCount) modLoopIonsRec(i+1,link,link2,(int)(sets.size())-1,depth+1,xl);
     }
 
-    //Special case for n-terminus
-    if (i == 0 && nPep1) {
+    //Special case for peptide n-terminus
+    if (i == 0) {
       for (j = 0; j<aaMod['n'].count; j++){
         //skip mods not allowed on this peptide
         if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
@@ -377,10 +424,23 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
         //solve another one
         if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2,(int)(sets.size()) - 1, depth + 1, xl);
       }
+
+      //Special case for protein n-terminus
+      if (nPep1) {
+        for (j = 0; j<aaMod['$'].count; j++){
+          //skip mods not allowed on this peptide
+          if (xl && !aaMod['$'].mod[j].xl && !diffModsOnXL) continue;
+          if (xl && aaMod['$'].mod[j].xl && !monoModsOnXL) continue;
+          //Add masses
+          addModIonSet(index, '$', pos, j, i);
+          //solve another one
+          if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2, (int)(sets.size()) - 1, depth + 1, xl);
+        }
+      }
     }
 
-    //Special case for c-terinus
-    if (i == pep1Len - 1 && cPep1){
+    //Special case for peptide c-terinus
+    if (i == pep1Len - 1){
       for (j = 0; j<aaMod['c'].count; j++){
         //skip mods not allowed on this peptide
         if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
@@ -389,6 +449,19 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
         addModIonSet(index, 'c', pos, j,i);
         //solve another one
         if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2,(int)(sets.size()) - 1, depth + 1, xl);
+      }
+
+      //Special case for protein c-terinus
+      if (cPep1){
+        for (j = 0; j<aaMod['%'].count; j++){
+          //skip mods not allowed on this peptide
+          if (xl && !aaMod['%'].mod[j].xl && !diffModsOnXL) continue;
+          if (xl && aaMod['%'].mod[j].xl && !monoModsOnXL) continue;
+          //Add masses
+          addModIonSet(index, '%', pos, j, i);
+          //solve another one
+          if (depth + 1<maxModCount) modLoopIonsRec(i + 1, link, link2, (int)(sets.size()) - 1, depth + 1, xl);
+        }
       }
     }
 

@@ -88,6 +88,10 @@ private:
   double  aaMass[128];
   double  aaFixedModMass[128];
   kMod    aaMod[128];   //inefficient memory usage, but not by much in the grand scheme.
+  double  protFixedModMassC;
+  double  protFixedModMassN;
+  kMod  protModMassC;
+  kMod  protModMassN;
 
   bool  monoModsOnXL;
   bool  diffModsOnXL;
@@ -104,10 +108,10 @@ private:
   char* pep1;
   char* pep2;
 
-  bool nPep1; //peptide has n-terminus
-  bool nPep2; //peptide has n-terminus
-  bool cPep1; //peptide has c-terminus
-  bool cPep2; //peptide has c-terminus
+  bool nPep1; //peptide has protein n-terminus
+  bool nPep2; //peptide has protein n-terminus
+  bool cPep1; //peptide has protein c-terminus
+  bool cPep2; //peptide has protein c-terminus
 
   vector<kModPos> modQueue;
   vector<double>  modMassArray;

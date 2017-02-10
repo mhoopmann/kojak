@@ -306,7 +306,6 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
 
   //char str[256];
   //db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
-  //cout << iIndex << "\tChecking: " << str << "\t" << pepIndex << endl;
   //Set the peptide, calc the ions, and score it against the spectra
   ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm);
   
@@ -982,6 +981,9 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
     if(iset->difMass!=0){
       for(i=0;i<ions[iIndex].getIonCount();i++) {
         if(iset->mods[i]!=0){
+          if (i == 0 && iset->modNTerm) mod.term = true;
+          else if (i == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
+          else mod.term = false;
           mod.pos=(char)i;
           mod.mass=iset->mods[i];
           v.push_back(mod);
@@ -1084,6 +1086,9 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
     if (iset->difMass != 0){
       for (i = 0; i<ions[iIndex].getIonCount(); i++) {
         if (iset->mods[i] != 0){
+          if (i==0 && iset->modNTerm) mod.term=true;
+          else if (i == ions[iIndex].getIonCount()-1 && iset->modCTerm) mod.term=true;
+          else mod.term=false;
           mod.pos = (char)i;
           mod.mass = iset->mods[i];
           v.push_back(mod);
@@ -1129,6 +1134,9 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     if(ions[iIndex][sIndex].difMass!=0){
       for(i=0;i<ions[iIndex].getPeptideLen();i++) {
         if(ions[iIndex][sIndex].mods[i]!=0){
+          if (i == 0 && ions[iIndex][sIndex].modNTerm) mod.term = true;
+          else if (i == ions[iIndex].getIonCount() - 1 && ions[iIndex][sIndex].modCTerm) mod.term = true;
+          else mod.term = false;
           mod.pos=(char)i;
           mod.mass=ions[iIndex][sIndex].mods[i];
           sc.mods1->push_back(mod);
@@ -1247,6 +1255,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
     //Iterate through pfFastXcorrData
     for(j=0;j<numIonSeries;j++){
       for(i=0;i<ionCount;i++){
+
         //get key
         if(ionSeries[j][k][i]<0) mz = params.binSize * (int)((dif-ionSeries[j][k][i])*invBinSize+binOffset);
         else mz = params.binSize * (int)(ionSeries[j][k][i]*invBinSize+binOffset);

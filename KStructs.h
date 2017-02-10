@@ -355,6 +355,7 @@ typedef struct kPreprocessStruct { //adapted from Comet
 } kPreprocessStruct;
 
 typedef struct kPepMod{
+  bool term;
   char pos;
   double mass;
 } kPepMod;
@@ -552,6 +553,10 @@ typedef struct kResults{
   bool    decoy;
   bool    linkable1;
   bool    linkable2;
+  bool    cTerm1; //peptide contains protein c-terminus
+  bool    nTerm1; //peptide contains protein n-terminus
+  bool    cTerm2; //peptide contains protein c-terminus
+  bool    nTerm2; //peptide contains protein n-terminus
   int     charge;
   int     link1;
   int     link2;

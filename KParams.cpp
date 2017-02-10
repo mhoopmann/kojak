@@ -204,9 +204,25 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"fixed_modification")==0){
     m.index=(int)values[0][0];
     m.mass=atof(&values[1][0]);
-    params->fMods->push_back(m);
+    if(m.mass!=0) params->fMods->push_back(m);
     xml.name = "fixed_modification";
     xml.value = values[0]+" "+values[1];
+    xmlParams.push_back(xml);
+
+  } else if (strcmp(param, "fixed_modification_protC") == 0){
+    m.index = (int)'%';
+    m.mass = atof(&values[0][0]);
+    if (m.mass != 0) params->fMods->push_back(m);
+    xml.name = "fixed_modification_protC";
+    xml.value = values[0];
+    xmlParams.push_back(xml);
+
+  } else if (strcmp(param, "fixed_modification_protN") == 0){
+    m.index = (int)'$';
+    m.mass = atof(&values[0][0]);
+    if (m.mass != 0) params->fMods->push_back(m);
+    xml.name = "fixed_modification_protN";
+    xml.value = values[0];
     xmlParams.push_back(xml);
 
 	} else if(strcmp(param,"fragment_bin_offset")==0){
@@ -328,11 +344,33 @@ void KParams::parse(char* cmd) {
     m.xl=false;
     m.index=(int)values[0][0];
     m.mass=atof(&values[1][0]);
-    if(!checkMod(m)) params->mods->push_back(m);
+    if(m.mass!=0 && !checkMod(m)) params->mods->push_back(m);
     xml.name = "modification";
     xml.value = values[0]+" "+values[1];
     xmlParams.push_back(xml);
 
+  } else if (strcmp(param, "modification_protC") == 0){
+    m.xl = false;
+    m.index = (int)'%';
+    m.mass = atof(&values[0][0]);
+    if (m.mass!=0) { //acceptable to use placeholder; don't load it as a parameter
+      if (!checkMod(m)) params->mods->push_back(m);
+    }
+    xml.name = "modification_protC";
+    xml.value = values[0];
+    xmlParams.push_back(xml);
+
+  } else if (strcmp(param, "modification_protN") == 0){
+    m.xl = false;
+    m.index = (int)'$';
+    m.mass = atof(&values[0][0]);
+    if(m.mass != 0) { //acceptable to use placeholder; don't load it as a parameter
+      if (!checkMod(m)) params->mods->push_back(m);
+    }
+    xml.name = "modification_protN";
+    xml.value = values[0];
+    xmlParams.push_back(xml);
+    
   } else if(strcmp(param,"mono_link")==0){
     //Check number of parameters
     if (values.size() != 2){
@@ -347,7 +385,9 @@ void KParams::parse(char* cmd) {
     m.xl = true;
     m.mass = atof(&values[1][0]);
     for (i = 0; i < values[0].size(); i++){
-      m.index = (int)values[0][i];
+      if (values[0][i] == 'c') m.index = (int)'%';
+      else if (values[0][i] == 'n') m.index = (int)'$';
+      else m.index = (int)values[0][i];
       if (!checkMod(m)) params->mods->push_back(m);
     }
     xml.name = "mono_link";

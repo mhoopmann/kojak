@@ -19,6 +19,8 @@ public:
   double  mass;
   double  difMass;
   int     len;
+  bool modNTerm;
+  bool modCTerm;
 };
 
 #endif

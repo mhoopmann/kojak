@@ -600,8 +600,14 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   }
   
   for(i=0;i<r.mods1.size();i++){
-    sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos]));
+    if (r.mods1[i].pos == 0 && r.mods1[i].term) sh.modInfo.mod_nterm_mass = r.mods1[i].mass;
+    else if (r.mods1[i].pos == r.peptide1.length() - 1 && r.mods1[i].term) sh.modInfo.mod_cterm_mass = r.mods1[i].mass;
+    else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos]));
   }
+  if (r.nTerm1 && aa.getFixedModMass('$')!=0)sh.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
+  if (r.cTerm1 && aa.getFixedModMass('%')!=0)sh.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
+  sh.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
+  sh.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
   for(i=0;i<r.peptide1.size();i++){
     if(aa.getFixedModMass(r.peptide1[i])>0) {
       sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i]));
@@ -613,10 +619,16 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     shB.peptide=r.peptide2;
     shB.calc_neutral_pep_mass=r.massB;
     shB.massdiff=r.obsMass-r.massB;
-    
+
     for(i=0;i<r.mods2.size();i++){
-      shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos]));
+      if (r.mods2[i].pos == 0 && r.mods2[i].term) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
+      else if (r.mods2[i].pos == r.peptide2.length() - 1 && r.mods2[i].term) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
+      else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos]));
     }
+    if (r.nTerm2 && aa.getFixedModMass('$')!=0)shB.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
+    if (r.cTerm2 && aa.getFixedModMass('%')!=0)shB.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
+    shB.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
+    shB.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
     for(i=0;i<r.peptide2.size();i++){
       if(aa.getFixedModMass(r.peptide2[i])>0) {
         shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i]));
@@ -946,6 +958,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
           tmpSC = spec[i].getScoreCard(j);
           pep = db.getPeptide(tmpSC.pep1);
           db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+          if (pep.nTerm && aa.getFixedModMass('$')!=0) fprintf(f2, "[%.2lf]", aa.getFixedModMass('$'));
           for(n=0;n<strlen(peptide);n++){
             fprintf(f2,"%c",peptide[n]);
             for(x=0;x<tmpSC.mods1->size();x++){
@@ -953,12 +966,14 @@ bool KData::outputResults(KDatabase& db, KParams& par){
             }
             if(n==tmpSC.k1 || (tmpSC.pep2<0 && n==tmpSC.k2)) fprintf(f2,"[x]");
           }
+          if (pep.cTerm && aa.getFixedModMass('%')!=0) fprintf(f2, "[%.2lf]", aa.getFixedModMass('%'));
           fprintf(f2,"(%d)",spec[i].getScoreCard(j).k1);
           if(tmpSC.k1>-1 && link[tmpSC.link].mono==0){
             if(tmpSC.pep2>-1){
               fprintf(f2,"\t");
               pep = db.getPeptide(tmpSC.pep2);
               db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+              if (pep.nTerm && aa.getFixedModMass('$')!=0) fprintf(f2, "[%.2lf]", aa.getFixedModMass('$'));
               for(n=0;n<strlen(peptide);n++){
                 fprintf(f2,"%c",peptide[n]);
                 for(x=0;x<tmpSC.mods2->size();x++){
@@ -966,6 +981,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
                 }
                 if(n==tmpSC.k2) fprintf(f2,"[x]");
               }
+              if (pep.cTerm && aa.getFixedModMass('%')!=0) fprintf(f2, "[%.2lf]", aa.getFixedModMass('%'));
               fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
             } else {
               fprintf(f2,"\t(%d)",spec[i].getScoreCard(j).k2);
@@ -975,12 +991,14 @@ bool KData::outputResults(KDatabase& db, KParams& par){
             fprintf(f2,"+");
             pep = db.getPeptide(tmpSC.pep2);
             db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+            if (pep.nTerm && aa.getFixedModMass('$')!=0) fprintf(f2, "[%.2lf]", aa.getFixedModMass('$'));
             for(n=0;n<strlen(peptide);n++){
               fprintf(f2,"%c",peptide[n]);
               for(x=0;x<tmpSC.mods2->size();x++){
                 if(tmpSC.mods2->at(x).pos==n) fprintf(f2,"[%.2lf]",tmpSC.mods2->at(x).mass);
               }
             }
+            if (pep.cTerm && aa.getFixedModMass('%')!=0) fprintf(f2, "[%.2lf]", aa.getFixedModMass('%'));
             fprintf(f2,"(%d)",spec[i].getScoreCard(j).k2);
           }
           if(tmpSC.link>-1) fprintf(f2,"\t%.4lf\t%.4lf\t%.4lf\n",tmpSC.simpleScore,tmpSC.mass,link[tmpSC.link].mass);
@@ -1079,18 +1097,26 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
       res.peptide1 = peptide;
       res.mods1.clear();
+      res.cTerm1 = pep.cTerm;
+      res.nTerm1 = pep.nTerm;
       for(j=0;j<tmpSC.mods1->size();j++) res.mods1.push_back(tmpSC.mods1->at(j));
       res.peptide2 = "";
       if(tmpSC.pep2>=0){
-        pep = db.getPeptide(tmpSC.pep2);
-        db.getPeptideSeq( pep.map->at(0).index,pep.map->at(0).start,pep.map->at(0).stop,peptide);
+        pep2 = db.getPeptide(tmpSC.pep2);
+        db.getPeptideSeq( pep2.map->at(0).index,pep2.map->at(0).start,pep2.map->at(0).stop,peptide);
         res.peptide2 = peptide;
         res.mods2.clear();
+        res.cTerm2 = pep2.cTerm;
+        res.nTerm2 = pep2.nTerm;
         for(j=0;j<tmpSC.mods2->size();j++) res.mods2.push_back(tmpSC.mods2->at(j));
       }
 
       res.modPeptide1 = "";
       res.modPeptide2 = "";
+      if (pep.nTerm && aa.getFixedModMass('$')!=0) {
+        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('$'));
+        res.modPeptide1 += tmp;
+      }
       for(j=0;j<res.peptide1.size();j++) {
         res.modPeptide1 += res.peptide1[j];
         for(k=0;k<tmpSC.mods1->size();k++){
@@ -1100,6 +1126,14 @@ bool KData::outputResults(KDatabase& db, KParams& par){
           }
         }
       }
+      if (pep.cTerm && aa.getFixedModMass('%')!=0) {
+        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('%'));
+        res.modPeptide1 += tmp;
+      }
+      if (res.peptide2.size()>0 && pep2.nTerm && aa.getFixedModMass('$')!=0) {
+        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('$'));
+        res.modPeptide2 += tmp;
+      }
       for(j=0;j<res.peptide2.size();j++) {
         res.modPeptide2+=res.peptide2[j];
         for(k=0;k<tmpSC.mods2->size();k++){
@@ -1108,6 +1142,10 @@ bool KData::outputResults(KDatabase& db, KParams& par){
             res.modPeptide2 += tmp;
           }
         }
+      }
+      if (res.peptide2.size()>0 && pep2.cTerm && aa.getFixedModMass('%')!=0) {
+        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('%'));
+        res.modPeptide2 += tmp;
       }
 
       //Get the link positions - relative to the peptide
