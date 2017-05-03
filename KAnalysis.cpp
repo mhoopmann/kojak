@@ -299,7 +299,7 @@ void KAnalysis::analyzeRelaxedProc(kAnalysisRelStruct* s){
 bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
 
   int j;
-  size_t k,k2;
+  size_t k,k2,k3;
   bool bt;
   vector<int> index;
   vector<kPepMod> mods;
@@ -310,7 +310,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
   ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm);
   
   ions[iIndex].buildIons();
-  ions[iIndex].modIonsRec(0,-1,0,0,false);
+  ions[iIndex].modIonsRec2(0,-1,0,0,false);
 
   for(j=0;j<ions[iIndex].size();j++){
 
@@ -329,7 +329,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
   //also search loop-links
   //check loop-links by iterating through each cross-linker mass
   string pepSeq;
-  int xlIndex;
+  vector<int> xlIndex;
   int x;
   db->getPeptideSeq(*p,pepSeq);
 
@@ -346,22 +346,25 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
         //site can be linked, so check remaining sites
         for (k2 = k + 1; k2 < pepSeq.size(); k2++){
           if (k2 == pepSeq.size() - 1){ //handle c-terminus differently
-            if (p->cTerm) xlIndex = checkXLMotif(xlTable[pepSeq[k]][x], xlTable['c']);
+            if (p->cTerm) checkXLMotif(xlTable[pepSeq[k]][x], xlTable['c'],xlIndex);
             else continue;
           } else if (xlTable[pepSeq[k2]][0] == -1) {
             continue;
           } else {
-            xlIndex = checkXLMotif((int)xlTable[pepSeq[k]][x], xlTable[pepSeq[k2]]);
+            checkXLMotif((int)xlTable[pepSeq[k]][x], xlTable[pepSeq[k2]],xlIndex);
           }
 
-          if (xlIndex>-1){
-            ions[iIndex].reset();
-            ions[iIndex].buildLoopIons(spec->getLink(xlIndex).mass, (int)k, (int)k2);
-            ions[iIndex].modLoopIonsRec(0, (int)k, (int)k2, 0, 0, true);
-            for (j = 0; j<ions[iIndex].size(); j++){
-              bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
-              if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex, iIndex);
-            }
+          if (xlIndex.size()>0){
+            for(k3=0;k3<xlIndex.size();k3++){
+              if(xlIndex[k3]<0) continue;
+              ions[iIndex].reset();
+              ions[iIndex].buildLoopIons(spec->getLink(xlIndex[k3]).mass, (int)k, (int)k2);
+              ions[iIndex].modLoopIonsRec2(0, (int)k, (int)k2, 0, 0, true);
+              for (j = 0; j<ions[iIndex].size(); j++){
+                bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
+                if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex[k3], iIndex);
+              }
+            } //k3
           }
         } //k2
 
@@ -378,22 +381,25 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
         //site can be linked, so check remaining sites
         for (k2 = k + 1; k2 < pepSeq.size(); k2++){
           if (k2 == pepSeq.size() - 1){ //handle c-terminus differently
-            if (p->cTerm) xlIndex = checkXLMotif(xlTable['n'][x], xlTable['c']);
+            if (p->cTerm) checkXLMotif(xlTable['n'][x], xlTable['c'],xlIndex);
             else continue;
           } else if (xlTable[pepSeq[k2]][0] == -1) {
             continue;
           } else {
-            xlIndex = checkXLMotif((int)xlTable['n'][x], xlTable[pepSeq[k2]]);
+            checkXLMotif((int)xlTable['n'][x], xlTable[pepSeq[k2]],xlIndex);
           }
 
-          if (xlIndex>-1){
-            ions[iIndex].reset();
-            ions[iIndex].buildLoopIons(spec->getLink(xlIndex).mass, (int)k, (int)k2);
-            ions[iIndex].modLoopIonsRec(0, (int)k, (int)k2, 0, 0, true);
-            for (j = 0; j<ions[iIndex].size(); j++){
-              bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
-              if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex, iIndex);
-            }
+          if (xlIndex.size()>0){
+            for (k3 = 0; k3<xlIndex.size(); k3++){
+              if(xlIndex[k3]<0) continue;
+              ions[iIndex].reset();
+              ions[iIndex].buildLoopIons(spec->getLink(xlIndex[k3]).mass, (int)k, (int)k2);
+              ions[iIndex].modLoopIonsRec2(0, (int)k, (int)k2, 0, 0, true);
+              for (j = 0; j<ions[iIndex].size(); j++){
+                bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
+                if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex[k3], iIndex);
+              }
+            } //k3
           }
         } //k2
 
@@ -845,7 +851,7 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
     //build fragment ions and score against all potential spectra
     ions[iIndex].reset();
     ions[iIndex].buildSingletIons(k);
-    ions[iIndex].modIonsRec(0,k,0,0,true);
+    ions[iIndex].modIonsRec2(0,k,0,0,true);
 
     //iterate through all ion sets
     for(i=0;i<ions[iIndex].size();i++){
@@ -879,6 +885,7 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   Private Functions
 ============================*/
 bool KAnalysis::allocateMemory(int threads){
+  size_t j,k;
   bKIonsManager = new bool[threads];
   ions = new KIons[threads];
   scanBuffer = new bool*[threads];
@@ -886,26 +893,33 @@ bool KAnalysis::allocateMemory(int threads){
     bKIonsManager[i]=false;
     ions[i].setModFlags(params.monoLinksOnXL,params.diffModsOnXL);
     scanBuffer[i] = new bool[spec->size()];
+    for(j=0;j<params.xLink->size();j++){
+      for(k=0;k<params.xLink->at(j).motifA.size();k++){
+        ions[i].site[params.xLink->at(j).motifA[k]]=true;
+      }
+      for (k = 0; k<params.xLink->at(j).motifB.size(); k++){
+        ions[i].site[params.xLink->at(j).motifB[k]] = true;
+      }
+    }
   }
   return true;
 }
 
-int KAnalysis::checkXLMotif(int motifA, char* motifB){
+void KAnalysis::checkXLMotif(int motifA, char* motifB, vector<int>& v){
   int i, j;
   int cm;
-  int xlIndex;
+  v.clear();
   for (i = 0; i<10; i++){
     cm = spec->getCounterMotif(motifA, i);
-    if (cm<0) return -1;
+    if (cm<0) return;
     for (j = 0; j<20; j++){
       if (motifB[j]<0) break;
       if (motifB[j] == cm) {
-        xlIndex = spec->getXLIndex(motifA, i);
-        return xlIndex;
+        v.push_back(spec->getXLIndex(motifA, i));
       }
     }
   }
-  return -1;
+  return;
 }
 
 void KAnalysis::deallocateMemory(int threads){

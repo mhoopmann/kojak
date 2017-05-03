@@ -150,6 +150,7 @@ typedef struct kParams {
   bool    exportPercolator;
   bool    ionSeries[6];
   bool    monoLinksOnXL;
+  bool    precursorRefinement;
   bool    turbo;
   bool    xcorr;
   double  binOffset;
@@ -200,6 +201,7 @@ typedef struct kParams {
     ionSeries[4]=true;  //y-ions
     ionSeries[5]=false; //z-ions
     monoLinksOnXL=false;
+    precursorRefinement=true;
     turbo=true;
     xcorr=false;
     binSize=0.03;
@@ -245,6 +247,7 @@ typedef struct kParams {
     exportPepXML=p.exportPepXML;
     exportPercolator=p.exportPercolator;
     monoLinksOnXL=p.monoLinksOnXL;
+    precursorRefinement=p.precursorRefinement;
     turbo=p.turbo;
     xcorr=p.xcorr;
     binOffset=p.binOffset;
@@ -305,6 +308,7 @@ typedef struct kParams {
       exportPepXML=p.exportPepXML;
       exportPercolator=p.exportPercolator;
       monoLinksOnXL=p.monoLinksOnXL;
+      precursorRefinement = p.precursorRefinement;
       turbo = p.turbo;
       xcorr=p.xcorr;
       binOffset=p.binOffset;

@@ -20,8 +20,8 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
-#define VERSION "1.5.4"
-#define BDATE "February 9 2017"
+#define VERSION "1.5.5-dev"
+#define BDATE "May 2 2017"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 
@@ -94,6 +94,10 @@ int main(int argc, char* argv[]){
     strcpy(params.outFile,&files[i].base[0]);
     strcpy(params.ext,&files[i].ext[0]);
 
+    if (strcmp(params.ext, ".mgf") == 0 && params.precursorRefinement){
+      cout << "\n ERROR: Cannot perform precursor refinement using MGF files. Please disable by setting precursor_refinement=0" << endl;
+      exit(-10);
+    }
     cout << "\n Reading spectra data file: " << &files[i].input[0] << " ... ";
     if(!spec.readSpectra()){
       cout << "  Error reading MS_data_file. Exiting." << endl;

@@ -134,6 +134,7 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
     //if base peak is not monoisotopic, try one peak to the left.
     //Could try all peaks until monoisotopic is found, but might not make any difference,
     //only add time.
+    //Note: April 12, 2017: Change behavior to use params.isotope_error instead?
     if(i>0){
       dif=mercury->FixedData[i].mass-mercury->FixedData[i-1].mass;
       pre.monoMass=mercury->FixedData[i-1].mass-offset;
@@ -217,6 +218,10 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
         centBuf->push_back(spec);
       }
       lastScan=spec.getScanNumber();
+    } else {
+      //if you got here, there are no precursor scans?
+      cout << "\n  ERROR: No precursor scans found in spectra data file. Please set precursor_refinement=0 and re-run Kojak." << endl;
+      exit(-10);
     }
   }
 

@@ -22,6 +22,7 @@ KIons::KIons(){
     aaMass[i]=0;
     aaFixedModMass[i]=0;
     aaMod[i].count=0;
+    site[i]=false;
   }
   aaMass['A']=71.0371103;
   aaMass['C']=103.0091803;
@@ -306,7 +307,7 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
   for(i=start;i<pep1Len;i++){
 
     //don't modify site where the cross-linker is bound.
-    if(i==link) continue;
+    if (i == link) continue;
 
     //Check if amino acid is on the modification list
     for(j=0;j<aaMod[pep1[i]].count;j++){
@@ -325,8 +326,9 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
       if(depth+1<maxModCount) modIonsRec(i+1,link,(int)(sets.size())-1,depth+1,xl);
     }
 
+    /*
     //Special case for peptide n-terminus
-    if (i == 0) {
+    if (i == 0 && link!=-1) {
       for (j = 0; j<aaMod['n'].count; j++){
         //skip mods not allowed on this peptide
         if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
@@ -352,7 +354,7 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
     }
 
     //Special case for peptide c-terminus
-    if (i == pep1Len - 1){
+    if (i == pep1Len - 1 && link!=-2){
       for (j = 0; j<aaMod['c'].count; j++){
         //skip mods not allowed on this peptide
         if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
@@ -376,7 +378,74 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
         }
       }
     }
+    */
   
+  }
+
+}
+
+void KIons::modIonsRec2(int start, int link, int index, int depth, bool xl){
+  int j;
+
+  //if n-terminus can be linked, proceed as if it is linked
+  if (link == 0 && nPep1 && site['n']){
+    modIonsRec(start, -1, index, depth, xl);
+  } else if (link == pep1Len - 1 && cPep1 && site['c']){ //if c-terminus can be linked, proceed as if it is linked
+    modIonsRec(start, -1, index, depth, xl);
+  }
+
+  //now proceed with linking on an amino acid
+  modIonsRec(start, link, index, depth, xl);
+
+  //if at n-terminus and aa is not linkable, stop now; n-terminus cannot be modified because it is holding the linker
+  if(link==0 && !site[pep1[0]]) return; 
+  else if(link==pep1Len-1 && !site[pep1[pep1Len-1]]) return; //ditto for c-terminus
+
+  //From here, proceed as if the link is on the amino acid with a terminal modification
+  //Special case for protein n-terminus
+  if (nPep1) {
+    for (j = 0; j<aaMod['$'].count; j++){
+      //skip mods not allowed on this peptide
+      if (xl && !aaMod['$'].mod[j].xl && !diffModsOnXL) continue;
+      if (xl && aaMod['$'].mod[j].xl && !monoModsOnXL) continue;
+      //Add masses
+      addModIonSet(index, '$', 0, j);
+      //solve another one
+      if (depth + 1<maxModCount) modIonsRec(start, link, (int)(sets.size()) - 1, depth + 1, xl);
+    }
+  } else {    //Check peptide n-terminus mods
+    for (j = 0; j<aaMod['n'].count; j++){
+      //skip mods not allowed on this peptide
+      if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
+      if (xl && aaMod['n'].mod[j].xl && !monoModsOnXL) continue;
+      //Add masses
+      addModIonSet(index, 'n', 0, j);
+      //solve another one
+      if (depth + 1<maxModCount) modIonsRec(start, link, (int)(sets.size()) - 1, depth + 1, xl);
+    }
+  }
+
+  //Special case for protein c-terminus
+  if (cPep1){
+    for (j = 0; j<aaMod['%'].count; j++){
+      //skip mods not allowed on this peptide
+      if (xl && !aaMod['%'].mod[j].xl && !diffModsOnXL) continue;
+      if (xl && aaMod['%'].mod[j].xl && !monoModsOnXL) continue;
+      //Add masses
+      addModIonSet(index, '%', pep1Len-1, j);
+      //solve another one
+      if (depth + 1<maxModCount) modIonsRec(start, link, (int)(sets.size()) - 1, depth + 1, xl);
+    }
+  } else { //Special case for peptide c-terminus
+    for (j = 0; j<aaMod['c'].count; j++){
+      //skip mods not allowed on this peptide
+      if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
+      if (xl && aaMod['c'].mod[j].xl && !monoModsOnXL) continue;
+      //Add masses
+      addModIonSet(index, 'c', pep1Len-1, j);
+      //solve another one
+      if (depth + 1<maxModCount) modIonsRec(start, link, (int)(sets.size()) - 1, depth + 1, xl);
+    }
   }
 
 }
@@ -384,6 +453,10 @@ void KIons::modIonsRec(int start, int link, int index, int depth, bool xl){
 void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth, bool xl){
   int i,j;
   int pos;
+  int trueLink=link;
+  if(trueLink==-1) trueLink=0;
+  int trueLink2=link2;
+  if(trueLink2==-1) trueLink2=pep1Len-1;
 
   for(i=start;i<pep1Len;i++){
 
@@ -391,15 +464,17 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
     if(i==link || i==link2) continue;
 
     //mod position applied to left or right side of link.
-    if(i<link) pos=i;
-    else if(i<link2) pos=link;
-    else pos=i-link2+link;
-
+    //if (i<link) pos = i;
+    //else if (i<link2) pos = link;
+    //else pos = i - link2 + link;
+    if(i<trueLink) pos=i;
+    else if(i<trueLink2) pos=trueLink;
+    else pos=i-trueLink2+trueLink;
+    
     //Check if amino acid is on the modification list
     for(j=0;j<aaMod[pep1[i]].count;j++){
 
       //skip mods not allowed on this peptide
-      //if (xl && !aaMod[pep1[i]].mod[j].xl) continue;
       if (xl && !aaMod[pep1[i]].mod[j].xl && !diffModsOnXL) continue;
       if (xl && aaMod[pep1[i]].mod[j].xl && !monoModsOnXL) continue;
 
@@ -412,7 +487,8 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
       //solve another one
       if(depth+1<maxModCount) modLoopIonsRec(i+1,link,link2,(int)(sets.size())-1,depth+1,xl);
     }
-
+    
+    /*
     //Special case for peptide n-terminus
     if (i == 0) {
       for (j = 0; j<aaMod['n'].count; j++){
@@ -438,7 +514,7 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
         }
       }
     }
-
+    
     //Special case for peptide c-terinus
     if (i == pep1Len - 1){
       for (j = 0; j<aaMod['c'].count; j++){
@@ -464,8 +540,88 @@ void KIons::modLoopIonsRec(int start, int link, int link2, int index, int depth,
         }
       }
     }
+    */
 
   }
+
+}
+
+void KIons::modLoopIonsRec2(int start, int link, int link2, int index, int depth, bool xl){
+  int j;
+  bool skipN=false;
+  bool skipC=false;
+
+  //small note to self, this doesn't check the possibility, for example, of a c-terminal lysine linked to the c-terminus.
+  //ditto for the n-terminus and n-terminal lysine.
+
+  //if n-terminus can be linked, proceed as if it is linked
+  if (link == 0 && nPep1 && site['n']){
+    if (link2 == pep1Len - 1 && cPep1 && site['c']){ //if c-terminus can be linked, proceed as if it is linked
+      modLoopIonsRec(start, -1, -1, index, depth, xl);
+    } else {
+      modLoopIonsRec(start, -1, link2, index, depth, xl);
+    }
+  } else if (link2==pep1Len-1 && cPep1 && site['c']){ //if c-terminus can be linked, proceed as if it is linked
+    modLoopIonsRec(start, link, -1, index, depth, xl);
+  }
+
+  //now proceed with linking on an amino acid
+  modLoopIonsRec(start, link, link2, index, depth, xl);
+
+  //if at n-terminus and aa is not linkable, stop now; n-terminus cannot be modified because it is holding the linker
+  if (link == 0 && !site[pep1[0]]) skipN=true;
+  if (link2 == pep1Len - 1 && !site[pep1[pep1Len - 1]]) skipC=true; //ditto for c-terminus
+
+  //From here, proceed as if the link is on the amino acid with a terminal modification
+  if(!skipN){
+    if (nPep1) { //Special case for protein n-terminus
+      for (j = 0; j<aaMod['$'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['$'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['$'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index, '$', 0, j, 0);
+        //solve another one
+        if (depth + 1<maxModCount) modLoopIonsRec(start, link, link2, (int)(sets.size()) - 1, depth + 1, xl);
+      }
+    } else { //Special case for peptide n-terminus
+      for (j = 0; j<aaMod['n'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['n'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['n'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index, 'n', 0, j, 0);
+        //solve another one
+        if (depth + 1<maxModCount) modLoopIonsRec(start, link, link2, (int)(sets.size()) - 1, depth + 1, xl);
+      }      
+    }
+  }
+  
+  if(!skipC){
+    if (cPep1){//Special case for protein c-terinus
+      for (j = 0; j<aaMod['%'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['%'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['%'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index, '%', pep1Len - 1 - link2 + link, j, pep1Len-1);
+        //solve another one
+        if (depth + 1<maxModCount) modLoopIonsRec(start, link, link2, (int)(sets.size()) - 1, depth + 1, xl);
+      }
+    } else { //Special case for peptide c-terinus
+      for (j = 0; j<aaMod['c'].count; j++){
+        //skip mods not allowed on this peptide
+        if (xl && !aaMod['c'].mod[j].xl && !diffModsOnXL) continue;
+        if (xl && aaMod['c'].mod[j].xl && !monoModsOnXL) continue;
+        //Add masses
+        addModIonSet(index, 'c', pep1Len-1-link2+link, j, pep1Len-1);
+        //solve another one
+        if (depth + 1<maxModCount) modLoopIonsRec(start, link, link2, (int)(sets.size()) - 1, depth + 1, xl);
+      }
+    }
+  }
+
+  //Not searching case where peptide n-terminus and c-terminus are both modified
 
 }
 

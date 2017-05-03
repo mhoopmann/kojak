@@ -396,7 +396,11 @@ bool KData::mapPrecursors(){
     //}
 
     //Find precursor using object function. Take results and copy them to spectra
-    ret=pre.getSpecRange(spec[i]);
+    if (params->precursorRefinement){
+      ret=pre.getSpecRange(spec[i]);
+    } else {
+      ret=0;
+    }
 
     //if (spec[i].getScanNumber() == 25028) {
     //  cout << "Current precursors: " << spec[i].sizePrecursor() << "\tret = " << ret << endl;
@@ -1112,39 +1116,64 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       }
 
       res.modPeptide1 = "";
-      res.modPeptide2 = "";
       if (pep.nTerm && aa.getFixedModMass('$')!=0) {
-        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('$'));
+        sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('$'));
         res.modPeptide1 += tmp;
+      }
+      for (k = 0; k<tmpSC.mods1->size(); k++){ //check for n-terminal peptide mod
+        if (tmpSC.mods1->at(k).pos==0 && tmpSC.mods1->at(k).term){
+          sprintf(tmp, "n[%.2lf]", tmpSC.mods1->at(k).mass);
+          res.modPeptide1 += tmp;
+        }
       }
       for(j=0;j<res.peptide1.size();j++) {
         res.modPeptide1 += res.peptide1[j];
         for(k=0;k<tmpSC.mods1->size();k++){
-          if(j==(unsigned int)tmpSC.mods1->at(k).pos){
+          if(j==(unsigned int)tmpSC.mods1->at(k).pos && !tmpSC.mods1->at(k).term){
             sprintf(tmp,"[%.2lf]",tmpSC.mods1->at(k).mass);
             res.modPeptide1 += tmp;
           }
         }
       }
+      for (k = 0; k<tmpSC.mods1->size(); k++){ //check for c-terminal peptide mod
+        if (tmpSC.mods1->at(k).pos > 0 && tmpSC.mods1->at(k).term){
+          sprintf(tmp, "c[%.2lf]", tmpSC.mods1->at(k).mass);
+          res.modPeptide1 += tmp;
+        }
+      }
       if (pep.cTerm && aa.getFixedModMass('%')!=0) {
-        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('%'));
+        sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('%'));
         res.modPeptide1 += tmp;
       }
+      
+      res.modPeptide2 = "";
       if (res.peptide2.size()>0 && pep2.nTerm && aa.getFixedModMass('$')!=0) {
-        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('$'));
+        sprintf(tmp, "n[%.2lf]", aa.getFixedModMass('$'));
         res.modPeptide2 += tmp;
+      }
+      for (k = 0; k<tmpSC.mods2->size(); k++){ //check for n-terminal peptide mod
+        if (tmpSC.mods2->at(k).pos == 0 && tmpSC.mods2->at(k).term){
+          sprintf(tmp, "n[%.2lf]", tmpSC.mods2->at(k).mass);
+          res.modPeptide2 += tmp;
+        }
       }
       for(j=0;j<res.peptide2.size();j++) {
         res.modPeptide2+=res.peptide2[j];
         for(k=0;k<tmpSC.mods2->size();k++){
-          if(j==(unsigned int)tmpSC.mods2->at(k).pos){
+          if(j==(unsigned int)tmpSC.mods2->at(k).pos && !tmpSC.mods2->at(k).term){
             sprintf(tmp,"[%.2lf]",tmpSC.mods2->at(k).mass);
             res.modPeptide2 += tmp;
           }
         }
       }
+      for (k = 0; k<tmpSC.mods2->size(); k++){ //check for c-terminal peptide mod
+        if (tmpSC.mods2->at(k).pos > 0 && tmpSC.mods2->at(k).term){
+          sprintf(tmp, "c[%.2lf]", tmpSC.mods2->at(k).mass);
+          res.modPeptide2 += tmp;
+        }
+      }
       if (res.peptide2.size()>0 && pep2.cTerm && aa.getFixedModMass('%')!=0) {
-        sprintf(tmp, "[%.2lf]", aa.getFixedModMass('%'));
+        sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('%'));
         res.modPeptide2 += tmp;
       }
 

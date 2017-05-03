@@ -113,7 +113,7 @@ private:
   //Private Functions
   bool         allocateMemory          (int threads);
   static bool  analyzeSinglets         (kPeptide& pep, int index, double lowLinkMass, double highLinkMass, int iIndex);
-  static int   checkXLMotif            (int motifA, char* motifB);
+  static void  checkXLMotif            (int motifA, char* motifB, vector<int>& v);
   void         deallocateMemory        (int threads);
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);
   static void  scoreSingletSpectra     (int index, int sIndex, double mass, int len, int pep, char k, double minMass, int iIndex);

@@ -56,7 +56,9 @@ public:
   double    getAAMass         (char aa);
   double    getFixedModMass   (char aa);
   void      modIonsRec        (int start, int link, int index, int depth, bool xl);
+  void      modIonsRec2       (int start, int link, int index, int depth, bool xl);
   void      modLoopIonsRec    (int start, int link, int link2, int index, int depth, bool xl);
+  void      modLoopIonsRec2   (int start, int link, int link2, int index, int depth, bool xl);
   void      reset             ();
 
   //Accessors
@@ -78,6 +80,9 @@ public:
 
   //Data Members
   double* modList;
+  bool site[128]; //possible sites of linkage based on parameters
+  //bool linkN;
+  //bool linkC;
 
 private:
 

@@ -449,6 +449,13 @@ void KParams::parse(char* cmd) {
     xml.value = values[0];
     xmlParams.push_back(xml);
 
+  } else if (strcmp(param, "precursor_refinement") == 0){
+    if (atoi(&values[0][0]) == 0) params->precursorRefinement = false;
+    else params->precursorRefinement = true;
+    xml.name = "precursor_refinement";
+    xml.value = values[0];
+    xmlParams.push_back(xml);
+
   } else if(strcmp(param,"prefer_precursor_pred")==0){
     params->preferPrecursor=atoi(&values[0][0]);
     xml.name = "prefer_precursor_pred";
