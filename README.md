@@ -20,6 +20,11 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.5.4 - February 9 2017
+
+* Added new fixed and differential modification settings.
+* More accurate reporting of N-terminal and C-terminal mods in pepXML output.
+
 #### Version 1.5.3 - November 11 2016
 * Fixed edge-case bug causing a segfault.
 
