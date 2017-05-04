@@ -52,7 +52,6 @@ public:
   kDB&                getProtein          (int index);
   int                 getProteinDBSize    ();
   bool                setEnzyme           (char* str);
-  bool                setXLType           (int a=0, int b=0);
   void                setXLTable          (char** arr, int szA, int szB);
 
 private:
@@ -65,8 +64,6 @@ private:
   double        fixMassProtN;
   char          xlTable[128][20];
   kEnzymeRules  enzyme;    //Where to cut to generate peptides
-  int           setA;
-  int           setB;
 
   vector<kDB>      vDB;    //Entire FASTA database stored in memory
   vector<kPeptide> vPep;   //List of all peptides

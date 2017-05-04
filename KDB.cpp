@@ -42,9 +42,6 @@ KDatabase::KDatabase(){
   AA['W']=186.0793065;
   AA['Y']=163.0633228;
 
-  setA=0;
-  setB=0;
-
   fixMassPepC=0;
   fixMassPepN=0;
   fixMassProtC=0;
@@ -437,12 +434,6 @@ void KDatabase::setXLTable(char** arr, int szA, int szB){
       xlTable[i][j] = arr[i][j];
     }
   }
-}
-
-bool KDatabase::setXLType(int a, int b){
-  setA=a;
-  setB=b;
-  return true;
 }
 
 //==============================
