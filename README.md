@@ -20,6 +20,13 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.5.5 - May 4 2017
+
+* Fixed support for MGF files. These are now valid input.
+* Fixed bug when searching loop-links with multiple cross-linkers.
+* Added searches for n-terminal peptide modifications on linked first peptide amino acid (and c-terminal counterparts).
+* Added precursor_refinement parameter to toggle MS1 analysis on or off.
+
 #### Version 1.5.4 - February 9 2017
 
 * Added new fixed and differential modification settings.
