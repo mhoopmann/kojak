@@ -17,6 +17,7 @@ limitations under the License.
 #ifndef _KDB_H
 #define _KDB_H
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -52,28 +53,32 @@ public:
   kDB&                getProtein          (int index);
   int                 getProteinDBSize    ();
   bool                setEnzyme           (char* str);
+  void                setN15Label         (char* str);
   void                setXLTable          (char** arr, int szA, int szB);
 
 private:
   
   //Data Members
   double        AA[128];   //Amino acid masses
+  double        AAn15[128];
   double        fixMassPepC;
   double        fixMassPepN;
   double        fixMassProtC;
   double        fixMassProtN;
   char          xlTable[128][20];
   kEnzymeRules  enzyme;    //Where to cut to generate peptides
+  string        n15Label;
 
   vector<kDB>      vDB;    //Entire FASTA database stored in memory
   vector<kPeptide> vPep;   //List of all peptides
 
-  void addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, char xlSites);
+  void addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, bool bN15, char xlSites);
   bool checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t seqSize, bool& bN, bool& bC);
 
   //Utility functions (for sorting)
   static int compareMass      (const void *p1, const void *p2);
   static int compareSequence  (const void *p1, const void *p2);
+  static bool compareSequenceB(const kPepSort& p1, const kPepSort& p2);
 
 };
 

@@ -431,6 +431,12 @@ void KParams::parse(char* cmd) {
     xml.value = values[0];
     xmlParams.push_back(xml);
 
+  } else if (strcmp(param, "n15_filter") == 0){
+    strcpy(params->n15Label, &values[0][0]);
+    xml.name = "n15_filter";
+    xml.value = values[0];
+    xmlParams.push_back(xml);
+
 	} else if(strcmp(param,"output_file")==0){
     warn(param,2);
 

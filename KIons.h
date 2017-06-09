@@ -53,7 +53,7 @@ public:
   void      buildIons         ();
   void      buildLoopIons     (double linkMass, int link1, int link2);
   void      buildSingletIons  (int link);
-  double    getAAMass         (char aa);
+  double    getAAMass         (char aa, bool n15=false);
   double    getFixedModMass   (char aa);
   void      modIonsRec        (int start, int link, int index, int depth, bool xl);
   void      modIonsRec2       (int start, int link, int index, int depth, bool xl);
@@ -76,7 +76,7 @@ public:
   //Modifiers
   void  setMaxModCount  (int i);
   void  setModFlags     (bool monoMods, bool difMods);
-  void  setPeptide      (bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm);
+  void  setPeptide      (bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm, bool n15);
 
   //Data Members
   double* modList;
@@ -91,6 +91,7 @@ private:
   void clearSeries();
   
   double  aaMass[128];
+  double  aaMassn15[128];
   double  aaFixedModMass[128];
   kMod    aaMod[128];   //inefficient memory usage, but not by much in the grand scheme.
   double  protFixedModMassC;
@@ -112,6 +113,9 @@ private:
 
   char* pep1;
   char* pep2;
+
+  bool n15Pep1; //if peptide is of the 15N-labeled variety;
+  bool n15Pep2;
 
   bool nPep1; //peptide has protein n-terminus
   bool nPep2; //peptide has protein n-terminus

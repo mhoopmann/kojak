@@ -51,12 +51,14 @@ typedef struct kPepMap{
 typedef struct kPeptide{
   bool cTerm;
   bool nTerm;
+  bool n15;
   char xlSites;
   double mass;            //monoisotopic, zero mass
   vector<kPepMap>* map;   //array of mappings where peptides appear in more than one place
   kPeptide(){
     cTerm=false;
     nTerm=false;
+    n15=false;
     xlSites=0;
     mass=0;
     map=new vector<kPepMap>;
@@ -64,6 +66,7 @@ typedef struct kPeptide{
   kPeptide(const kPeptide& m){
     cTerm=m.cTerm;
     nTerm=m.nTerm;
+    n15=m.n15;
     xlSites=m.xlSites;
     mass=m.mass;
     map=new vector<kPepMap>;
@@ -76,6 +79,7 @@ typedef struct kPeptide{
     if(this!=&m){
       cTerm = m.cTerm;
       nTerm = m.nTerm;
+      n15=m.n15;
       xlSites = m.xlSites;
       mass=m.mass;
       delete map;
@@ -96,6 +100,7 @@ typedef struct kPeptideB{
 typedef struct kPepSort{
   int index;        //peptide array index
   string sequence;  //peptide sequence
+  bool n15;
 } kPepSort;
 
 typedef struct kLinker{
@@ -166,6 +171,7 @@ typedef struct kParams {
   char    enzymeName[64];
   char    ext[32];
   char    msFile[256];
+  char    n15Label[256];
   char    outFile[256];
   vector<int>*      diag;
   vector<kLinker>*  xLink;
@@ -217,6 +223,7 @@ typedef struct kParams {
     strcpy(enzymeName, "Trypsin");
     ext[0]='\0';
     msFile[0]='\0';
+    n15Label[0]='\0';
     outFile[0]='\0';
     diag = new vector<int>;
     xLink = new vector<kLinker>;
@@ -263,6 +270,7 @@ typedef struct kParams {
     strcpy(enzymeName,p.enzymeName);
     strcpy(ext,p.ext);
     strcpy(msFile,p.msFile);
+    strcpy(n15Label, p.n15Label);
     strcpy(outFile,p.outFile);
     diag = new vector<int>;
     xLink = new vector<kLinker>;
@@ -324,6 +332,7 @@ typedef struct kParams {
       strcpy(enzymeName, p.enzymeName);
       strcpy(ext,p.ext);
       strcpy(msFile,p.msFile);
+      strcpy(n15Label, p.n15Label);
       strcpy(outFile,p.outFile);
       delete diag;
       delete xLink;
@@ -561,6 +570,8 @@ typedef struct kResults{
   bool    nTerm1; //peptide contains protein n-terminus
   bool    cTerm2; //peptide contains protein c-terminus
   bool    nTerm2; //peptide contains protein n-terminus
+  bool    n15Pep1;
+  bool    n15Pep2;
   int     charge;
   int     link1;
   int     link2;

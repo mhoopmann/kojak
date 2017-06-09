@@ -606,7 +606,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   for(i=0;i<r.mods1.size();i++){
     if (r.mods1[i].pos == 0 && r.mods1[i].term) sh.modInfo.mod_nterm_mass = r.mods1[i].mass;
     else if (r.mods1[i].pos == r.peptide1.length() - 1 && r.mods1[i].term) sh.modInfo.mod_cterm_mass = r.mods1[i].mass;
-    else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos]));
+    else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos],r.n15Pep1));
   }
   if (r.nTerm1 && aa.getFixedModMass('$')!=0)sh.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
   if (r.cTerm1 && aa.getFixedModMass('%')!=0)sh.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
@@ -614,7 +614,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   sh.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
   for(i=0;i<r.peptide1.size();i++){
     if(aa.getFixedModMass(r.peptide1[i])>0) {
-      sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i]));
+      sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i],r.n15Pep1));
     }
   }
 
@@ -627,7 +627,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     for(i=0;i<r.mods2.size();i++){
       if (r.mods2[i].pos == 0 && r.mods2[i].term) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
       else if (r.mods2[i].pos == r.peptide2.length() - 1 && r.mods2[i].term) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
-      else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos]));
+      else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos],r.n15Pep2));
     }
     if (r.nTerm2 && aa.getFixedModMass('$')!=0)shB.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
     if (r.cTerm2 && aa.getFixedModMass('%')!=0)shB.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
@@ -635,7 +635,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     shB.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
     for(i=0;i<r.peptide2.size();i++){
       if(aa.getFixedModMass(r.peptide2[i])>0) {
-        shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i]));
+        shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i],r.n15Pep2));
       }
     }
   }
@@ -1103,6 +1103,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       res.mods1.clear();
       res.cTerm1 = pep.cTerm;
       res.nTerm1 = pep.nTerm;
+      res.n15Pep1 = pep.n15;
       for(j=0;j<tmpSC.mods1->size();j++) res.mods1.push_back(tmpSC.mods1->at(j));
       res.peptide2 = "";
       if(tmpSC.pep2>=0){
@@ -1112,6 +1113,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         res.mods2.clear();
         res.cTerm2 = pep2.cTerm;
         res.nTerm2 = pep2.nTerm;
+        res.n15Pep2 = pep2.n15;
         for(j=0;j<tmpSC.mods2->size();j++) res.mods2.push_back(tmpSC.mods2->at(j));
       }
 

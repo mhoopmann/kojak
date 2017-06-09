@@ -306,8 +306,9 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
 
   //char str[256];
   //db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
+  //cout << str << endl;
   //Set the peptide, calc the ions, and score it against the spectra
-  ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm);
+  ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm,p->n15);
   
   ions[iIndex].buildIons();
   ions[iIndex].modIonsRec2(0,-1,0,0,false);
@@ -581,7 +582,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
 
           //Grab bin coordinates of all fragment ions
           p=db->getPeptide(s[j].pep1);
-          ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass,p.nTerm,p.cTerm);
+          ions[iIndex].setPeptide(true,&db->at(p.map->at(0).index).sequence[p.map->at(0).start],p.map->at(0).stop-p.map->at(0).start+1,p.mass,p.nTerm,p.cTerm,p.n15);
           ions[iIndex].buildSingletIons((int)s[j].k1);
           setBinList(&msTemplate, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[j].mass, sp->getSingletScoreCard(s[j].rank).mods, sp->getSingletScoreCard(s[j].rank).modLen);
 
@@ -638,7 +639,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             len2=(int)db->at(p.map->at(0).index).sequence.size()-1;
             
             //Grab bin coordinates of all fragment ions
-            ions[iIndex].setPeptide(true, &db->at(p.map->at(0).index).sequence[p.map->at(0).start], p.map->at(0).stop - p.map->at(0).start + 1, p.mass, p.nTerm, p.cTerm);
+            ions[iIndex].setPeptide(true, &db->at(p.map->at(0).index).sequence[p.map->at(0).start], p.map->at(0).stop - p.map->at(0).start + 1, p.mass, p.nTerm, p.cTerm,p.n15);
             ions[iIndex].buildSingletIons((int)s[n].k1);
             setBinList(&msPartner, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[n].mass, sp->getSingletScoreCard(s[n].rank).mods, sp->getSingletScoreCard(s[n].rank).modLen);
             dShared = sharedScore(sp,&msTemplate,&msPartner,sp->getPrecursor(m).charge);
@@ -721,7 +722,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
             len2 = (int)db->at(p.map->at(0).index).sequence.size() - 1;
 
             //Grab bin coordinates of all fragment ions
-            ions[iIndex].setPeptide(true, &db->at(p.map->at(0).index).sequence[p.map->at(0).start], p.map->at(0).stop - p.map->at(0).start + 1, p.mass, p.nTerm, p.cTerm);
+            ions[iIndex].setPeptide(true, &db->at(p.map->at(0).index).sequence[p.map->at(0).start], p.map->at(0).stop - p.map->at(0).start + 1, p.mass, p.nTerm, p.cTerm,p.n15);
             ions[iIndex].buildSingletIons((int)s[n].k1);
             setBinList(&msPartner, iIndex, sp->getPrecursor(m).charge, sp->getPrecursor(m).monoMass-s[n].mass, sp->getSingletScoreCard(s[n].rank).mods, sp->getSingletScoreCard(s[n].rank).modLen);
             dShared = sharedScore(sp,&msTemplate,&msPartner,sp->getPrecursor(m).charge);
@@ -796,7 +797,7 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   //Find mod mass as difference between precursor and peptide
   
   len=(pep.map->at(0).stop-pep.map->at(0).start)+1;
-  ions[iIndex].setPeptide(true, &db->at(pep.map->at(0).index).sequence[pep.map->at(0).start], len, pep.mass, pep.nTerm, pep.cTerm);
+  ions[iIndex].setPeptide(true, &db->at(pep.map->at(0).index).sequence[pep.map->at(0).start], len, pep.mass, pep.nTerm, pep.cTerm,pep.n15);
   
   //Iterate every link site
   for(k=0;k<len;k++){
@@ -1668,7 +1669,7 @@ void KAnalysis::makePepLists(){
       if (!params.diffModsOnXL && !params.monoLinksOnXL) continue;
 
       //These should be modified for quick mass calculations without ion series expansion
-      ions[0].setPeptide(true, &db->at(p->at(i).map->at(0).index).sequence[p->at(i).map->at(0).start], p->at(i).map->at(0).stop - p->at(i).map->at(0).start + 1, p->at(i).mass, p->at(i).nTerm, p->at(i).cTerm);
+      ions[0].setPeptide(true, &db->at(p->at(i).map->at(0).index).sequence[p->at(i).map->at(0).start], p->at(i).map->at(0).stop - p->at(i).map->at(0).start + 1, p->at(i).mass, p->at(i).nTerm, p->at(i).cTerm,p->at(i).n15);
       ions[0].buildIons();
       ions[0].modIonsRec(0, -1, 0, 0, false);
       for (m = 1; m<ions[0].size(); m++) v.push_back(ions[0][m].mass);

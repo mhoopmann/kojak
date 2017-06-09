@@ -20,10 +20,12 @@ KIons::KIons(){
   int i;
   for(i=0;i<128;i++){
     aaMass[i]=0;
+    aaMassn15[i]=0;
     aaFixedModMass[i]=0;
     aaMod[i].count=0;
     site[i]=false;
   }
+
   aaMass['A']=71.0371103;
   aaMass['C']=103.0091803;
   aaMass['D']=115.0269385;
@@ -48,6 +50,32 @@ KIons::KIons(){
   aaMass['n']=0;
   aaMass['$']=0;
   aaMass['%']=0;
+
+  aaMassn15['A'] = 72.0341452;
+  aaMassn15['C'] = 104.0062152;
+  aaMassn15['D'] = 116.0239734;
+  aaMassn15['E'] = 130.0396226;
+  aaMassn15['F'] = 148.0654436;
+  aaMassn15['G'] = 58.018496;
+  aaMassn15['H'] = 140.0500106;
+  aaMassn15['I'] = 114.0810928;
+  aaMassn15['K'] = 130.0890255;
+  aaMassn15['L'] = 114.0810928;
+  aaMassn15['M'] = 132.0375136;
+  aaMassn15['N'] = 116.036992;
+  aaMassn15['P'] = 98.0497944;
+  aaMassn15['Q'] = 130.0526412;
+  aaMassn15['R'] = 160.0892417;
+  aaMassn15['S'] = 88.0290593;
+  aaMassn15['T'] = 102.0447085;
+  aaMassn15['V'] = 100.0654436;
+  aaMassn15['W'] = 188.0733763;
+  aaMassn15['Y'] = 164.0603577;
+  aaMassn15['c'] = 0;
+  aaMassn15['n'] = 0;
+  aaMassn15['$'] = 0;
+  aaMassn15['%'] = 0;
+
   modList=NULL;
   pep1=NULL;
   pep2=NULL;
@@ -74,6 +102,7 @@ KIonSet* KIons::at(const int& i){
 
 void KIons::addFixedMod(char mod, double mass){
   aaMass[mod]+=mass;
+  aaMassn15[mod]+=mass;
   aaFixedModMass[mod]=mass;
 }
 
@@ -96,13 +125,24 @@ void KIons::buildIons(){
   y=ionCount-1;
 
 	//b- & y-ions from first peptide
-  fragMass=aaMass['n'];
-  if (nPep1) fragMass+=aaMass['$'];
+  if(n15Pep1){
+    fragMass = aaMassn15['n'];
+    if (nPep1) fragMass += aaMassn15['$'];
+  } else {
+    fragMass=aaMass['n'];
+    if (nPep1) fragMass+=aaMass['$'];
+  }
 	for(i=0;i<ionCount;i++){
-    fragMass+=aaMass[pep1[i]];
+    if (n15Pep1) fragMass += aaMassn15[pep1[i]];
+    else fragMass+=aaMass[pep1[i]];
     if (i == ionCount - 1) {
-      fragMass += aaMass['c'];
-      if (cPep1) fragMass += aaMass['%'];
+      if (n15Pep1) {
+        fragMass += aaMassn15['c'];
+        if (cPep1) fragMass += aaMassn15['%'];
+      } else {
+        fragMass += aaMass['c'];
+        if (cPep1) fragMass += aaMass['%'];
+      }
     }
     sets[0].aIons[0][b] = fragMass - 27.9949141;
     sets[0].bIons[0][b] = fragMass;
@@ -158,13 +198,24 @@ void KIons::buildLoopIons(double linkMass, int link1, int link2){
   totalMass=pep1Mass+linkMass;
 
 	//b- & y-ions from first peptide
-  mMass = aaMass['n'];
-  if (nPep1) mMass += aaMass['$'];
+  if(n15Pep1){
+    mMass = aaMassn15['n'];
+    if (nPep1) mMass += aaMassn15['$'];
+  } else {
+    mMass = aaMass['n'];
+    if (nPep1) mMass += aaMass['$'];
+  }
 	for(i=0;i<len;i++){
-    mMass+=aaMass[pep1[i]];
+    if (n15Pep1) mMass += aaMassn15[pep1[i]];
+    else mMass+=aaMass[pep1[i]];
     if (i == len - 1) {
-      mMass += aaMass['c'];
-      if (cPep1) mMass += aaMass['%'];
+      if(n15Pep1) {
+        mMass += aaMassn15['c'];
+        if (cPep1) mMass += aaMassn15['%'];
+      } else {
+        mMass += aaMass['c'];
+        if (cPep1) mMass += aaMass['%'];
+      }
     }
     if(i>=a1 && i<a2) continue;
     else if(i>=a2) fragMass=mMass+linkMass;
@@ -209,13 +260,24 @@ void KIons::buildSingletIons(int link){
   y=ionCount-1;
 
 	//b- & y-ions from first peptide
-  mMass=aaMass['n'];
-  if (nPep1) mMass += aaMass['$'];
+  if(n15Pep1){
+    mMass = aaMassn15['n'];
+    if (nPep1) mMass += aaMassn15['$'];
+  } else {
+    mMass=aaMass['n'];
+    if (nPep1) mMass += aaMass['$'];
+  }
 	for(i=0;i<ionCount;i++){
-    mMass+=aaMass[pep1[i]];
+    if (n15Pep1) mMass += aaMassn15[pep1[i]];
+    else mMass+=aaMass[pep1[i]];
     if (i == ionCount - 1) {
-      mMass += aaMass['n'];
-      if (cPep1) mMass += aaMass['%'];
+      if(n15Pep1){
+        mMass += aaMassn15['n'];
+        if (cPep1) mMass += aaMassn15['%'];
+      } else {
+        mMass += aaMass['n'];
+        if (cPep1) mMass += aaMass['%'];
+      }
     }
     if(i>=link) { //negative mass indicates that the ion needs a modmass as well
       sets[0].xIons[0][y] = pep1Mass-mMass + 25.9792649;
@@ -256,7 +318,8 @@ void KIons::buildSingletIons(int link){
 
 }
 
-double KIons::getAAMass(char aa){
+double KIons::getAAMass(char aa, bool n15){
+  if(n15) return aaMassn15[aa];
   return aaMass[aa];
 }
 double KIons::getFixedModMass(char aa){
@@ -686,13 +749,14 @@ void KIons::setModFlags(bool monoMods, bool difMods){
   diffModsOnXL=difMods;
 }
 
-void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm){
+void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm, bool n15){
   if(bPepOne){
     pep1=seq;
     pep1Len=len;
     pep1Mass=mass;
     nPep1=nTerm;
     cPep1=cTerm;
+    n15Pep1=n15;
 
     sets.clear();
     KIonSet k(pep1Len,pep1Mass);
@@ -704,6 +768,7 @@ void KIons::setPeptide(bool bPepOne, char* seq, int len, double mass, bool nTerm
     pep2Mass=mass;
     nPep2=nTerm;
     cPep2=cTerm;
+    n15Pep2 = n15;
   }
 
 }

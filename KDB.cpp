@@ -20,7 +20,10 @@ limitations under the License.
 //  Constructors & Destructors
 //==============================
 KDatabase::KDatabase(){
-  for(int i=0;i<128;i++) AA[i]=0;
+  for(int i=0;i<128;i++) {
+    AA[i]=0;
+    AAn15[i]=0;
+  }
   AA['A']=71.0371103;
   AA['C']=103.0091803;
   AA['D']=115.0269385;
@@ -42,10 +45,33 @@ KDatabase::KDatabase(){
   AA['W']=186.0793065;
   AA['Y']=163.0633228;
 
+  AAn15['A'] = 72.0341452;
+  AAn15['C'] = 104.0062152;
+  AAn15['D'] = 116.0239734;
+  AAn15['E'] = 130.0396226;
+  AAn15['F'] = 148.0654436;
+  AAn15['G'] = 58.018496;
+  AAn15['H'] = 140.0500106;
+  AAn15['I'] = 114.0810928;
+  AAn15['K'] = 130.0890255;
+  AAn15['L'] = 114.0810928;
+  AAn15['M'] = 132.0375136;
+  AAn15['N'] = 116.036992;
+  AAn15['P'] = 98.0497944;
+  AAn15['Q'] = 130.0526412;
+  AAn15['R'] = 160.0892417;
+  AAn15['S'] = 88.0290593;
+  AAn15['T'] = 102.0447085;
+  AAn15['V'] = 100.0654436;
+  AAn15['W'] = 188.0733763;
+  AAn15['Y'] = 164.0603577;
+
   fixMassPepC=0;
   fixMassPepN=0;
   fixMassProtC=0;
   fixMassProtN=0;
+
+  n15Label="NON15LABEL";
 }
 
 //==============================
@@ -115,6 +141,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
   bool bCutMarked;
   bool bNTerm;
   bool bCTerm;
+  bool bN15;
 
   int mc;
   int next;
@@ -134,13 +161,16 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
   vPep.clear();
 
   for(i=0;i<DBSize;i++){
+    if (vDB[i].name.find(n15Label) == string::npos) bN15=false;
+    else bN15=true;
     seqSize=vDB[i].sequence.size();
     start=0;
     n=0;
     k=0;
     mc=0;
     mass=18.0105633+fixMassPepN+fixMassProtN;
-    next=0; //allow for next start site to be amino acid after initial M.
+    if(vDB[i].sequence[0]=='M') next=0; //allow for next start site to be amino acid after initial M.
+    else next = -1;
 
     pm.index=(int)i;
     bNTerm=false;
@@ -158,12 +188,13 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         bCutMarked=true;
 
         //Add the peptide now (if enough mass)
-        if ((mass+fixMassPepC)>min) addPeptide((int)i, (int)start, (int)n - 1, mass+fixMassPepC, p, vPep, bNTerm, bCTerm, xlSites);
+        if ((mass+fixMassPepC)>min) addPeptide((int)i, (int)start, (int)n - 1, mass+fixMassPepC, p, vPep, bNTerm, bCTerm, bN15, xlSites);
 
       }
 
       //Add the peptide mass
-      mass+=AA[vDB[i].sequence[start+n]];
+      if (bN15) mass += AAn15[vDB[i].sequence[start + n]];
+      else mass+=AA[vDB[i].sequence[start+n]];
 
       //Check if we cut c-terminal to this AA
       if((start+n+1)<seqSize && enzyme.cutC[vDB[i].sequence[start+n]] && !enzyme.exceptN[vDB[i].sequence[start+n+1]]){
@@ -172,7 +203,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
         bCutMarked=true;
 
         //Add the peptide now (if enough mass)
-        if((mass+fixMassPepC)>min && (mass+fixMassPepC)<max) addPeptide((int)i,(int)start,(int)n,mass+fixMassPepC,p,vPep,bNTerm,bCTerm,xlSites);
+        if((mass+fixMassPepC)>min && (mass+fixMassPepC)<max) addPeptide((int)i,(int)start,(int)n,mass+fixMassPepC,p,vPep,bNTerm,bCTerm, bN15, xlSites);
 
       }
 
@@ -183,7 +214,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
       if((start+n+1)==seqSize) {
 
         //Add the peptide now (if enough mass)
-        if ((mass+fixMassPepC+fixMassProtC)>min && (mass+fixMassPepC+fixMassProtC)<max) addPeptide((int)i, (int)start, (int)n, mass+fixMassPepC+fixMassProtC, p, vPep, bNTerm, bCTerm, xlSites);
+        if ((mass+fixMassPepC+fixMassProtC)>min && (mass+fixMassPepC+fixMassProtC)<max) addPeptide((int)i, (int)start, (int)n, mass+fixMassPepC+fixMassProtC, p, vPep, bNTerm, bCTerm, bN15, xlSites);
         if(next>-1) {
           start=next+1;
           n=0;
@@ -254,14 +285,16 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
   vector<kPepSort> vPS;
   for(i=0;i<vPep.size();i++){
     ps.index=(int)i;
+    ps.n15=vPep[i].n15;
     getPeptideSeq(vPep[i].map->at(0).index,vPep[i].map->at(0).start,vPep[i].map->at(0).stop,ps.sequence);
     vPS.push_back(ps);
   }
-  qsort(&vPS[0],vPS.size(),sizeof(kPepSort),compareSequence);
+  //qsort(&vPS[0],vPS.size(),sizeof(kPepSort),compareSequence);
+  sort(vPS.begin(),vPS.end(),compareSequenceB);
 
   vector<kPeptide> vtp;
   for(i=vPS.size()-1;i>0;i--){
-    if(vPS[i].sequence.compare(vPS[i-1].sequence)==0){
+    if(vPS[i].sequence.compare(vPS[i-1].sequence)==0 && vPS[i].n15==vPS[i-1].n15){
       for(k=0;k<vPep[vPS[i].index].map->size();k++){
         vPep[vPS[i-1].index].map->push_back(vPep[vPS[i].index].map->at(k));
         if (vPep[vPS[i].index].cTerm) vPep[vPS[i - 1].index].cTerm = vPep[vPS[i].index].cTerm;
@@ -316,7 +349,10 @@ void KDatabase::addFixedMod(char mod, double mass){
   else if(mod=='c') fixMassPepC=mass;
   else if(mod=='$') fixMassProtN=mass;
   else if(mod=='%') fixMassProtC=mass;
-  else AA[mod]+=mass;
+  else {
+    AA[mod]+=mass;
+    AAn15[mod]+=mass;
+  }
 }
 
 kDB& KDatabase::at(const int& i){
@@ -428,6 +464,10 @@ bool KDatabase::setEnzyme(char* str){
 
 }
 
+void KDatabase::setN15Label(char* str){
+  n15Label=str;
+}
+
 void KDatabase::setXLTable(char** arr, int szA, int szB){
   for (int i = 0; i < szA; i++){
     for (int j = 0; j < szB; j++){
@@ -439,7 +479,7 @@ void KDatabase::setXLTable(char** arr, int szA, int szB){
 //==============================
 //  Private Functions
 //==============================
-void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, char xlSites){
+void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, bool bN15, char xlSites){
   kPepMap  pm;
                            
   pm.index=index;
@@ -450,6 +490,7 @@ void KDatabase::addPeptide(int index, int start, int len, double mass, kPeptide&
   p.cTerm=bC;
   p.xlSites=xlSites;
   p.mass=mass;
+  p.n15=bN15;
   p.map->clear();
   p.map->push_back(pm);
   vP.push_back(p);
@@ -497,4 +538,11 @@ int KDatabase::compareSequence(const void *p1, const void *p2){
   const kPepSort d2 = *(kPepSort *)p2;
   return d1.sequence.compare(d2.sequence);
 }
+
+bool KDatabase::compareSequenceB(const kPepSort& p1, const kPepSort& p2){
+  int i=p1.sequence.compare(p2.sequence);
+  if(i==0) return p1.n15<p2.n15;
+  else return i<0;
+}
+
 
