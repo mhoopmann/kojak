@@ -844,6 +844,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   FILE* fInter  = NULL;
   FILE* fLoop   = NULL;
   FILE* fSingle = NULL;
+  FILE* fDimer  = NULL;
 
   //Open all the required output files.
   bBadFiles=false;
@@ -863,6 +864,11 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     sprintf(fName,"%s.perc.single.txt",params->outFile);
     fSingle=fopen(fName,"wt");
     if(fSingle==NULL) bBadFiles=true;
+    if (params->dimers){
+      sprintf(fName, "%s.perc.dimer.txt", params->outFile);
+      fDimer = fopen(fName, "wt");
+      if (fDimer == NULL) bBadFiles = true;
+    }
   }
   if(params->exportPepXML) {
     //cout << "export PepXML" << endl;
@@ -917,6 +923,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     if(fInter!=NULL)  fclose(fInter);
     if(fLoop!=NULL)   fclose(fLoop);
     if(fSingle!=NULL) fclose(fSingle);
+    if(fDimer!=NULL)  fclose(fDimer);
     return false;
   }
 
@@ -929,16 +936,19 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       fprintf(fInter,"SpecId\tLabel\tscannr\tScore\tdScore\t");
       fprintf(fLoop,"SpecId\tLabel\tscannr\tScore\tdScore\t");
       fprintf(fSingle,"SpecId\tLabel\tscannr\tScore\tdScore\t");
+      if (params->dimers) fprintf(fDimer, "SpecId\tLabel\tscannr\tScore\tdScore\t");
     } else {
       fprintf(fIntra,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fInter,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fLoop,"SpecId\tLabel\tScore\tdScore\t");
       fprintf(fSingle,"SpecId\tLabel\tScore\tdScore\t");
+      if (params->dimers) fprintf(fDimer, "SpecId\tLabel\tScore\tdScore\t");
     }
     fprintf(fIntra,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
     fprintf(fInter,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
     fprintf(fLoop,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
     fprintf(fSingle,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
+    if (params->dimers) fprintf(fDimer, "NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
   }
   
   //Output top score for each spectrum
@@ -1189,8 +1199,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       res.type=0;
       if(tmpSC.k1>=0 && tmpSC.k2>=0) res.type=1;
       if(tmpSC.pep1>=0 && tmpSC.pep2>=0) res.type=2;
+      if(res.type==2 && tmpSC.k1==-1 && tmpSC.k2==-1) res.type=3;
 
-      if(res.type>0) {
+      if(res.type>0 && res.type!=3) {
         res.xlMass=link[tmpSC.link].mass;
         res.xlLabel=link[tmpSC.link].label;
       }
@@ -1315,7 +1326,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
           if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link2); //put position from start of protein
         }
         if(tmpSC.link>-1)fprintf(fOut,"\t%.4lf",link[tmpSC.link].mass);
-        else fprintf(fOut,"\t-");
+        else fprintf(fOut,"\t0");
       } else if(res.link2>-1){
         fprintf(fOut,"\t-\t%d\t-",res.link2);
         fprintf(fOut,"\t%.4lf",link[tmpSC.link].mass);
@@ -1347,6 +1358,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
             if(bInter)  outputPercolator(fInter,db,res,count);
             else        outputPercolator(fIntra,db,res,count);
             break;
+          case 3:   outputPercolator(fDimer, db, res, count);  break;
           default:  outputPercolator(fSingle,db,res,count); break;
         }
       }
@@ -1374,6 +1386,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     fclose(fInter);
     fclose(fLoop);
     fclose(fSingle);
+    if (params->dimers) fclose(fDimer);
   }
   if(params->exportPepXML){
     p.closePepXML();

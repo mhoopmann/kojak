@@ -469,7 +469,12 @@ void KParams::parse(char* cmd) {
     xmlParams.push_back(xml);
 
   } else if(strcmp(param,"search_dimers")==0){
-    warn(param,2);
+    if (atoi(&values[0][0]) == 0) params->dimers = false;
+    else params->dimers = true;
+    xml.name = "search_dimers";
+    xml.value = values[0];
+    xmlParams.push_back(xml);
+    //warn(param,2);
 
   } else if(strcmp(param,"search_dimers_xl")==0){
     if(atoi(&values[0][0])==0) params->dimersXL=false;

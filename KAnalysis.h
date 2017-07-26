@@ -96,7 +96,7 @@ public:
 
   //Master Functions
   bool doPeptideAnalysis   ();
-  //bool doPeptideAnalysisNC ();
+  bool doPeptideAnalysisNC ();
   bool doRelaxedAnalysis   ();
   //__int64 xCorrCount;
 
@@ -113,6 +113,7 @@ private:
   //Private Functions
   bool         allocateMemory          (int threads);
   static bool  analyzeSinglets         (kPeptide& pep, int index, double lowLinkMass, double highLinkMass, int iIndex);
+  static bool  analyzeSingletsNC       (kPeptide& pep, int index, int iIndex);
   static void  checkXLMotif            (int motifA, char* motifB, vector<int>& v);
   void         deallocateMemory        (int threads);
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);

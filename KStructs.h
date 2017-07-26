@@ -150,6 +150,7 @@ typedef struct kParams {
   int     topCount;
   int     truncate;
   bool    diffModsOnXL;
+  bool    dimers;
   bool    dimersXL;
   bool    exportPepXML;
   bool    exportPercolator;
@@ -197,6 +198,7 @@ typedef struct kParams {
     topCount=250;
     truncate=0;
     diffModsOnXL=false;
+    dimers=false;
     dimersXL=true;
     exportPepXML=false;
     exportPercolator=false;
@@ -250,6 +252,7 @@ typedef struct kParams {
     topCount=p.topCount;
     truncate=p.truncate;
     diffModsOnXL=p.diffModsOnXL;
+    dimers=p.dimers;
     dimersXL=p.dimersXL;
     exportPepXML=p.exportPepXML;
     exportPercolator=p.exportPercolator;
@@ -312,6 +315,7 @@ typedef struct kParams {
       topCount=p.topCount;
       truncate=p.truncate;
       diffModsOnXL=p.diffModsOnXL;
+      dimers=p.dimers;
       dimersXL=p.dimersXL;
       exportPepXML=p.exportPepXML;
       exportPercolator=p.exportPercolator;

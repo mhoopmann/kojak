@@ -21,7 +21,7 @@ limitations under the License.
 #include "KParams.h"
 
 #define VERSION "1.6.0-dev"
-#define BDATE "May 19 2017"
+#define BDATE "July 12 2017"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 

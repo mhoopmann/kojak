@@ -320,6 +320,11 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
     
   }
 
+  //search non-covalent dimerization if requested by user
+  if(params.dimers) {
+    analyzeSingletsNC(*p, pepIndex, iIndex);
+  }
+
   if(p->xlSites==0) return true;
 
   //Crosslinked peptides must also search singlets with reciprocol mass on each lysine
@@ -473,53 +478,57 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
     aa=db->at(pep.map->at(0).index).sequence[pep.map->at(0).start + sc1.k1];
 
     //map the motifs
-    motifCount=0;
-    s[j].motif[motifCount]=-1;
-    for (i = 0; i<20;i++){
-      if(xlTable[aa][i]>-1) {
-        s[j].motif[motifCount++] = xlTable[aa][i];
-        s[j].motif[motifCount]=-1;
-      } else {
-        break;
+    if(s[j].k1>-1){
+      motifCount=0;
+      s[j].motif[motifCount]=-1;
+      for (i = 0; i<20;i++){
+        if(xlTable[aa][i]>-1) {
+          s[j].motif[motifCount++] = xlTable[aa][i];
+          s[j].motif[motifCount]=-1;
+        } else {
+          break;
+        }
       }
-    }
-    //special case to map n-term or c-term
-    for (i = 0; i<pep.map->size();i++){
-      //add n-term
-      if ((pep.map->at(i).start + sc1.k1) < 2) {
-        for (k = 0; k<20; k++){
-          if (xlTable['n'][k]==-1) break;
-          for (m=0;m<20;m++){
-            if (s[j].motif[m]==-1) break;
-            if (s[j].motif[m] == xlTable['n'][k]) break;
+      //special case to map n-term or c-term
+      for (i = 0; i<pep.map->size();i++){
+        //add n-term
+        if ((pep.map->at(i).start + sc1.k1) < 2) {
+          for (k = 0; k<20; k++){
+            if (xlTable['n'][k]==-1) break;
+            for (m=0;m<20;m++){
+              if (s[j].motif[m]==-1) break;
+              if (s[j].motif[m] == xlTable['n'][k]) break;
+            }
+            if (m == 20) {
+              cout << "Max motifs reached in KAnalysis. Please report error." << endl;
+              exit(1);
+            } else if (m==motifCount){
+              s[j].motif[motifCount++] = xlTable['n'][k];
+              s[j].motif[motifCount]=-1;
+            }
           }
-          if (m == 20) {
-            cout << "Max motifs reached in KAnalysis. Please report error." << endl;
-            exit(1);
-          } else if (m==motifCount){
-            s[j].motif[motifCount++] = xlTable['n'][k];
-            s[j].motif[motifCount]=-1;
+        }
+        //add c-term
+        n = (int)db->at(pep.map->at(i).index).sequence.size() - 1;
+        if (n==sc1.k1) {
+          for (k = 0; k<20; k++){
+            if (xlTable['c'][k] == -1)break;
+            for (m = 0; m<20; m++){
+              if (s[j].motif[m] == -1) break;
+              if (s[j].motif[m] == xlTable['c'][k]) break;
+            }
+            if (m == 20) {
+              cout << "Max motifs reached in KAnalysis. Please report error." << endl;
+              exit(1);
+            } else if (m == motifCount){
+              s[j].motif[motifCount++] = xlTable['c'][k];
+              s[j].motif[motifCount] = -1;
+            }
           }
         }
       }
-      //add c-term
-      n = (int)db->at(pep.map->at(i).index).sequence.size() - 1;
-      if (n==sc1.k1) {
-        for (k = 0; k<20; k++){
-          if (xlTable['c'][k] == -1)break;
-          for (m = 0; m<20; m++){
-            if (s[j].motif[m] == -1) break;
-            if (s[j].motif[m] == xlTable['c'][k]) break;
-          }
-          if (m == 20) {
-            cout << "Max motifs reached in KAnalysis. Please report error." << endl;
-            exit(1);
-          } else if (m == motifCount){
-            s[j].motif[motifCount++] = xlTable['c'][k];
-            s[j].motif[motifCount] = -1;
-          }
-        }
-      }
+    } else {
+      s[j].motif[0]=-1;
     }
 
     //Determine if peptide belongs to target or decoy proteins, or both
@@ -547,7 +556,7 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
   kMatchSet msTemplate;
   kMatchSet msPartner;
   double dShared;
-
+  
   //Iterate through sorted list of peptides
   for(j=0;j<count;j++){
         
@@ -765,9 +774,126 @@ void KAnalysis::analyzeRelaxed(KSpectrum* sp, int iIndex){
   for(j=0;j<count;j++){
     if(s[j].simpleScore<0) s[j].simpleScore=-s[j].simpleScore;
   }
-
  
-  delete [] s;
+  //delete [] s;
+
+  //Check non-covalent dimers
+  if (params.dimers == 0) {
+    delete[] s;
+    return;
+  }
+
+  for (j = 0; j<count; j++){
+    if (s[j].simpleScore <= 0) continue;
+    if (s[j].k1>-1) continue;
+
+    matches.clear();
+
+    for (m = 0; m<sp->sizePrecursor(); m++){
+      index = findMass(s, count, sp->getPrecursor(m).monoMass - s[j].mass);
+      n = index;
+      while (n<count){
+        if (s[n].simpleScore <= 0 || s[n].k1>-1){
+          n++;
+          continue;
+        }
+        totalMass = s[j].mass + s[n].mass;
+        ppm = (totalMass - sp->getPrecursor(m).monoMass) / sp->getPrecursor(m).monoMass*1e6;
+        //if wrong mass, move on to the next peptide or exit loop if next mass is wrong
+        if (ppm<-params.ppmPrecursor) {
+          n++;
+          continue;
+        }
+        if (ppm>params.ppmPrecursor) break;
+        //if (fabs(ppm) <= params.ppmPrecursor) {
+          sc.simpleScore = s[j].simpleScore*s[j].len + s[n].simpleScore*s[n].len;
+          sc.k1 = -1;
+          sc.k2 = -1;
+          sc.mass = totalMass;
+          sc.linkable1 = s[j].linkable;
+          sc.linkable2 = s[n].linkable;
+          sc.pep1 = s[j].pep1;
+          sc.pep2 = s[n].pep1;
+          sc.link = -2;
+          sc.rank1 = s[j].rank;
+          sc.rank2 = s[n].rank;
+          sc.score1 = s[j].simpleScore*s[j].len;
+          sc.score2 = s[n].simpleScore*s[n].len;
+          sc.mass1 = s[j].mass;
+          sc.mass2 = s[n].mass;
+          sc.mods1->clear();
+          sc.mods2->clear();
+          sc1 = sp->getSingletScoreCard(s[j].rank);
+          for (i = 0; i<sc1.modLen; i++) sc.mods1->push_back(sc1.mods[i]);
+          sc1 = sp->getSingletScoreCard(s[n].rank);
+          for (i = 0; i<sc1.modLen; i++) sc.mods2->push_back(sc1.mods[i]);
+          sp->checkScore(sc);
+          matches.push_back(n);
+        //} else if (ppm>params.ppmPrecursor) {
+        //  break;
+        //}
+        n++;
+      }
+      n = index - 1;
+      while (n>-1){
+        if (s[n].simpleScore <= 0 || s[n].k1>-1){
+          n--;
+          continue;
+        }
+        //Make sure we didn't already pair these peptides with a different precursor during this pass
+        for (x = 0; x<matches.size(); x++){
+          if (matches[x] == n) break;
+        }
+        if (x<matches.size()) {
+          n--;
+          continue;
+        }
+        totalMass = s[j].mass + s[n].mass;
+        ppm = (totalMass - sp->getPrecursor(m).monoMass) / sp->getPrecursor(m).monoMass*1e6;
+        //if wrong mass, move on to the next peptide or exit loop if next mass is wrong
+        if (ppm>params.ppmPrecursor) {
+          n--;
+          continue;
+        }
+        if (ppm<-params.ppmPrecursor) break;
+        //if (fabs(ppm) <= params.ppmPrecursor) {
+          sc.simpleScore = s[j].simpleScore*s[j].len + s[n].simpleScore*s[n].len;
+          sc.k1 = -1;
+          sc.k2 = -1;
+          sc.mass = totalMass;
+          sc.linkable1 = s[j].linkable;
+          sc.linkable2 = s[n].linkable;
+          sc.pep1 = s[j].pep1;
+          sc.pep2 = s[n].pep1;
+          sc.link = -2;
+          sc.rank1 = s[j].rank;
+          sc.rank2 = s[n].rank;
+          sc.score1 = s[j].simpleScore*s[j].len;
+          sc.score2 = s[n].simpleScore*s[n].len;
+          sc.mass1 = s[j].mass;
+          sc.mass2 = s[n].mass;
+          sc.mods1->clear();
+          sc.mods2->clear();
+          sc1 = sp->getSingletScoreCard(s[j].rank);
+          for (i = 0; i<sc1.modLen; i++) sc.mods1->push_back(sc1.mods[i]);
+          sc1 = sp->getSingletScoreCard(s[n].rank);
+          for (i = 0; i<sc1.modLen; i++) sc.mods2->push_back(sc1.mods[i]);
+          sp->checkScore(sc);
+          matches.push_back(n);
+
+        //}
+        n--;
+      }
+    }
+    s[j].simpleScore = -s[j].simpleScore;
+  }
+
+  //reset scores
+  for (j = 0; j<count; j++){
+    if (s[j].simpleScore<0) s[j].simpleScore = -s[j].simpleScore;
+  }
+
+  delete[] s;
   
 }
 
@@ -880,6 +1006,42 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   }
 
   return true;
+}
+
+bool KAnalysis::analyzeSingletsNC(kPeptide& pep, int index, int iIndex){
+  int len;
+  int i;
+  size_t j;
+  double minMass;
+  double maxMass;
+  vector<int> scanIndex;
+
+  //Set Mass boundaries
+  minMass = pep.mass + params.minPepMass;
+  maxMass = pep.mass + params.maxPepMass;
+  minMass -= (minMass / 1000000 * params.ppmPrecursor);
+  maxMass += (maxMass / 1000000 * params.ppmPrecursor);
+
+  //Find mod mass as difference between precursor and peptide
+  len = (pep.map->at(0).stop - pep.map->at(0).start) + 1;
+  ions[iIndex].setPeptide(true, &db->at(pep.map->at(0).index).sequence[pep.map->at(0).start], len, pep.mass, pep.nTerm, pep.cTerm, pep.n15);
+
+  //build fragment ions and score against all potential spectra
+  ions[iIndex].reset();
+  ions[iIndex].buildIons();
+  ions[iIndex].modIonsRec2(0, -1, 0, 0, false);
+
+  //iterate through all ion sets
+  for (i = 0; i<ions[iIndex].size(); i++){
+    //Iterate all spectra from (peptide mass + minimum mass) to (peptide mass + maximum mass)
+    if (!spec->getBoundaries(minMass + ions[iIndex][i].difMass, maxMass + ions[iIndex][i].difMass, scanIndex, scanBuffer[iIndex])) return false;
+
+    for (j = 0; j<scanIndex.size(); j++){
+      scoreSingletSpectra(scanIndex[j], i, ions[iIndex][i].mass, len, index, -1, minMass, iIndex);
+    }
+  }
+  return true;
+
 }
 
 /*============================
