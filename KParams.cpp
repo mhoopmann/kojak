@@ -62,6 +62,60 @@ bool KParams::parseConfig(char* fname){
 //==============================
 //  Private Functions
 //==============================
+bool KParams::buildOutput(char* in, char* base, char* ext){
+  char cwd[1024];
+  char str[1024];
+  char outPath[1024];
+  string tmp;
+  string outFile;
+  size_t i;
+  FILE* f;
+
+  //get current working directory and process input file
+  strcpy(params->msFile, in);
+  strcpy(params->ext, ext);
+  getcwd(cwd, 1024);
+  processPath(cwd, in, str);
+  strcpy(params->inFile, str);
+  
+  //process output file
+  //if user did not specify output path, use cwd as full path for output
+  if (strlen(params->resPath)==0){
+    processPath(cwd, base, outPath);  
+  } else {
+    if(params->resPath[0]=='.'){
+      processPath(cwd, params->resPath, outPath);
+      tmp = outPath;
+    } else {
+      tmp = params->resPath;
+    }
+    outFile = base;
+    i = outFile.find_last_of("/\\");
+    if (i != string::npos) outFile = outFile.substr(i + 1);
+    processPath(&tmp[0], &outFile[0], outPath);
+  }
+  strcpy(params->outFile, outPath);
+
+  /*
+  cout << "\nMS_data_file: " << params->msFile << endl;
+  cout << "results_path: " << params->resPath << endl;
+  cout << "input:        " << params->inFile << endl;
+  cout << "output:       " << params->outFile << endl;
+  */
+
+  //Create Kojak output file to test output paths
+  sprintf(str, "%s.kojak.txt", params->outFile);
+  f = fopen(str, "wt");
+  if (f == NULL) {
+    cout << "\nERROR: cannot open " << str << " for output. Please ensure path and write permissions are correct." << endl;
+    return false;
+  } else {
+    fclose(f);
+  }
+
+  return true;
+}
+
 bool KParams::checkMod(kMass m){
   unsigned int i;
   for(i=0;i<params->mods->size();i++){
@@ -154,7 +208,8 @@ void KParams::parse(char* cmd) {
     xml.value = values[0];
     xmlParams.push_back(xml);
 
-  } else if(strcmp(param,"diagnostic")==0){
+  } else if(strcmp(param,"diagnostic")==0){  //a value of -1 means diagnose all spectra, overriding any existing or following spectrum specifications
+    if (atoi(&values[0][0])==-1) params->diag->clear();
     params->diag->push_back(atoi(&values[0][0]));
     xml.name = "diagnostic";
     xml.value = values[0];
@@ -431,9 +486,9 @@ void KParams::parse(char* cmd) {
     xml.value = values[0];
     xmlParams.push_back(xml);
 
-  } else if (strcmp(param, "n15_filter") == 0){
+  } else if (strcmp(param, "15N_filter") == 0){
     strcpy(params->n15Label, &values[0][0]);
-    xml.name = "n15_filter";
+    xml.name = "15N_filter";
     xml.value = values[0];
     xmlParams.push_back(xml);
 
@@ -465,6 +520,12 @@ void KParams::parse(char* cmd) {
   } else if(strcmp(param,"prefer_precursor_pred")==0){
     params->preferPrecursor=atoi(&values[0][0]);
     xml.name = "prefer_precursor_pred";
+    xml.value = values[0];
+    xmlParams.push_back(xml);
+
+  } else if (strcmp(param, "results_path") == 0){
+    strcpy(params->resPath, &values[0][0]);
+    xml.name = "results_path";
     xml.value = values[0];
     xmlParams.push_back(xml);
 
@@ -501,6 +562,13 @@ void KParams::parse(char* cmd) {
 
   } else if(strcmp(param,"top_count")==0) {
     params->topCount=atoi(&values[0][0]);
+    if(params->topCount>50) {
+      warn("WARNING: top_count is larger than expected. Are you using a pre-version 1.6.0 value? An appropriate value is likely between 5 and 50.",3);
+    }
+    if (params->topCount<1){
+      warn("ERROR: top_count must be greater than zero. Stopping Kojak.", 4);
+      params->topCount=1;
+    }
     xml.name = "top_count";
     xml.value = values[0];
     xmlParams.push_back(xml);
@@ -544,8 +612,73 @@ void KParams::warn(const char* c, int i){
       printf("  WARNING: Parameter %s has been deprecated and will be ignored.\n",c);
       break;
     case 3:
+      printf("  %s\n", c);
+      break;
+    case 4:
+      printf("  %s\n", c);
+      exit(-10);
+      break;
 		default:
 			printf("  %s\n",c);
 			break;
 	}
+}
+
+//Takes relative path and finds absolute path
+bool KParams::processPath(const char* cwd, const char* in_path, char* out_path){
+  //if windows or unix in_path, just copy it to out_path
+  if (strlen(in_path) > 0 && in_path[0] == '/'){ //unix
+    strcpy(out_path, in_path);
+    return true;
+  }
+  if (strlen(in_path) > 1 && in_path[1] == ':'){ //windows
+    strcpy(out_path, in_path);
+    return true;
+  }
+
+  //tokenize cwd
+  char* tok;
+  char str[1024];
+  strcpy(str, cwd);
+  string s;
+  vector<string> v;
+
+  tok = strtok(str, "\\/\n\r");
+  while (tok != NULL){
+    s = tok;
+    v.push_back(s);
+    tok = strtok(NULL, "\\/\n\r");
+  }
+
+  //tokenize in_path
+  strcpy(str, in_path);
+
+  tok = strtok(str, "\\/\n\r");
+  while (tok != NULL){
+    if (strcmp(tok, "..") == 0) {
+      v.pop_back();
+    } else if (strcmp(tok, ".") == 0){
+      //do nothing
+    } else {
+      s = tok;
+      v.push_back(s);
+    }
+    tok = strtok(NULL, "\\/\n\r");
+  }
+
+  //build absolute path
+#ifdef _MSC_VER
+  s.clear();
+#else
+  s.clear();
+  s += slashdir;
+#endif
+  for (size_t i = 0; i < v.size(); i++){
+    s += v[i];
+    s += slashdir;
+  }
+  s[s.size() - 1] = '\0';
+  strcpy(out_path, &s[0]);
+  return true;
+
 }

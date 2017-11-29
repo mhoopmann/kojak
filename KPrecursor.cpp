@@ -129,7 +129,7 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
     pre.charge=preCharges[j];
     pre.monoMass=mass;
     pre.corr=-0.5;
-    s.addPrecursor(pre);
+    s.addPrecursor(pre, params->topCount);
 
     //if base peak is not monoisotopic, try one peak to the left.
     //Could try all peaks until monoisotopic is found, but might not make any difference,
@@ -138,14 +138,14 @@ bool KPrecursor::estimatePrecursor(KSpectrum& s){
     if(i>0){
       dif=mercury->FixedData[i].mass-mercury->FixedData[i-1].mass;
       pre.monoMass=mercury->FixedData[i-1].mass-offset;
-      s.addPrecursor(pre);
+      s.addPrecursor(pre, params->topCount);
       if(pre.monoMass>3000 && i>1){
         pre.monoMass=mercury->FixedData[i-2].mass-offset;
-        s.addPrecursor(pre);
+        s.addPrecursor(pre, params->topCount);
       }
       if(pre.monoMass>5000 && i>2){
         pre.monoMass=mercury->FixedData[i-3].mass-offset;
-        s.addPrecursor(pre);
+        s.addPrecursor(pre, params->topCount);
       }
     }
 
@@ -365,7 +365,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       pre.corr=corr;
       if(params->enrichment>0) pre.label=1;
       else pre.label=0;
-      pls.addPrecursor(pre);
+      pls.addPrecursor(pre, params->topCount);
     }
 
   } else {
@@ -418,17 +418,17 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       pre.corr=corr;
       if(params->enrichment>0) pre.label=1;
       else pre.label=0;
-      pls.addPrecursor(pre);
+      pls.addPrecursor(pre, params->topCount);
       //also add isotope error
       if (params->isotopeError>0){
         pre.monoMass-=1.00335483;
         pre.corr=-1;
-        pls.addPrecursor(pre);
+        pls.addPrecursor(pre, params->topCount);
       }
       if (params->isotopeError>1){
         pre.monoMass -= 1.00335483;
         pre.corr = -2;
-        pls.addPrecursor(pre);
+        pls.addPrecursor(pre, params->topCount);
       }
     }
 
@@ -454,7 +454,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     pre.charge=charge;
     pre.corr=corr;
     pre.label=2;
-    pls.addPrecursor(pre);
+    pls.addPrecursor(pre, params->topCount);
   }
 
   //Assume two precursors with nearly identical mass (within precursor tolerance) are the same.

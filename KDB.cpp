@@ -91,6 +91,7 @@ bool  KDatabase::buildDB(char* fname) {
   char*   tok;
   FILE*   f;
   kDB    d;
+  char   c;
 
   d.name="NIL";
 
@@ -116,9 +117,10 @@ bool  KDatabase::buildDB(char* fname) {
       d.sequence="";
     } else {
       for(unsigned int i=0;i<strlen(str);i++){
-        if(AA[str[i]]==0) cout << "  WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space." << endl;
-        if(str[i]==' ' || str[i]=='\t') continue;
-        d.sequence+=toupper(str[i]);
+        c=toupper(str[i]);
+        if(AA[c]==0) cout << "  WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space." << endl;
+        if(c==' ' || c=='\t') continue;
+        d.sequence+=c;
       }
     }
   }
@@ -521,13 +523,13 @@ bool KDatabase::checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t se
 //==============================
 //  Utility Functions
 //==============================
-int KDatabase::compareMass(const void *p1, const void *p2){
+int KDatabase::compareMass(const void *p1, const void *p2){ //sort high to low
   const kPeptide d1 = *(kPeptide *)p1;
   const kPeptide d2 = *(kPeptide *)p2;
   if(d1.mass<d2.mass) {
-		return -1;
+		return 1;
 	} else if(d1.mass>d2.mass) {
-  	return 1;
+  	return -1;
   } else {
 	  return 0;
   }

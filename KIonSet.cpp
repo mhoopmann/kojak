@@ -5,13 +5,13 @@ KIonSet::KIonSet(int sz, double m){
   len=sz;
   mass=m;
   difMass=0;
-  aIons=new double*[6];
-  bIons=new double*[6];
-  cIons=new double*[6];
-  xIons=new double*[6];
-  yIons=new double*[6];
-  zIons=new double*[6];
-  for(j=0;j<6;j++){
+  aIons=new double*[4];
+  bIons=new double*[4];
+  cIons=new double*[4];
+  xIons=new double*[4];
+  yIons=new double*[4];
+  zIons=new double*[4];
+  for(j=0;j<4;j++){
     aIons[j]=new double[len];
     bIons[j]=new double[len];
     cIons[j]=new double[len];
@@ -38,13 +38,13 @@ KIonSet::KIonSet(const KIonSet& k){
   len=k.len;
   mass=k.mass;
   difMass=k.difMass;
-  aIons=new double*[6];
-  bIons=new double*[6];
-  cIons=new double*[6];
-  xIons=new double*[6];
-  yIons=new double*[6];
-  zIons=new double*[6];
-  for(j=0;j<6;j++){
+  aIons=new double*[4];
+  bIons=new double*[4];
+  cIons=new double*[4];
+  xIons=new double*[4];
+  yIons=new double*[4];
+  zIons=new double*[4];
+  for(j=0;j<4;j++){
     aIons[j]=new double[len];
     bIons[j]=new double[len];
     cIons[j]=new double[len];
@@ -67,7 +67,7 @@ KIonSet::KIonSet(const KIonSet& k){
 }
   
 KIonSet::~KIonSet(){
-  for(int j=0;j<6;j++){
+  for(int j=0;j<4;j++){
     delete [] aIons[j];
     delete [] bIons[j];
     delete [] cIons[j];
@@ -91,7 +91,7 @@ KIonSet& KIonSet::operator=(const KIonSet& k){
     mass=k.mass;
     difMass=k.difMass;
     
-    for(j=0;j<6;j++){
+    for(j=0;j<4;j++){
       delete [] aIons[j];
       delete [] bIons[j];
       delete [] cIons[j];

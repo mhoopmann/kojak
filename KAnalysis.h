@@ -96,19 +96,16 @@ public:
 
   //Master Functions
   bool doPeptideAnalysis   ();
-  bool doPeptideAnalysisNC ();
-  bool doRelaxedAnalysis   ();
+  //bool doPeptideAnalysisNC ();
   //__int64 xCorrCount;
 
 private:
 
   //Thread-start functions
   static void analyzePeptideProc(kAnalysisStruct* s); 
-  static void analyzeRelaxedProc(kAnalysisRelStruct* s);
 
   //Analysis functions
   static bool analyzePeptide(kPeptide* p, int pepIndex, int iIndex);
-  static void analyzeRelaxed(KSpectrum* sp, int iIndex);
 
   //Private Functions
   bool         allocateMemory          (int threads);
@@ -119,10 +116,8 @@ private:
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);
   static void  scoreSingletSpectra     (int index, int sIndex, double mass, int len, int pep, char k, double minMass, int iIndex);
   static void  scoreSpectra            (vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex);
-  static float xCorrScoring            (KSpectrum& s, double modMass, int sIndex, int iIndex);
-  static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex);
+  static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex, int z=0);
   static void  setBinList              (kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen);
-  static double sharedScore            (KSpectrum* s, kMatchSet* m1, kMatchSet* m2, int charge);
 
   //Data Members
   static bool*      bKIonsManager;
@@ -148,10 +143,14 @@ private:
   static int skipCount;
   static int nonSkipCount;
 
-  static bool scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex);
+  static bool* soloLoop;
+  static bool firstPass;
+
+  static bool scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex);
 
   static Mutex  mutexKIonsManager; 
-  static Mutex* mutexSpecScore; 
+  static Mutex* mutexSpecScore; //these signal PSM list reads/additions/deleteions
+  static Mutex** mutexSingletScore; //these signal singlet list reads/additions/deletions
 
   //Utilities
   static int compareD           (const void *p1,const void *p2);

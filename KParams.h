@@ -20,6 +20,14 @@ limitations under the License.
 #include "KStructs.h"
 #include "pepXMLWriter.h"
 
+#ifdef _MSC_VER
+#include <direct.h>
+#define getcwd _getcwd
+#define slashdir '\\'
+#else
+#define slashdir '/'
+#endif
+
 class KParams {
 public:
   KParams();
@@ -27,15 +35,17 @@ public:
   ~KParams();
 
   vector<pxwBasicXMLTag> xmlParams;
-  
-  bool parseConfig(char* fname);
 
+  bool buildOutput(char* in, char* base, char* ext);
+  bool parseConfig(char* fname);
+ 
 private:
 
   kParams* params;
   
   bool checkMod(kMass m);
   void parse(char* cmd);
+  bool processPath(const char* cwd, const char* in_path, char* out_path);
   void warn(const char* c, int i);
 
 };

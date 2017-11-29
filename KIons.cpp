@@ -156,7 +156,7 @@ void KIons::buildIons(){
 
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
-    for(j=1;j<6;j++){
+    for(j=1;j<4;j++){
       sets[0].aIons[j][i] = ((sets[0].aIons[0][i]+1.007276466*j)/j);
       sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
       sets[0].cIons[j][i] = ((sets[0].cIons[0][i]+1.007276466*j)/j);
@@ -234,7 +234,7 @@ void KIons::buildLoopIons(double linkMass, int link1, int link2){
 
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
-    for(j=1;j<6;j++){
+    for(j=1;j<4;j++){
       sets[0].aIons[j][i] = ((sets[0].aIons[0][i]+1.007276466*j)/j);
       sets[0].bIons[j][i] = ((sets[0].bIons[0][i]+1.007276466*j)/j);
       sets[0].cIons[j][i] = ((sets[0].cIons[0][i]+1.007276466*j)/j);
@@ -300,7 +300,7 @@ void KIons::buildSingletIons(int link){
 
   //Propagate remaining charge states
   for(i=0;i<ionCount;i++){
-    for(j=1;j<6;j++){
+    for(j=1;j<4;j++){
       if(sets[0].aIons[0][i]<0) sets[0].aIons[j][i] = ((sets[0].aIons[0][i]-1.007276466*j)/j);
       else sets[0].aIons[j][i] = ((sets[0].aIons[0][i]+1.007276466*j)/j);
       if(sets[0].bIons[0][i]<0) sets[0].bIons[j][i] = ((sets[0].bIons[0][i]-1.007276466*j)/j);
@@ -333,7 +333,7 @@ void KIons::addModIonSet(int index, char aa, int pos, int modIndex, int loopPos)
   KIonSet s = sets[index];
 
   for (k = pos; k<ionCount; k++){
-    for (n = 1; n<6; n++){
+    for (n = 1; n<4; n++){
       if (s.aIons[0][k]<0) s.aIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
       else s.aIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
       if (s.bIons[0][k]<0) s.bIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
@@ -343,7 +343,7 @@ void KIons::addModIonSet(int index, char aa, int pos, int modIndex, int loopPos)
     }
   }
   for (k = ionCount - pos; k<ionCount; k++){
-    for (n = 1; n<6; n++){
+    for (n = 1; n<4; n++){
       if (s.xIons[0][k]<0) s.xIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);
       else s.xIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
       if (s.yIons[0][k]<0) s.yIons[n][k] -= (aaMod[aa].mod[modIndex].mass / n);

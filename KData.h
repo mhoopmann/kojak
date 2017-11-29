@@ -26,6 +26,7 @@ limitations under the License.
 #include "pepXMLWriter.h"
 #include <iostream>
 
+/*
 #ifdef _MSC_VER
 #include <direct.h>
 #define getcwd _getcwd
@@ -33,6 +34,7 @@ limitations under the License.
 #else
 #define slashdir '/'
 #endif
+*/
 
 class KData {
 public:
@@ -46,6 +48,8 @@ public:
   KSpectrum* getSpectrum(const int& i);
 
   void      buildXLTable      ();
+  bool      checkLink         (char p1Site, char p2Site, int linkIndex);
+  void      diagSinglet       ();
   bool      getBoundaries     (double mass1, double mass2, vector<int>& index, bool* buffer);
   bool      getBoundaries2    (double mass, double prec, vector<int>& index, bool* buffer);
   int       getCounterMotif   (int motifIndex, int counterIndex);
@@ -57,6 +61,7 @@ public:
   int       getXLIndex        (int motifIndex, int xlIndex);
   char**    getXLTable        ();
   bool      mapPrecursors     ();
+  void      outputDiagnostics (FILE* f, KSpectrum& s, KDatabase& db);
   bool      outputIntermediate(KDatabase& db);
   bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
@@ -82,6 +87,7 @@ private:
   KIons              aa;
   kXLMotif           motifs[20]; //lets put a cap on this for now
   int                motifCount;
+  kXLTarget          xlTargets[128][5]; //capping analysis at 5 crosslinkers for now
 
   //Utilities
   void        centroid          (Spectrum& s, Spectrum& out, double resolution, int instrument=0);

@@ -171,9 +171,11 @@ typedef struct kParams {
   char    enzyme[32];
   char    enzymeName[64];
   char    ext[32];
-  char    msFile[256];
+  char    inFile[1024];  //true input file with full path
+  char    msFile[256];   //input file parameter from confic
   char    n15Label[256];
-  char    outFile[256];
+  char    outFile[1024];  //true output file with full path
+  char    resPath[1024];
   vector<int>*      diag;
   vector<kLinker>*  xLink;
   vector<kLinker>*  mLink;
@@ -224,9 +226,11 @@ typedef struct kParams {
     strcpy(enzyme,"[KR]|{P}");
     strcpy(enzymeName, "Trypsin");
     ext[0]='\0';
+    inFile[0]='\0';
     msFile[0]='\0';
     n15Label[0]='\0';
     outFile[0]='\0';
+    resPath[0]='\0';
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
@@ -272,9 +276,11 @@ typedef struct kParams {
     strcpy(enzyme,p.enzyme);
     strcpy(enzymeName,p.enzymeName);
     strcpy(ext,p.ext);
+    strcpy(inFile, p.inFile);
     strcpy(msFile,p.msFile);
     strcpy(n15Label, p.n15Label);
     strcpy(outFile,p.outFile);
+    strcpy(resPath, p.resPath);
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
@@ -335,9 +341,11 @@ typedef struct kParams {
       strcpy(enzyme,p.enzyme);
       strcpy(enzymeName, p.enzymeName);
       strcpy(ext,p.ext);
+      strcpy(inFile, p.inFile);
       strcpy(msFile,p.msFile);
       strcpy(n15Label, p.n15Label);
       strcpy(outFile,p.outFile);
+      strcpy(resPath, p.resPath);
       delete diag;
       delete xLink;
       delete mLink;
@@ -380,13 +388,12 @@ typedef struct kPepMod{
 typedef struct kScoreCard{
   bool    linkable1;
   bool    linkable2;
+  char    precursor;
   int     k1;
   int     k2;
   int     link;
   int     pep1;
   int     pep2;
-  int     rank1;
-  int     rank2;
   float   simpleScore;
   double  mass;
   double  mass1;
@@ -398,13 +405,12 @@ typedef struct kScoreCard{
   kScoreCard(){
     linkable1=false;
     linkable2=false;
+    precursor=0;
     k1=0;
     k2=0;
     link=0;
     pep1=0;
     pep2=0;
-    rank1=0;
-    rank2=0;
     simpleScore=0;
     mass=0;
     mass1=0;
@@ -418,13 +424,12 @@ typedef struct kScoreCard{
     unsigned int i;
     linkable1=p.linkable1;
     linkable2=p.linkable2;
+    precursor=p.precursor;
     k1=p.k1;
     k2=p.k2;
     link=p.link;
     pep1=p.pep1;
     pep2=p.pep2;
-    rank1=p.rank1;
-    rank2=p.rank2;
     simpleScore=p.simpleScore;
     mass=p.mass;
     mass1=p.mass1;
@@ -445,13 +450,12 @@ typedef struct kScoreCard{
       unsigned int i;
       linkable1=p.linkable1;
       linkable2=p.linkable2;
+      precursor=p.precursor;
       k1=p.k1;
       k2=p.k2;
       link=p.link;
       pep1=p.pep1;
       pep2=p.pep2;
-      rank1=p.rank1;
-      rank2=p.rank2;
       simpleScore=p.simpleScore;
       mass=p.mass;
       mass1=p.mass1;
@@ -478,6 +482,7 @@ typedef struct kSingletScoreCard{
   float               simpleScore;
   double              mass;
   char                modLen;
+  char                site;
   kPepMod*            mods;
   kSingletScoreCard*  next;
   kSingletScoreCard*  prev;
@@ -490,6 +495,7 @@ typedef struct kSingletScoreCard{
     simpleScore=0;
     mass=0;
     modLen=0;
+    site=0;
     mods=NULL;
     next=NULL;
     prev=NULL;
@@ -503,6 +509,7 @@ typedef struct kSingletScoreCard{
     simpleScore=k.simpleScore;
     mass=k.mass;
     modLen=k.modLen;
+    site=k.site;
     mods=NULL;
     if(modLen>0){
       mods=new kPepMod[modLen];
@@ -526,6 +533,7 @@ typedef struct kSingletScoreCard{
       simpleScore=k.simpleScore;
       mass=k.mass;
       modLen=k.modLen;
+      site=k.site;
       if(mods!=NULL) {
         delete [] mods;
         mods=NULL;
@@ -706,5 +714,10 @@ typedef struct kXLMotif {
   int xlIndex[10];
   int counterMotif[10];
 } kXLMotif;
+
+typedef struct kXLTarget{
+  size_t linkerID;
+  bool target[128];
+} kXLTarget;
 
 #endif

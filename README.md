@@ -20,6 +20,14 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.6.0 - November 27 2017
+
+* Added searches for 15N-labeled homomultimers.
+* Added ability to export results to target path.
+* Major change to search algorithm. 
+* Changed function of top_count parameter to fit with the new search algorithm.
+* Updated diagnostic output information. Can also output diagnostics for all spectrum in one report.
+
 #### Version 1.5.5 - May 4 2017
 
 * Fixed support for MGF files. These are now valid input.

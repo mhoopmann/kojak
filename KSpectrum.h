@@ -18,8 +18,10 @@ limitations under the License.
 #define _KSPECTRUM_H
 
 #include <cmath>
+#include <list>
 #include <vector>
 #include "KStructs.h"
+#include "KTopPeps.h"
 
 using namespace std;
 
@@ -41,6 +43,10 @@ public:
   int             xCorrSparseArraySize;
   char**          kojakSparseArray;
   int             kojakBins;
+  
+  int singletBins;
+  list<kSingletScoreCard*>**  singletList;
+  float lowScore;
 
   int cc;
   int sc;
@@ -59,12 +65,17 @@ public:
   kScoreCard&         getScoreCard          (int i);
   int                 getSingletCount       ();
   kSingletScoreCard&  getSingletScoreCard   (int i);
+  KTopPeps*           getTopPeps            (int index);
   int                 size                  ();
   int                 sizePrecursor         ();
+  
+  kSingletScoreCard*    singletFirst;   //pointer to start of linked list
+  kSingletScoreCard*    singletLast;    //pointer to end of linked list
+  int                   singletMax;
 
   //Modifiers
   void addPoint               (kSpecPoint& s);
-  void addPrecursor           (kPrecursor& p);
+  void addPrecursor           (kPrecursor& p, int sz);
   void clear                  ();
   void erasePrecursor         (int i);
   void setCharge              (int i);
@@ -78,6 +89,7 @@ public:
   //Functions
   void  checkScore        (kScoreCard& s);
   void  checkSingletScore (kSingletScoreCard& s);
+  void  resetSingletList  ();
   void  sortMZ            ();
   void  xCorrScore        (bool b);
 
@@ -95,9 +107,9 @@ private:
   float                 rTime;
   int                   scanNumber;
   int                   singletCount;
-  kSingletScoreCard*    singletFirst;   //pointer to start of linked list
-  kSingletScoreCard*    singletLast;    //pointer to end of linked list
-  int                   singletMax;
+  
+  
+  vector<KTopPeps>*     singlets;
   vector<kSpecPoint>*   spec;
   kScoreCard            topHit[20];
   int                   xCorrArraySize;

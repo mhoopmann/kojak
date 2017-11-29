@@ -20,8 +20,8 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
-#define VERSION "1.6.0-dev"
-#define BDATE "July 12 2017"
+#define VERSION "1.6.1-dev"
+#define BDATE "November 29 2017"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 
@@ -91,9 +91,11 @@ int main(int argc, char* argv[]){
   //Step #3: Read in spectra and map precursors
   //Iterate over all input files
   for(i=0;i<files.size();i++){
-    strcpy(params.msFile,&files[i].input[0]);
-    strcpy(params.outFile,&files[i].base[0]);
-    strcpy(params.ext,&files[i].ext[0]);
+    p.buildOutput(&files[i].input[0], &files[i].base[0], &files[i].ext[0]);
+ 
+    //strcpy(params.msFile,&files[i].input[0]);
+    //strcpy(params.outFile,&files[i].base[0]);
+    //strcpy(params.ext,&files[i].ext[0]);
 
     if (strcmp(params.ext, ".mgf") == 0 && params.precursorRefinement){
       cout << "\n ERROR: Cannot perform precursor refinement using MGF files. Please disable by setting precursor_refinement=0" << endl;
@@ -116,12 +118,12 @@ int main(int argc, char* argv[]){
     anal.doPeptideAnalysis();
 
     if(params.intermediate>0) spec.outputIntermediate(db);
-    
-    cout << "  Finalizing XL analysis ... ";
-    anal.doRelaxedAnalysis();
 
     time(&timeNow);
     cout << " Finished spectral search: " << ctime(&timeNow) << endl;
+
+    //Future diagnostics
+    //spec.diagSinglet();
 
     //Step #5: Output results
     cout << " Exporting Results." << endl;
