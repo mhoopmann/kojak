@@ -14,7 +14,7 @@ INCLUDE = -I$(MSTOOLKITPATH)/include -I$(HARDKLORPATH)
 
 
 #Do not touch these variables
-KOJAK = KParams.o KAnalysis.o KData.o KDB.o KPrecursor.o KSpectrum.o KIons.o KIonSet.o Threading.o
+KOJAK = KParams.o KAnalysis.o KData.o KDB.o KPrecursor.o KSpectrum.o KIons.o KIonSet.o KTopPeps.o Threading.o
 
 
 #Make statements

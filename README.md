@@ -20,6 +20,10 @@ limitations under the License.
 
 ## Kojak Release Notes
 
+#### Version 1.6.1 - December 1 2017
+
+* Fixed bug with 15N protein reporting and the TPP.
+
 #### Version 1.6.0 - November 27 2017
 
 * Added searches for 15N-labeled homomultimers.
