@@ -176,7 +176,17 @@ void KParams::parse(char* cmd) {
   }
 
 	//Look up parameter and assign the value
-  if(strcmp(param,"cross_link")==0){
+  if (strcmp(param, "aa_mass") == 0){
+    m.index = (int)values[0][0];
+    m.mass = atof(&values[1][0]);
+    if (values.size() > 2 && values[2][0]!='0') m.xl=true;
+    else m.xl=false;
+    params->aaMass->push_back(m);
+    xml.name = "aa_mass";
+    xml.value = values[0] + " " + values[1];
+    xmlParams.push_back(xml);
+
+  } else if(strcmp(param,"cross_link")==0){
     //Check number of parameters
     if (values.size() != 4){
       warn("ERROR: bad cross_link parameter(s).",3);

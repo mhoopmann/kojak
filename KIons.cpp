@@ -44,6 +44,7 @@ KIons::KIons(){
   aaMass['S']=87.0320244;
   aaMass['T']=101.0476736;
   aaMass['V']=99.0684087;
+  aaMass['U']=150.9536303;
   aaMass['W']=186.0793065;
   aaMass['Y']=163.0633228;
   aaMass['c']=0;
@@ -68,6 +69,7 @@ KIons::KIons(){
   aaMassn15['R'] = 160.0892417;
   aaMassn15['S'] = 88.0290593;
   aaMassn15['T'] = 102.0447085;
+  aaMassn15['U'] = 151.9506652;
   aaMassn15['V'] = 100.0654436;
   aaMassn15['W'] = 188.0733763;
   aaMassn15['Y'] = 164.0603577;
@@ -738,6 +740,11 @@ void KIons::getPeptideMods(vector<kPepMod>& v){
     }
     v.push_back(m);
   }
+}
+
+void KIons::setAAMass(char aa, double mass, bool n15){
+  if(n15) aaMassn15[aa]=mass;
+  else aaMass[aa]=mass;
 }
 
 void KIons::setMaxModCount(int i){

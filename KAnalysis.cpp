@@ -64,6 +64,7 @@ KAnalysis::KAnalysis(kParams& p, KDatabase* d, KData* dat){
   for(j=0;j<params.threads;j++){
     for(i=0;i<params.fMods->size();i++) ions[j].addFixedMod((char)params.fMods->at(i).index,params.fMods->at(i).mass);
     for(i=0;i<params.mods->size();i++) ions[j].addMod((char)params.mods->at(i).index,params.mods->at(i).xl,params.mods->at(i).mass);
+    for(i=0;i<params.aaMass->size();i++) ions[j].setAAMass((char)params.aaMass->at(i).index, params.aaMass->at(i).mass, params.aaMass->at(i).xl);
     ions[j].setMaxModCount(params.maxMods);
   }
 
@@ -745,7 +746,9 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   double low,high,m;
   int lowI,highI;
   bool bScored=false;
+  bool ret;
   int max = (int)((params.maxPepMass + 1000) / 0.015);
+  int alpha;
 
   KSpectrum* s = spec->getSpectrum(index);
   kPrecursor* p;
@@ -753,6 +756,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   kScoreCard protSC;
   size_t x;
   int sz = s->sizePrecursor();
+
+  string seq1,seq2;
 
   for (i = 0; i<sz; i++){
     p = s->getPrecursor2(i);
@@ -791,30 +796,55 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           it++;
           continue; 
         }
-        protSC.k1 = tsc->k1;
-        protSC.k2 = k;
+
+        protSC.mods1->clear();
+        protSC.mods2->clear();
+
+        //alphabetize cross-linked peptides before storing them; this prevents confusion with duplications downstream
+        //char str[256];
+        if(seq2.size()==0) ret=db->getPeptideSeq(pep,seq2);
+        ret=db->getPeptideSeq(tsc->pep1, seq1);
+        alpha=seq1.compare(seq2);
+        if(alpha>0 || (alpha==0 && k<tsc->k1)){ //pep2 listed first
+          protSC.k1 = k;
+          protSC.k2 = tsc->k1;
+          protSC.pep1 = pep;
+          protSC.pep2 = tsc->pep1;
+          protSC.score1 = score;
+          protSC.score2 = tsc->simpleScore;
+          protSC.mass1 = mass;
+          protSC.mass2 = tsc->mass;
+          for (x = 0; x<tsc->modLen; x++) protSC.mods2->push_back(tsc->mods[x]);
+          ret=true; //indicates where to put mods to pep2
+        } else { //pep1 listed first
+          protSC.k1 = tsc->k1;
+          protSC.k2 = k;
+          protSC.pep1 = tsc->pep1;
+          protSC.pep2 = pep;
+          protSC.score1 = tsc->simpleScore;
+          protSC.score2 = score;
+          protSC.mass1 = tsc->mass;
+          protSC.mass2 = mass;
+          for (x = 0; x<tsc->modLen; x++) protSC.mods1->push_back(tsc->mods[x]);
+          ret=false; //indicates where to put mods to pep2
+        }
+        
         protSC.mass = tsc->mass + spec->getLink(linkIndex).mass + mass;
         protSC.linkable1 = tsc->linkable;
         protSC.linkable2 = false;
-        protSC.pep1 = tsc->pep1;
-        protSC.pep2 = pep;
         protSC.link = linkIndex;
-        protSC.score1 = tsc->simpleScore;
-        protSC.score2 = score;
-        if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){
+        protSC.precursor = (char)i;
+
+        //special case for identical peptides
+        if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){ 
           protSC.score1/=2;
           protSC.score2/=2;
           protSC.simpleScore/=2;
           it++;
           continue;
         }
-        protSC.mass1 = tsc->mass;
-        protSC.mass2 = mass;
-        protSC.precursor = (char)i;
-        protSC.mods1->clear();
-        protSC.mods2->clear();
-        for (x = 0; x<tsc->modLen; x++) protSC.mods1->push_back(tsc->mods[x]);
 
+        //index the mods for pep2
         iset = ions[iIndex].at(sIndex);
         if (iset->difMass != 0){
           for (j = 0; j<ions[iIndex].getIonCount(); j++) {
@@ -824,7 +854,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
               else mod.term = false;
               mod.pos = (char)j;
               mod.mass = iset->mods[j];
-              protSC.mods2->push_back(mod);
+              if(ret) protSC.mods1->push_back(mod);
+              else protSC.mods2->push_back(mod);
             }
           }
         }
@@ -913,7 +944,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
 
 void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex){
   unsigned int a;
-  int i,z;
+  int i,z,ps;
   kScoreCard sc;
   kPepMod mod;
   double mass = ions[iIndex][sIndex].mass;
@@ -923,7 +954,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     
     //find the specific precursor mass in this spectrum to identify the charge state
     z=0;
-    for (int ps = 0; ps<spec->at(index[a]).sizePrecursor(); ps++){
+    for (ps = 0; ps<spec->at(index[a]).sizePrecursor(); ps++){
       kPrecursor* p = spec->at(index[a]).getPrecursor2(ps);
       double ppm = (p->monoMass - mass) / mass*1e6;
       if (ppm<params.ppmPrecursor && ppm>-params.ppmPrecursor){
@@ -943,6 +974,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     sc.pep1=pep1;
     sc.pep2=pep2;
     sc.link=link;
+    sc.precursor=(char)ps;
     if(ions[iIndex][sIndex].difMass!=0){
       for(i=0;i<ions[iIndex].getPeptideLen();i++) {
         if(ions[iIndex][sIndex].mods[i]!=0){

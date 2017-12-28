@@ -176,6 +176,7 @@ typedef struct kParams {
   char    n15Label[256];
   char    outFile[1024];  //true output file with full path
   char    resPath[1024];
+  vector<kMass>*    aaMass;
   vector<int>*      diag;
   vector<kLinker>*  xLink;
   vector<kLinker>*  mLink;
@@ -231,6 +232,7 @@ typedef struct kParams {
     n15Label[0]='\0';
     outFile[0]='\0';
     resPath[0]='\0';
+    aaMass = new vector<kMass>;
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
@@ -281,12 +283,14 @@ typedef struct kParams {
     strcpy(n15Label, p.n15Label);
     strcpy(outFile,p.outFile);
     strcpy(resPath, p.resPath);
+    aaMass = new vector<kMass>;
     diag = new vector<int>;
     xLink = new vector<kLinker>;
     mLink = new vector<kLinker>;
     mods = new vector<kMass>;
     fMods = new vector<kMass>;
     unsigned int i;
+    for(i=0;i<p.aaMass->size();i++) aaMass->push_back(p.aaMass->at(i));
     for(i=0;i<p.diag->size();i++) diag->push_back(p.diag->at(i));
     for(i=0;i<p.xLink->size();i++) xLink->push_back(p.xLink->at(i));
     for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));
@@ -295,6 +299,7 @@ typedef struct kParams {
     for(i=0;i<6;i++) ionSeries[i]=p.ionSeries[i];
   }
   ~kParams(){
+    delete aaMass;
     delete diag;
     delete xLink;
     delete mLink;
@@ -346,17 +351,20 @@ typedef struct kParams {
       strcpy(n15Label, p.n15Label);
       strcpy(outFile,p.outFile);
       strcpy(resPath, p.resPath);
+      delete aaMass;
       delete diag;
       delete xLink;
       delete mLink;
       delete mods;
       delete fMods;
+      aaMass = new vector<kMass>;
       diag = new vector<int>;
       xLink = new vector<kLinker>;
       mLink = new vector<kLinker>;
       mods = new vector<kMass>;
       fMods = new vector<kMass>;
       unsigned int i;
+      for(i=0;i<p.aaMass->size();i++) aaMass->push_back(p.aaMass->at(i));
       for(i=0;i<p.diag->size();i++) diag->push_back(p.diag->at(i));
       for(i=0;i<p.xLink->size();i++) xLink->push_back(p.xLink->at(i));
       for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));

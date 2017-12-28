@@ -20,8 +20,8 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 
-#define VERSION "1.6.1"
-#define BDATE "December 1 2017"
+#define VERSION "1.6.2-dev"
+#define BDATE "December 28 2017"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 
@@ -77,6 +77,7 @@ int main(int argc, char* argv[]){
   //Step #2: Read in database and generate peptide lists
   KDatabase db;
   for(i=0;i<params.fMods->size();i++) db.addFixedMod(params.fMods->at(i).index,params.fMods->at(i).mass);
+  for(i=0;i<params.aaMass->size();i++) db.setAAMass((char)params.aaMass->at(i).index,params.aaMass->at(i).mass,params.aaMass->at(i).xl);
   if (strlen(params.n15Label)>0) db.setN15Label(params.n15Label);
   if(!db.setEnzyme(params.enzyme)) exit(-3);
   db.setXLTable(spec.getXLTable(),128,20);

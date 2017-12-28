@@ -41,6 +41,7 @@ KDatabase::KDatabase(){
   AA['R']=156.1011021;
   AA['S']=87.0320244;
   AA['T']=101.0476736;
+  AA['U']=150.9536303;
   AA['V']=99.0684087;
   AA['W']=186.0793065;
   AA['Y']=163.0633228;
@@ -62,6 +63,7 @@ KDatabase::KDatabase(){
   AAn15['R'] = 160.0892417;
   AAn15['S'] = 88.0290593;
   AAn15['T'] = 102.0447085;
+  AAn15['U'] = 151.9506652;
   AAn15['V'] = 100.0654436;
   AAn15['W'] = 188.0733763;
   AAn15['Y'] = 164.0603577;
@@ -118,8 +120,9 @@ bool  KDatabase::buildDB(char* fname) {
     } else {
       for(unsigned int i=0;i<strlen(str);i++){
         c=toupper(str[i]);
-        if(AA[c]==0) cout << "  WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space." << endl;
+        if(AA[c]==0) cout << "  WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space: '" << c << "'" << endl;
         if(c==' ' || c=='\t') continue;
+        if (AA[c] == 0) cout << "  WARNING: Mass of '" << c << "' is currently set to 0. Consider revising with the aa_mass parameter." << endl;
         d.sequence+=c;
       }
     }
@@ -378,22 +381,33 @@ int KDatabase::getPeptideListSize(){
 }
 
 bool KDatabase::getPeptideSeq(int index, int start, int stop, char* str){
-
+  if ((size_t)index>vDB.size()) return false;
   string str1=vDB[index].sequence.substr(start,stop-start+1);
   strcpy(str,&str1[0]);
   return true;
 }
 
 bool KDatabase::getPeptideSeq(int index, int start, int stop, string& str){
-
+  if((size_t)index>vDB.size()) return false;
   str=vDB[index].sequence.substr(start,stop-start+1);
   return true;
 }
 
 bool KDatabase::getPeptideSeq(kPeptide& p, string& str){
-
   str=vDB[p.map->at(0).index].sequence.substr(p.map->at(0).start,p.map->at(0).stop-p.map->at(0).start+1);
   return true;
+}
+
+bool KDatabase::getPeptideSeq(int pepIndex, string& str){
+  if((size_t)pepIndex>vPep.size()) return false;
+  kPeptide p = vPep[(size_t)pepIndex];
+  str = vDB[p.map->at(0).index].sequence.substr(p.map->at(0).start, p.map->at(0).stop - p.map->at(0).start + 1);
+  return true;
+}
+
+void KDatabase::setAAMass(char aa, double mass, bool n15){
+  if (n15) AAn15[aa] = mass;
+  else AA[aa] = mass;
 }
 
 bool KDatabase::setEnzyme(char* str){

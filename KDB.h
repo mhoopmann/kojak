@@ -50,8 +50,10 @@ public:
   bool                getPeptideSeq       (int index, int start, int stop, char* str);
   bool                getPeptideSeq       (int index, int start, int stop, string& str);
   bool                getPeptideSeq       (kPeptide& p, string& str);
+  bool                getPeptideSeq       (int pepIndex, string& str);
   kDB&                getProtein          (int index);
   int                 getProteinDBSize    ();
+  void                setAAMass           (char aa, double mass, bool n15 = false);
   bool                setEnzyme           (char* str);
   void                setN15Label         (char* str);
   void                setXLTable          (char** arr, int szA, int szB);

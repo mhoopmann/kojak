@@ -74,6 +74,7 @@ public:
   int       size          ();
 
   //Modifiers
+  void  setAAMass       (char aa, double mass, bool n15=false);
   void  setMaxModCount  (int i);
   void  setModFlags     (bool monoMods, bool difMods);
   void  setPeptide      (bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm, bool n15);

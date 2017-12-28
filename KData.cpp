@@ -1043,6 +1043,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
   kPeptide pep;
   kPeptide pep2;
+  kPrecursor precursor;
   kScoreCard tmpSC;
   kScoreCard tmpSC2;
 
@@ -1149,6 +1150,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     if (fDiag == NULL) bBadFiles = true;
   }
 
+  //check that all output files are valid
   if(bBadFiles){
     cout << "Error exporting results. Please make sure drive is writable." << endl;
     if(fOut!=NULL)    fclose(fOut);
@@ -1234,26 +1236,13 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
       count++;
 
-      //Get the best precursor ion for the PSM
-      ppm1=(tmpSC.mass-spec[i].getPrecursor(0).monoMass)/spec[i].getPrecursor(0).monoMass*1e6;
-      preIndex=0;
-      for(j=1;j<spec[i].sizePrecursor();j++){
-        ppm2=(tmpSC.mass-spec[i].getPrecursor(j).monoMass)/spec[i].getPrecursor(j).monoMass*1e6;
-        if(fabs(ppm1)>fabs(ppm2)){
-          preIndex=j;
-          ppm1=ppm2;
-        } else if(fabs(ppm1)==fabs(ppm2)){
-          if(spec[i].getPrecursor(j).corr>spec[i].getPrecursor(preIndex).corr){
-            preIndex=j;
-            ppm1=ppm2;
-          }
-        }
-      }
-      res.obsMass = spec[i].getPrecursor(preIndex).monoMass;
-      res.charge  = spec[i].getPrecursor(preIndex).charge;
-      res.ppm     = ppm1;
+      //Get precursor ion for the PSM
+      precursor=spec[i].getPrecursor((int)tmpSC.precursor);
+      res.obsMass = precursor.monoMass;
+      res.charge  = precursor.charge;
+      res.ppm = (tmpSC.mass - precursor.monoMass) / precursor.monoMass*1e6;
       res.psmMass = tmpSC.mass;
-      res.hk = spec[i].getPrecursor(preIndex).corr;
+      res.hk = precursor.corr;
 
       if(params->exportPepXML){
         sq.assumed_charge=res.charge;
@@ -1270,11 +1259,11 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         tmpSC2=spec[i].getScoreCard(n++);
         if(tmpSC2.simpleScore==0) break;
         if(tmpSC2.simpleScore==topScore) continue;
-        ppm1=(tmpSC2.mass-spec[i].getPrecursor(preIndex).monoMass)/spec[i].getPrecursor(preIndex).monoMass*1e6;
-        if(fabs(ppm1)>params->ppmPrecursor) continue;
+        if(tmpSC2.precursor!=tmpSC.precursor) continue;
 
         //if peptides and link sites are the same, go to the next one
-        if(tmpSC2.pep1==tmpSC.pep1 && tmpSC2.pep2==tmpSC.pep2 && tmpSC2.k1==tmpSC.k1 && tmpSC2.k2==tmpSC.k2){
+        if(tmpSC.link>-1 && tmpSC2.link>-1 && tmpSC2.pep1==tmpSC.pep1 && tmpSC2.pep2==tmpSC.pep2 && tmpSC2.k1==tmpSC.k1 && tmpSC2.k2==tmpSC.k2){
+          cout << "Oddity 1: " << spec[i].getScanNumber() << endl;
           continue;
         }
         break;
@@ -1457,7 +1446,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       tmpPep2 += tmp;
 
       //reorder peptides alphabetically
+      /* now obsolete in 1.6.2
       if(res.type>1 && tmpPep1.compare(tmpPep2)>0){
+        cout << "Oddity 2: " << spec[i].getScanNumber() << "\t" << tmpPep1 << "\t" << tmpPep2 << "\t" << tmpPep1.compare(tmpPep2) << endl;
         tmpPep1=res.peptide1;
         res.peptide1=res.peptide2;
         res.peptide2=tmpPep1;
@@ -1492,6 +1483,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         res.mods2.clear();
         for(j=0;j<vpm.size();j++) res.mods2.push_back(vpm[j]);
       }
+      */
 
       //Export Results:
       fprintf(fOut,"%d",res.scanNumber);
@@ -1510,6 +1502,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       if(res.n15Pep1) fprintf(fOut,"-15N");
       fprintf(fOut,"\t%d",res.link1);
 
+      //export protein
       fprintf(fOut,"\t");
       tmpPep1.clear();
       pep = db.getPeptide(res.pep1);
@@ -1522,12 +1515,14 @@ bool KData::outputResults(KDatabase& db, KParams& par){
           tmpPep1+=tmp;
           //fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //put position from start of protein
         }
+        /* this doesn't belong here
         if (res.link2 >= 0) {
           sprintf(tmp, "%d", pep.map->at(j).start + res.link2);
           if (tmpPep1.size()>0) tmpPep1 += ";";
           tmpPep1 += tmp;
           //fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //put position from start of protein
         }
+        */
       }
       if(bDupe){
         pep = db.getPeptide(res.pep2);

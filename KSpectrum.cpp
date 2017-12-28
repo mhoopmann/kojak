@@ -422,11 +422,11 @@ void KSpectrum::checkScore(kScoreCard& s){
   //fprintf(f,"%.4f\n",s.simpleScore);
   //fclose(f);
 
-  //edge case for similar precursors: check if already matches top hit identically
+  //edge case for "reversible" cross-links: check if already matches top hit identically
+  //note that such duplications still occur below the top score, but shouldn't influence the final result to the user
   int k=0;
-  //float topScore=topHit[0].simpleScore;
   while(k<20 && s.simpleScore==topHit[k].simpleScore){
-    if(/*s.simpleScore==topHit[k].simpleScore && */s.pep1==topHit[k].pep1 && s.pep2==topHit[k].pep2 && s.k1==topHit[k].k1 && s.k2==topHit[k].k2){
+    if(s.pep1==topHit[k].pep1 && s.pep2==topHit[k].pep2 && s.k1==topHit[k].k1 && s.k2==topHit[k].k2){
       if(s.mods1->size()==topHit[k].mods1->size() && s.mods2->size()==topHit[k].mods2->size()){
         for(i=0;i<s.mods1->size();i++){
           if(s.mods1->at(i).mass!=topHit[k].mods1->at(i).mass || s.mods1->at(i).pos!=topHit[k].mods1->at(i).pos) break;
