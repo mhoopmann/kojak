@@ -1,7 +1,7 @@
 #Set these variables if needed
 C = gcc
 CC = g++
-FLAGS = -O3 -static -D_NOSQLITE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DGCC
+FLAGS = -O3 -static -std=c++11 -D_NOSQLITE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DGCC
 
 #Paths to supporting software
 MSTOOLKITPATH = ../MSToolkit
@@ -49,6 +49,9 @@ KIons.o : KIons.cpp
 		
 KIonSet.o : KIonSet.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KIonSet.cpp -c
+	
+KTopPeps.o : KTopPeps.cpp
+	$(CC) $(FLAGS) $(INCLUDE) KTopPeps.cpp -c
 		
 Threading.o : Threading.cpp
 	$(CC) $(FLAGS) $(INCLUDE) Threading.cpp -c
