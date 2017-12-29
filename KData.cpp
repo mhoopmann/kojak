@@ -802,6 +802,9 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   PXWSearchHit sh;
   PXWSearchHit shB;
 
+  int siteA;
+  int siteB;
+
   sh.hit_rank=1;
   sh.peptide=r.peptide1;
   if(r.type==0){
@@ -896,7 +899,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
       sh.num_tot_proteins--;
       continue;
     }
-    if (!pep.n15 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
+    if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
       sh.num_tot_proteins--;
       continue;
     }
@@ -909,7 +912,13 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
     if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
     else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
-    sh.addProtein(protein,c,n);
+    siteA = pep.map->at(j).start+r.link1;
+    if(r.type==1){
+      siteB = pep.map->at(j).start+r.link2;
+      sh.addProtein(protein, c, n,siteA,siteB);
+    } else {
+      sh.addProtein(protein,c,n,siteA);
+    }
   }
 
   if(r.type>1){
@@ -920,7 +929,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
         sh.num_tot_proteins--;
         continue;
       }
-      if (!pep.n15 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
+      if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
         sh.num_tot_proteins--;
         continue;
       }
@@ -933,7 +942,8 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
       else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
       if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
       else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
-      shB.addProtein(protein,c,n);
+      siteA = pep.map->at(j).start + r.link2;
+      shB.addProtein(protein,c,n,siteA);
     }
   }
 
@@ -1034,7 +1044,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
   size_t i;
   int j,k,n,x,d;
-  char fPath[1024];
   char fName[256];
   char outPath[1024];
   char peptide[256];
@@ -1056,21 +1065,16 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   PXWSearchSummary ss;
   PXWSpectrumQuery sq;
 
-  bool b;
   bool bBadFiles;
   bool bInter;
   bool bTarget1;
   bool bDupe;
   bool bDiag;
 
-  int preIndex;
   int scoreIndex;
   int iDupe;
 
-  double dbl;
   double topScore;
-  double ppm1;
-  double ppm2;
 
   string tmpPep1;
   string tmpPep2;
@@ -1110,13 +1114,18 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   }
   if(params->exportPepXML) {
     rs.base_name=params->outFile;
+    if (rs.base_name[0] == '/'){ //unix
+      outFile = rs.base_name.substr(rs.base_name.find_last_of("/") + 1, rs.base_name.size());
+    } else { //assuming windows
+      outFile=rs.base_name.substr(rs.base_name.find_last_of("\\")+1,rs.base_name.size());
+    }
     rs.raw_data=params->ext;
     rs.raw_data_type="raw";
     rs.search_engine="Kojak";
     ss.base_name=rs.base_name;
     ss.search_engine="Kojak";
     ss.search_engine_version=version;
-    processPath(fPath,params->dbFile,outPath);
+    processPath(params->dbFile,outPath);
     ss.search_database=outPath;
     for(i=0;i<par.xmlParams.size();i++){
       ss.parameters->push_back(par.xmlParams[i]);
@@ -1313,9 +1322,11 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         for(j=0;j<tmpSC.mods2->size();j++) res.mods2.push_back(tmpSC.mods2->at(j));
       }
 
+      res.modPeptide1 = processPeptide(pep,tmpSC.mods1,db);
+      /*
       res.modPeptide1 = "";
       if (pep.nTerm && aa.getFixedModMass('$')!=0) {
-        sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('$'));
+        sprintf(tmp, "n[%.2lf]", aa.getFixedModMass('$'));
         res.modPeptide1 += tmp;
       }
       for (k = 0; k<tmpSC.mods1->size(); k++){ //check for n-terminal peptide mod
@@ -1343,8 +1354,13 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('%'));
         res.modPeptide1 += tmp;
       }
+      */
       
       res.modPeptide2 = "";
+      if(res.peptide2.size()>0){
+        res.modPeptide2=processPeptide(pep2,tmpSC.mods2,db);
+      }
+      /*
       if (res.peptide2.size()>0 && pep2.nTerm && aa.getFixedModMass('$')!=0) {
         sprintf(tmp, "n[%.2lf]", aa.getFixedModMass('$'));
         res.modPeptide2 += tmp;
@@ -1374,6 +1390,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('%'));
         res.modPeptide2 += tmp;
       }
+      */
 
       //Get the link positions - relative to the peptide
       res.link1 = tmpSC.k1;
@@ -2312,7 +2329,10 @@ double KData::polynomialBestFit(vector<double>& x, vector<double>& y, vector<dou
 }
 
 //Takes relative path and finds absolute path
-bool KData::processPath(const char* cwd, const char* in_path, char* out_path){
+bool KData::processPath(const char* in_path, char* out_path){
+  char cwd[1024];
+  getcwd(cwd,1024);
+
   //if windows or unix in_path, just copy it to out_path
   if (strlen(in_path) > 0 && in_path[0] == '/'){ //unix
     strcpy(out_path,in_path);
@@ -2369,5 +2389,47 @@ bool KData::processPath(const char* cwd, const char* in_path, char* out_path){
   return true;
 
 }
+
+string KData::processPeptide(kPeptide& pep, vector<kPepMod>* mod, KDatabase& db){
+  char tmp[32];
+  size_t j,k;
+  string seq = "";
+  string peptide;
+
+  db.getPeptideSeq(pep.map->at(0).index, pep.map->at(0).start, pep.map->at(0).stop, peptide);
+
+  if (pep.nTerm && aa.getFixedModMass('$') != 0) {
+    sprintf(tmp, "n[%.2lf]", aa.getFixedModMass('$'));
+    seq += tmp;
+  }
+  for (k = 0; k<mod->size(); k++){ //check for n-terminal peptide mod
+    if (mod->at(k).pos == 0 && mod->at(k).term){
+      sprintf(tmp, "n[%.2lf]", mod->at(k).mass);
+      seq += tmp;
+    }
+  }
+  for (j = 0; j<peptide.size(); j++) {
+    seq += peptide[j];
+    for (k = 0; k<mod->size(); k++){
+      if (j == (unsigned int)mod->at(k).pos && !mod->at(k).term){
+        sprintf(tmp, "[%.2lf]", mod->at(k).mass);
+        seq += tmp;
+      }
+    }
+  }
+  for (k = 0; k<mod->size(); k++){ //check for c-terminal peptide mod
+    if (mod->at(k).pos > 0 && mod->at(k).term){
+      sprintf(tmp, "c[%.2lf]", mod->at(k).mass);
+      seq += tmp;
+    }
+  }
+  if (pep.cTerm && aa.getFixedModMass('%') != 0) {
+    sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('%'));
+    seq += tmp;
+  }
+
+  return seq;
+}
+
 
 

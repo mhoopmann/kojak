@@ -96,7 +96,8 @@ private:
   static int  compareMassList   (const void *p1, const void *p2);
   int         getCharge         (Spectrum& s, int index, int next);
   double      polynomialBestFit (vector<double>& x, vector<double>& y, vector<double>& coeff, int degree=2);
-  bool        processPath       (const char* cwd, const char* in_path, char* out_path);
+  bool        processPath       (const char* in_path, char* out_path);
+  string      processPeptide    (kPeptide& pep, vector<kPepMod>* mod, KDatabase& db);
 
 };
 
