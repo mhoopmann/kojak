@@ -318,6 +318,7 @@ void KParams::parse(char* cmd) {
 
   } else if (strcmp(param, "intermediate") == 0){
     params->intermediate = atoi(&values[0][0]);
+    if(params->intermediate>0) params->turbo=false; //turn off turbo mode when using intermediate analysis.
     if (params->intermediate < 0){
       warn("ERROR: intermediate value out of range. Stopping analysis.", 3);
       exit(-5);
@@ -590,11 +591,12 @@ void KParams::parse(char* cmd) {
     xmlParams.push_back(xml);
 
   } else if (strcmp(param, "turbo_button") == 0){
-    if (atoi(&values[0][0]) != 0) params->turbo = true;
-    else params->turbo = false;
-    xml.name = "turbo_button";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    warn(param,2);
+    //if (atoi(&values[0][0]) != 0) params->turbo = true;
+    //else params->turbo = false;
+    //xml.name = "turbo_button";
+    //xml.value = values[0];
+    //xmlParams.push_back(xml);
 
   } else if(strcmp(param,"use_comet_xcorr")==0){
     warn(param, 2);

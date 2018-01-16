@@ -829,6 +829,8 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   if (r.cTerm1 && aa.getFixedModMass('%')!=0)sh.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
   sh.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
   sh.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
+  if(sh.modInfo.mod_nterm_mass!=0) sh.modInfo.mod_nterm_mass+=1.00782503;
+  if(sh.modInfo.mod_cterm_mass!=0) sh.modInfo.mod_cterm_mass+=17.00273963;
   for(i=0;i<r.peptide1.size();i++){
     if(aa.getFixedModMass(r.peptide1[i])>0) {
       sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i],r.n15Pep1));
@@ -850,6 +852,8 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     if (r.cTerm2 && aa.getFixedModMass('%')!=0)shB.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
     shB.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
     shB.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
+    if (shB.modInfo.mod_nterm_mass != 0) shB.modInfo.mod_nterm_mass += 1.00782503;
+    if (shB.modInfo.mod_cterm_mass != 0) shB.modInfo.mod_cterm_mass += 17.00273963;
     for(i=0;i<r.peptide2.size();i++){
       if(aa.getFixedModMass(r.peptide2[i])>0) {
         shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i],r.n15Pep2));
@@ -1004,7 +1008,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
     //  else fprintf(f,"\t%d\t%d\t%d\t-.%s(%d)--%s(%d).-",(int)r.peptide1.size(),(int)r.peptide2.size(),(int)(r.peptide1.size()+r.peptide2.size()),&p2[0],r.link2,&p1[0],r.link1);
     //}
   } else {
-    fprintf(f,"\t%d\t-.%s",(int)r.peptide1.size(),&r.modPeptide1[0]);
+    fprintf(f,"\t%d\t-.%s",(int)r.peptide1.size(),&p1[0]);
     if(r.type==1) fprintf(f,"(%d,%d)-LOOP",r.link1,r.link2);
     fprintf(f,".-");
   }
@@ -1113,11 +1117,13 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     }
   }
   if(params->exportPepXML) {
-    rs.base_name=params->outFile;
+    rs.base_name=params->inFile; 
+    rs.base_name = rs.base_name.substr(0, rs.base_name.find_last_of('.'));
+    outFile=params->outFile;
     if (rs.base_name[0] == '/'){ //unix
-      outFile = rs.base_name.substr(rs.base_name.find_last_of("/") + 1, rs.base_name.size());
+      outFile = outFile.substr(outFile.find_last_of("/") + 1, outFile.size());
     } else { //assuming windows
-      outFile=rs.base_name.substr(rs.base_name.find_last_of("\\")+1,rs.base_name.size());
+      outFile = outFile.substr(outFile.find_last_of("\\") + 1, outFile.size());
     }
     rs.raw_data=params->ext;
     rs.raw_data_type="raw";
@@ -1271,10 +1277,11 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         if(tmpSC2.precursor!=tmpSC.precursor) continue;
 
         //if peptides and link sites are the same, go to the next one
-        if(tmpSC.link>-1 && tmpSC2.link>-1 && tmpSC2.pep1==tmpSC.pep1 && tmpSC2.pep2==tmpSC.pep2 && tmpSC2.k1==tmpSC.k1 && tmpSC2.k2==tmpSC.k2){
-          cout << "Oddity 1: " << spec[i].getScanNumber() << endl;
-          continue;
-        }
+        //this no longer applies to the top result. duplicates may occur among lower results
+        //if(tmpSC.link>-1 && tmpSC2.link>-1 && tmpSC2.pep1==tmpSC.pep1 && tmpSC2.pep2==tmpSC.pep2 && tmpSC2.k1==tmpSC.k1 && tmpSC2.k2==tmpSC.k2){
+        //  cout << "Oddity 1: " << spec[i].getScanNumber() << endl;
+        //  continue;
+        //}
         break;
       }
       res.score       = tmpSC.simpleScore;
