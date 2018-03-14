@@ -331,6 +331,11 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
   //Average points between mz-1.5 and mz+2
   if(params->enrichment>0)averageScansCentroid(vs,s,mz-1.75,mz+1.75);
   else averageScansCentroid(vs,s,mz-1.0,mz+1.5);
+  if(s.size()==0) {
+    cout << "\n   WARNING: Unexpected precursor scan data!";
+    if(!params->ms1Centroid) cout << " Params are set to MS1 profile mode, but are MS1 scans centroided?" << endl;
+    return ret;
+  } 
   s.setScanNumber(centBuf->at(precursor).getScanNumber());
 
   //Obtain the possible precursor charge states of the selected ion.
@@ -369,7 +374,7 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     }
 
   } else {
-    
+
     h->GoHardklor(hs,&s);
 
     //If nothing was found, really narrow down the window and try again.
@@ -698,22 +703,24 @@ void KPrecursor::averageScansCentroid(vector<Spectrum*>& s, Spectrum& avg, doubl
       topList.push_back(sb);
     }
   }
-  qsort(&topList[0],topList.size(),sizeof(kScanBin),compareScanBinRev);
-  for(i=0;i<topList.size();i++){
-    if(bin[topList[i].index]==0) continue;
-    intensity=0;
-    j=topList[i].index-50;
-    k=topList[i].index+51;
-    if(j<0) j=0;
-    if(k>binCount) k=binCount;
-    for(j=j;j<k;j++){
-      intensity+=bin[j];
-      bin[j]=0;
+  if(topList.size()>0) {
+    qsort(&topList[0],topList.size(),sizeof(kScanBin),compareScanBinRev);
+    for(i=0;i<topList.size();i++){
+      if(bin[topList[i].index]==0) continue;
+      intensity=0;
+      j=topList[i].index-50;
+      k=topList[i].index+51;
+      if(j<0) j=0;
+      if(k>binCount) k=binCount;
+      for(j=j;j<k;j++){
+        intensity+=bin[j];
+        bin[j]=0;
+      }
+      intensity/=s.size();
+      avg.add(offset+topList[i].index*binWidth,intensity);
     }
-    intensity/=s.size();
-    avg.add(offset+topList[i].index*binWidth,intensity);
+    avg.sortMZ();
   }
-  avg.sortMZ();
 
   //clean up memory
   delete [] bin;

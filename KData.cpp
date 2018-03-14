@@ -556,7 +556,7 @@ bool KData::mapPrecursors(){
       //build singletList
       spec[i].resetSingletList();
 
-    }    
+    }
 
   }
  
