@@ -95,14 +95,16 @@ public:
   ~KAnalysis ();
 
   //Master Functions
-  bool doPeptideAnalysis   ();
+  bool doPeptideAnalysis ();
+  bool doEValueAnalysis  ();
   //bool doPeptideAnalysisNC ();
   //__int64 xCorrCount;
 
 private:
 
   //Thread-start functions
-  static void analyzePeptideProc(kAnalysisStruct* s); 
+  static void analyzePeptideProc (kAnalysisStruct* s); 
+  static void analyzeEValueProc  (KSpectrum* s);
 
   //Analysis functions
   static bool analyzePeptide(kPeptide* p, int pepIndex, int iIndex);
@@ -116,7 +118,7 @@ private:
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);
   static void  scoreSingletSpectra     (int index, int sIndex, double mass, int len, int pep, char k, double minMass, int iIndex);
   static void  scoreSpectra            (vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex);
-  static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex, int z=0);
+  static float kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z = 0);
   static void  setBinList              (kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen);
 
   //Data Members
@@ -145,6 +147,8 @@ private:
 
   static bool* soloLoop;
   static bool firstPass;
+
+  static KDecoys decoys;
 
   static bool scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex);
 

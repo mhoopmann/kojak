@@ -461,6 +461,7 @@ void KIons::modIonsRec2(int start, int link, int index, int depth, bool xl){
 
   //now proceed with linking on an amino acid
   modIonsRec(start, link, index, depth, xl);
+  //if(link<0) return; //stop now if peptide cannot be linked, as modifications have been exhausted
 
   //if at n-terminus and aa is not linkable, stop now; n-terminus cannot be modified because it is holding the linker
   if(link==0 && !site[pep1[0]]) return; 

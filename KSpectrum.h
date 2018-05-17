@@ -22,6 +22,9 @@ limitations under the License.
 #include <vector>
 #include "KStructs.h"
 #include "KTopPeps.h"
+#include "CometDecoys.h"
+
+#define HISTOSZ 152
 
 using namespace std;
 
@@ -51,6 +54,23 @@ public:
   int cc;
   int sc;
 
+  //diagnostics - probably temporary
+  float tmpIntercept;
+  float tmpSlope;
+  float tmpIStartCorr;
+  float tmpINextCorr;
+  double tmpRSquare;
+  int tmpIMaxCorr;
+  float tmpSingletIntercept;
+  float tmpSingletSlope;
+  float tmpSingletIStartCorr;
+  float tmpSingletINextCorr;
+  double tmpSingletRSquare;
+  int tmpSingletIMaxCorr;
+  int tmpSingCount;
+  int tmpHistCount;
+
+
   //Accessors
   double              getBinOffset          ();
   int                 getCharge             ();
@@ -73,6 +93,12 @@ public:
   kSingletScoreCard*    singletLast;    //pointer to end of linked list
   int                   singletMax;
 
+  int histogram[HISTOSZ];
+  int histogramCount;
+  int histoMaxIndex;
+  int histogramSinglet[HISTOSZ];
+  int histogramSingletCount;
+
   //Modifiers
   void addPoint               (kSpecPoint& s);
   void addPrecursor           (kPrecursor& p, int sz);
@@ -87,11 +113,18 @@ public:
   void setScanNumber          (int i);
 
   //Functions
-  void  checkScore        (kScoreCard& s);
-  void  checkSingletScore (kSingletScoreCard& s);
-  void  resetSingletList  ();
-  void  sortMZ            ();
-  void  xCorrScore        (bool b);
+  bool  calcEValue          (kParams* params, KDecoys& decoys);
+  void  checkScore          (kScoreCard& s);
+  void  checkSingletScore   (kSingletScoreCard& s);
+  bool  generateSingletDecoys(kParams* params, KDecoys& decoys);
+  bool generateXLDecoys      (kParams* params, KDecoys& decoys);
+  bool  generateXcorrDecoys (kParams* params, KDecoys& decoys);
+  void  linearRegression    (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
+  void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
+  void  linearRegression3   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
+  void  resetSingletList    ();
+  void  sortMZ              ();
+  void  xCorrScore          (bool b);
 
 private:
 
@@ -113,7 +146,6 @@ private:
   vector<kSpecPoint>*   spec;
   kScoreCard            topHit[20];
   int                   xCorrArraySize;
-  
 
   //Functions
   void BinIons      (kPreprocessStruct *pPre);

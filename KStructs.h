@@ -402,12 +402,19 @@ typedef struct kScoreCard{
   int     link;
   int     pep1;
   int     pep2;
+  int     matches1;
+  int     matches2;
+  int     conFrag1;
+  int     conFrag2;
   float   simpleScore;
+  double  eVal;
+  double  eVal1;
+  double  eVal2;
   double  mass;
   double  mass1;
   double  mass2;
-  double  score1;
-  double  score2;
+  float  score1;
+  float  score2;
   vector<kPepMod>* mods1;
   vector<kPepMod>* mods2;
   kScoreCard(){
@@ -420,11 +427,18 @@ typedef struct kScoreCard{
     pep1=0;
     pep2=0;
     simpleScore=0;
+    eVal=0;
+    eVal1=0;
+    eVal2=0;
     mass=0;
     mass1=0;
     mass2=0;
     score1=0;
     score2=0;
+    matches1=0;
+    matches2=0;
+    conFrag1=0;
+    conFrag2=0;
     mods1=new vector<kPepMod>;
     mods2=new vector<kPepMod>;
   }
@@ -439,11 +453,18 @@ typedef struct kScoreCard{
     pep1=p.pep1;
     pep2=p.pep2;
     simpleScore=p.simpleScore;
+    eVal=p.eVal;
+    eVal1=p.eVal1;
+    eVal2=p.eVal2;
     mass=p.mass;
     mass1=p.mass1;
     mass2=p.mass2;
     score1=p.score1;
     score2=p.score2;
+    matches1=p.matches1;
+    matches2=p.matches2;
+    conFrag1=p.conFrag1;
+    conFrag2=p.conFrag2;
     mods1=new vector<kPepMod>;
     for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
     mods2=new vector<kPepMod>;
@@ -465,11 +486,18 @@ typedef struct kScoreCard{
       pep1=p.pep1;
       pep2=p.pep2;
       simpleScore=p.simpleScore;
+      eVal=p.eVal;
+      eVal1 = p.eVal1;
+      eVal2 = p.eVal2;
       mass=p.mass;
       mass1=p.mass1;
       mass2=p.mass2;
       score1=p.score1;
       score2=p.score2;
+      matches1 = p.matches1;
+      matches2 = p.matches2;
+      conFrag1 = p.conFrag1;
+      conFrag2 = p.conFrag2;
       delete mods1;
       mods1=new vector<kPepMod>;
       for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
@@ -485,6 +513,8 @@ typedef struct kSingletScoreCard{
   char                len;
   bool                linkable;
   char                k1;
+  int                 conFrag;  //longest run of consecutive fragment ions
+  int                 matches;  //total matched fragment ions
   int                 pep1;
   char                pre;
   float               simpleScore;
@@ -504,6 +534,8 @@ typedef struct kSingletScoreCard{
     mass=0;
     modLen=0;
     site=0;
+    matches=0;
+    conFrag=0;
     mods=NULL;
     next=NULL;
     prev=NULL;
@@ -518,6 +550,8 @@ typedef struct kSingletScoreCard{
     mass=k.mass;
     modLen=k.modLen;
     site=k.site;
+    matches=k.matches;
+    conFrag=k.conFrag;
     mods=NULL;
     if(modLen>0){
       mods=new kPepMod[modLen];
@@ -542,6 +576,8 @@ typedef struct kSingletScoreCard{
       mass=k.mass;
       modLen=k.modLen;
       site=k.site;
+      matches = k.matches;
+      conFrag = k.conFrag;
       if(mods!=NULL) {
         delete [] mods;
         mods=NULL;
@@ -595,14 +631,21 @@ typedef struct kResults{
   int     charge;
   int     link1;
   int     link2;
+  int     matches1;
+  int     matches2;
+  int     conFrag1;
+  int     conFrag2;
   int     pep1;
   int     pep2;
   int     rank;
   int     rankA;
   int     rankB;
   int     scanNumber;
-  int     type;
+  int     type;  //0=single, 1=loop, 2=xl, 3=dimer
   float   rTime;
+  double  eVal;
+  double  eVal1;
+  double  eVal2;
   double  hk;
   double  massA;
   double  massB;

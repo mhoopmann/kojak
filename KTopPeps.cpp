@@ -140,9 +140,9 @@ void KTopPeps::checkSingletScore(kSingletScoreCard& s){
   }
 
   //check if we can just add to the end
-  if (s.simpleScore<singletLast->simpleScore){
+  if (s.simpleScore <= singletLast->simpleScore){
     //check if we need to store the singlet
-    if (singletCount == singletMax) return;
+    //if(singletCount>=singletMax) return;
 
     singletLast->next = new kSingletScoreCard(s);
     singletLast->next->prev = singletLast;
@@ -167,26 +167,39 @@ void KTopPeps::checkSingletScore(kSingletScoreCard& s){
     ind = (int)(s.mass / 10);
     if (singletList[ind] == NULL) singletList[ind] = new list<kSingletScoreCard*>;
     singletList[ind]->emplace_back(singletFirst);
+    singletCount++;
 
-    if (singletCount<singletMax) {
-      singletCount++;
-    } else {
+    if (singletCount>singletMax){
+      int i = singletCount;
       cur = singletLast;
-      singletLast = singletLast->prev;
-      singletLast->next = NULL;
-
-      //delete expired singlet from list
-      ind = (int)(cur->mass / 10);
-      if (singletList[ind]->size() == 1) {
-        delete singletList[ind];
-        singletList[ind] = NULL;
-      } else {
-        list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
-        while (*it != cur) it++;
-        singletList[ind]->erase(it);
+      while (i>singletMax){ //step to singletMax position
+        cur = cur->prev;
+        i--;
+      }
+      while (cur->next != NULL && cur->next->simpleScore == cur->simpleScore){ //step to first instance of score lower than singletMax
+        cur = cur->next;
       }
 
-      delete cur;
+      //delete everything hereafter
+      while (cur->next != NULL){
+        sc = cur->next;
+        cur->next = sc->next;
+        //if(sc->next!=NULL) sc->next->prev=cur; //is this necessary if they're all going to go?
+
+        ind = (int)(sc->mass / 10);
+        if (singletList[ind]->size() == 1) {
+          delete singletList[ind];
+          singletList[ind] = NULL;
+        } else {
+          list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
+          while (*it != sc) it++;
+          singletList[ind]->erase(it);
+        }
+        delete sc;
+        singletCount--;
+      }
+
+      singletLast = cur;
     }
     return;
   }
@@ -211,26 +224,39 @@ void KTopPeps::checkSingletScore(kSingletScoreCard& s){
   ind = (int)(s.mass / 10);
   if (singletList[ind] == NULL) singletList[ind] = new list<kSingletScoreCard*>;
   singletList[ind]->emplace_back(sc);
+  singletCount++;
 
-  if (singletCount<singletMax) {
-    singletCount++;
-  } else {
+  if (singletCount>singletMax){
+    int i = singletCount;
     cur = singletLast;
-    singletLast = singletLast->prev;
-    singletLast->next = NULL;
-
-    //delete expired singlet from list
-    ind = (int)(cur->mass / 10);
-    if (singletList[ind]->size() == 1) {
-      delete singletList[ind];
-      singletList[ind] = NULL;
-    } else {
-      list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
-      while (*it != cur) it++;
-      singletList[ind]->erase(it);
+    while (i>singletMax){ //step to singletMax position
+      cur = cur->prev;
+      i--;
+    }
+    while (cur->next != NULL && cur->next->simpleScore == cur->simpleScore){ //step to first instance of score lower than singletMax
+      cur = cur->next;
     }
 
-    delete cur;
+    //delete everything hereafter
+    while (cur->next != NULL){
+      sc = cur->next;
+      cur->next = sc->next;
+      //if(sc->next!=NULL) sc->next->prev=cur; //is this necessary if they're all going to go?
+
+      ind = (int)(sc->mass / 10);
+      if (singletList[ind]->size() == 1) {
+        delete singletList[ind];
+        singletList[ind] = NULL;
+      } else {
+        list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
+        while (*it != sc) it++;
+        singletList[ind]->erase(it);
+      }
+      delete sc;
+      singletCount--;
+    }
+
+    singletLast = cur;
   }
 
 }

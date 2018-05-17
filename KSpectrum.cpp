@@ -50,6 +50,30 @@ KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
 
   lowScore=0;
 
+  int j;
+  for (j = 0; j<HISTOSZ; j++) histogram[j] = 0;
+  histogramCount = 0;
+  histoMaxIndex = 0;
+
+  for (j = 0; j<HISTOSZ; j++) histogramSinglet[j] = 0;
+  histogramSingletCount = 0;
+
+  //diagnostics - probably temporary
+  tmpIntercept=0;
+  tmpSlope=0;
+  tmpIStartCorr=0;
+  tmpINextCorr=0;
+  tmpIMaxCorr=0;
+  tmpRSquare=0;
+  tmpSingletIntercept = 0;
+  tmpSingletSlope = 0;
+  tmpSingletIStartCorr = 0;
+  tmpSingletINextCorr = 0;
+  tmpSingletIMaxCorr = 0;
+  tmpSingletRSquare = 0;
+  tmpSingCount=0;
+  tmpHistCount=0;
+
   cc=0;
   sc=0;
 }
@@ -77,6 +101,29 @@ KSpectrum::KSpectrum(const KSpectrum& p){
   xCorrArraySize = p.xCorrArraySize;
   xCorrSparseArraySize = p.xCorrSparseArraySize;
   lowScore=p.lowScore;
+
+  for (i = 0; i<HISTOSZ; i++) histogram[i] = p.histogram[i];
+  histogramCount = p.histogramCount;
+  histoMaxIndex = p.histoMaxIndex;
+
+  for (i = 0; i<HISTOSZ; i++) histogramSinglet[i] = p.histogramSinglet[i];
+  histogramSingletCount = p.histogramSingletCount;
+
+  //diagnostics - probably temporary
+  tmpIntercept = p.tmpIntercept;
+  tmpSlope = p.tmpSlope;
+  tmpIStartCorr = p.tmpIStartCorr;
+  tmpINextCorr = p.tmpINextCorr;
+  tmpIMaxCorr = p.tmpIMaxCorr;
+  tmpRSquare = p.tmpRSquare;
+  tmpSingletIntercept = p.tmpSingletIntercept;
+  tmpSingletSlope = p.tmpSingletSlope;
+  tmpSingletIStartCorr = p.tmpSingletIStartCorr;
+  tmpSingletINextCorr = p.tmpSingletINextCorr;
+  tmpSingletIMaxCorr = p.tmpSingletIMaxCorr;
+  tmpSingletRSquare = p.tmpSingletRSquare;
+  tmpSingCount = p.tmpSingCount;
+  tmpHistCount = p.tmpHistCount;
 
   cc=p.cc;
   sc=p.sc;
@@ -201,6 +248,29 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
     xCorrArraySize = p.xCorrArraySize;
     xCorrSparseArraySize = p.xCorrSparseArraySize;
     lowScore = p.lowScore;
+
+    for (i = 0; i<HISTOSZ; i++) histogram[i] = p.histogram[i];
+    histogramCount = p.histogramCount;
+    histoMaxIndex = p.histoMaxIndex;
+
+    for (i = 0; i<HISTOSZ; i++) histogramSinglet[i] = p.histogramSinglet[i];
+    histogramSingletCount = p.histogramSingletCount;
+
+    //diagnostics - probably temporary
+    tmpIntercept = p.tmpIntercept;
+    tmpSlope = p.tmpSlope;
+    tmpIStartCorr = p.tmpIStartCorr;
+    tmpINextCorr = p.tmpINextCorr;
+    tmpIMaxCorr = p.tmpIMaxCorr;
+    tmpRSquare = p.tmpRSquare;
+    tmpSingletIntercept = p.tmpSingletIntercept;
+    tmpSingletSlope = p.tmpSingletSlope;
+    tmpSingletIStartCorr = p.tmpSingletIStartCorr;
+    tmpSingletINextCorr = p.tmpSingletINextCorr;
+    tmpSingletIMaxCorr = p.tmpSingletIMaxCorr;
+    tmpSingletRSquare = p.tmpSingletRSquare;
+    tmpSingCount = p.tmpSingCount;
+    tmpHistCount = p.tmpHistCount;
 
     cc = p.cc;
     sc = p.sc;
@@ -412,15 +482,108 @@ void KSpectrum::setScanNumber(int i){
 /*============================
   Functions
 ============================*/
+bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
+  int i;
+  int iLoopCount;
+  int iMaxCorr;
+  int iStartCorr;
+  int iNextCorr;
+  double dSlope,dSlopeS;
+  double dIntercept,dInterceptS;
+  double dRSquare,dRSquareS;
+  bool bSkipXL=false;
+
+  tmpSingCount = histogramSingletCount;
+  tmpHistCount = histogramCount;
+  if (topHit[0].simpleScore == 0) return true; //no need to do any of this if there are no PSMs...
+
+  if (histogramCount < DECOY_SIZE) {
+ 
+    if(histogramSingletCount < DECOY_SIZE) {
+      if(!generateSingletDecoys(params, decoys)) {
+        bSkipXL=true;
+        if(!generateXcorrDecoys(params,decoys)) return false;
+      } else {
+        linearRegression3(dSlopeS, dInterceptS, iMaxCorr, iStartCorr, iNextCorr, dRSquareS);
+      }
+    }
+    if(!bSkipXL){
+      //if (!generateXLDecoys(params, decoys)) {
+        if (!generateXcorrDecoys(params, decoys)) return false; 
+      //}
+    }
+    
+    //if (!generateXcorrDecoys(params, decoys)) return false;
+  }
+
+  linearRegression2(dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr,dRSquare);
+  histoMaxIndex = iMaxCorr;
+
+  //diagnostics - probably temporary
+  tmpIntercept = (float)dIntercept;  // b
+  tmpSlope = (float)dSlope;  // m
+  tmpIStartCorr = (float)iStartCorr;
+  tmpINextCorr = (float)iNextCorr;
+  tmpIMaxCorr = (short)iMaxCorr;
+  tmpRSquare = dRSquare;
+
+  dSlope *= 10.0;
+  dSlopeS *=10.0;
+
+  /*
+  iLoopCount = 20; //score all e-values among top hits?
+  for (i = 0; i<iLoopCount; i++) {
+    if (topHit[i].simpleScore == 0) break; //score all e-values among top hits?
+    if (dSlope >= 0.0) {
+      topHit[i].eVal = 999.0;
+      topHit[i].eVal1 = 999.0;
+      topHit[i].eVal2 = 999.0;
+    } else {
+      topHit[i].eVal = pow(10.0, dSlope * topHit[i].simpleScore + dIntercept);
+      topHit[i].eVal1 = pow(10.0, dSlope * topHit[i].score1 + dIntercept);
+      topHit[i].eVal2 = pow(10.0, dSlope * topHit[i].score2 + dIntercept);
+      if (topHit[i].eVal>999.0) topHit[i].eVal=999.0;
+      if (topHit[i].eVal1>999.0) topHit[i].eVal1 = 999.0;
+      if (topHit[i].eVal2>999.0) topHit[i].eVal2 = 999.0;
+    }
+  }
+  */
+
+  iLoopCount = 20; //score all e-values among top hits?
+  for (i = 0; i<iLoopCount; i++) {
+    if (topHit[i].simpleScore == 0) break; //score all e-values among top hits?
+    if (dSlope >= 0.0) {
+      topHit[i].eVal = 999.0;
+    } else {
+      topHit[i].eVal = pow(10.0, dSlope * topHit[i].simpleScore + dIntercept);
+      if (topHit[i].eVal>999.0) topHit[i].eVal = 999.0;
+    }
+    if(topHit[i].score2>0){
+      if(dSlopeS>=0.0){
+        topHit[i].eVal1 = 999.0;
+        topHit[i].eVal2 = 999.0;
+      } else {
+        topHit[i].eVal1 = pow(10.0, dSlopeS * topHit[i].score1 + dInterceptS);
+        topHit[i].eVal2 = pow(10.0, dSlopeS * topHit[i].score2 + dInterceptS);
+        if (topHit[i].eVal1>999.0) topHit[i].eVal1 = 999.0;
+        if (topHit[i].eVal2>999.0) topHit[i].eVal2 = 999.0;
+      }
+    } else {
+      if (dSlope >= 0.0) {
+        topHit[i].eVal1 = 999.0;
+      } else {
+        topHit[i].eVal1 = pow(10.0, dSlope * topHit[i].score1 + dIntercept);
+        if (topHit[i].eVal1>999.0) topHit[i].eVal1 = 999.0;
+      }
+      topHit[i].eVal2 = 999.0;
+    }
+  }
+  return true;
+}
+
 void KSpectrum::checkScore(kScoreCard& s){
   unsigned int i;
   unsigned int j;
-
-  //char str[256];
-  //sprintf(str,"%d.txt",scanNumber);
-  //FILE* f=fopen(str,"at");
-  //fprintf(f,"%.4f\n",s.simpleScore);
-  //fclose(f);
 
   //edge case for "reversible" cross-links: check if already matches top hit identically
   //note that such duplications still occur below the top score, but shouldn't influence the final result to the user
@@ -452,21 +615,21 @@ void KSpectrum::checkScore(kScoreCard& s){
   }
 }
 
+//This function is now deprecated...
 void KSpectrum::checkSingletScore(kSingletScoreCard& s){
+
+  cout << "CHECK SS" << endl;
+  printf("CheckSS\n");
 
   kSingletScoreCard* sc;
   kSingletScoreCard* cur;
   size_t ind;
-
-  //if(scanNumber==7653) cout << "SCAN NUMBER: " << scanNumber << "\t" << singletCount << endl;
   
   //If list is empty, add the score card
   if(singletCount==0){
-    //if(scanNumber==7653) cout << "First time: " << s.simpleScore << endl;
     singletFirst=new kSingletScoreCard(s);
     singletLast=singletFirst;
     singletCount++;
-    //if(scanNumber==7653) cout << "New Count: " << singletCount << endl;
 
     //add to singlet list
     ind = (int)(s.mass/10);
@@ -477,15 +640,16 @@ void KSpectrum::checkSingletScore(kSingletScoreCard& s){
   }  
 
   //check if we can just add to the end
-  if(s.simpleScore<singletLast->simpleScore){
-    //if(scanNumber==7653) cout << "Tail end " << s.simpleScore << " < " << singletLast->simpleScore << endl;
+  if(s.simpleScore<=singletLast->simpleScore){
     //check if we need to store the singlet
-    if(singletCount==singletMax) return;
+    //if(singletCount>=singletMax) return;
 
     singletLast->next=new kSingletScoreCard(s);
     singletLast->next->prev=singletLast;
     singletLast=singletLast->next;
     singletCount++;
+
+    if(singletCount>singletMax) cout << "Appended max" << endl;
 
     //add to singlet list
     ind = (int)(s.mass / 10);
@@ -497,8 +661,6 @@ void KSpectrum::checkSingletScore(kSingletScoreCard& s){
   
   //check if it goes in the front
   if(s.simpleScore>=singletFirst->simpleScore){
-    //if(scanNumber==7653) cout << "First " << s.simpleScore << " >= " << singletFirst->simpleScore << endl;
-
     singletFirst->prev=new kSingletScoreCard(s);
     singletFirst->prev->next=singletFirst;
     singletFirst=singletFirst->prev;
@@ -507,56 +669,57 @@ void KSpectrum::checkSingletScore(kSingletScoreCard& s){
     ind = (int)(s.mass / 10);
     if (singletList[ind] == NULL) singletList[ind] = new list<kSingletScoreCard*>;
     singletList[ind]->emplace_back(singletFirst);
+    singletCount++;
 
-    if(singletCount<singletMax) {
-      singletCount++;
-      //if(scanNumber==7653) cout << "New count: " << singletCount  << endl;
-    } else {
-      //if(scanNumber==7653) cout << "Delteting" << endl;
-      cur=singletLast;
-      singletLast=singletLast->prev;
-      singletLast->next=NULL;
+    if (singletCount>singletMax) {
+      cout << "Maxxed out: " << singletCount << "\t" << singletLast->simpleScore << "\t" << singletLast->prev->simpleScore << endl;
+    }
 
-      //delete expired singlet from list
-      ind = (int)(cur->mass / 10);
-      if (singletList[ind]->size() == 1) {
-        delete singletList[ind];
-        singletList[ind] = NULL;
-      } else {
-        list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
-        while (*it != cur) it++;
-        singletList[ind]->erase(it);
+    if(singletCount>singletMax){
+      int i = singletCount;
+      cur = singletLast;
+      while (i>singletMax){ //step to singletMax position
+        cur = cur->prev;
+        i--;
+      }
+      while (cur->next!=NULL && cur->next->simpleScore==cur->simpleScore){ //step to first instance of score lower than singletMax
+        cur=cur->next;
       }
 
-      delete cur;
+      //delete everything hereafter
+      while(cur->next!=NULL){ 
+        sc=cur->next;
+        cur->next=sc->next;
+        //if(sc->next!=NULL) sc->next->prev=cur; //is this necessary if they're all going to go?
+
+        ind = (int)(sc->mass / 10);
+        if (singletList[ind]->size() == 1) {
+          delete singletList[ind];
+          singletList[ind] = NULL;
+        } else {
+          list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
+          while (*it != sc) it++;
+          singletList[ind]->erase(it);
+        }
+        delete sc;
+        singletCount--;
+      }
+
+      singletLast = cur;
+      return;
     }
-    return;
   }
 
 
   //scan to find insertion point
-  
-  //if(scanNumber==7653) {
-  //  cout << "The List: " << endl;
-  //  cur = singletFirst;
-  //  while(cur!=NULL) {
-  //    cout << "\t" << cur->simpleScore << "\t" << cur << endl;
-  //    cur=cur->next;
-  //  }
-  //}
-  
-
-  //if(scanNumber==7653) cout << "Iterating from " << singletCount << endl;
+  cout << "WTF" << endl;
   cur = singletFirst->next;
   int i=1;
   while(s.simpleScore < cur->simpleScore){
     i++;
-    //if(scanNumber==7653) cout << i << "\t" << s.simpleScore << "\t" << cur->simpleScore << endl;
     cur=cur->next;
-    //if(cur==NULL) cout << "We have a problem" << endl;
   }
 
-  //if(scanNumber==7653) cout << "Adding " << s.simpleScore << " before: " << i+1 << "\t" << cur->simpleScore << endl;
   sc=new kSingletScoreCard(s);
   sc->prev=cur->prev;
   sc->next=cur;
@@ -568,32 +731,826 @@ void KSpectrum::checkSingletScore(kSingletScoreCard& s){
   ind = (int)(s.mass / 10);
   if (singletList[ind] == NULL) singletList[ind] = new list<kSingletScoreCard*>;
   singletList[ind]->emplace_back(sc);
+  singletCount++;
 
-  if(singletCount<singletMax) {
-    singletCount++;
-    //if(scanNumber==7653) cout << "New count: " << singletCount  << endl;
-  } else {
-    //if(scanNumber==7653) cout << "Delteting" << endl;
-    cur=singletLast;
-    singletLast=singletLast->prev;
-    singletLast->next=NULL;
-
-    //delete expired singlet from list
-    ind = (int)(cur->mass / 10);
-    if (singletList[ind]->size() == 1) {
-      delete singletList[ind];
-      singletList[ind] = NULL;
-    } else {
-      list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
-      while (*it != cur) it++;
-      singletList[ind]->erase(it);
-    }
-
-    delete cur;
+  if (singletCount>singletMax) {
+    cout << "Middle Maxxed out: " << singletCount << "\t" << singletLast->simpleScore << "\t" << singletLast->prev->simpleScore << endl;
   }
 
-  //if(scanNumber==7653) cout << "Done!" << endl;
+  if (singletCount>singletMax){
+    int i = singletCount;
+    cur = singletLast;
+    while (i>singletMax){ //step to singletMax position
+      cur = cur->prev;
+      i--;
+    }
+    while (cur->next != NULL && cur->next->simpleScore == cur->simpleScore){ //step to first instance of score lower than singletMax
+      cur = cur->next;
+    }
 
+    //delete everything hereafter
+    while (cur->next != NULL){
+      sc = cur->next;
+      cur->next = sc->next;
+      //if(sc->next!=NULL) sc->next->prev=cur; //is this necessary if they're all going to go?
+
+      ind = (int)(sc->mass / 10);
+      if (singletList[ind]->size() == 1) {
+        delete singletList[ind];
+        singletList[ind] = NULL;
+      } else {
+        list<kSingletScoreCard*>::iterator it = singletList[ind]->begin();
+        while (*it != sc) it++;
+        singletList[ind]->erase(it);
+      }
+      delete sc;
+      singletCount--;
+    }
+
+    singletLast = cur;
+  }
+
+}
+
+//from Comet
+// Make synthetic decoy spectra to fill out correlation histogram by going
+// through each candidate peptide and rotating spectra in m/z space.
+bool KSpectrum::generateSingletDecoys(kParams* params, KDecoys& decoys) {
+  int i;
+  int n;
+  int j;
+  int k;
+  int maxZ;
+  int z;
+  int r;
+  int key;
+  int pos;
+  int xlSite;
+  int xlLen;
+  int badPre=0;
+  double dBion;
+  double dYion;
+  double dXcorr;
+  double dFragmentIonMass = 0.0;
+  double targetMass;
+  double diffMass;
+
+  // DECOY_SIZE is the minimum # of decoys required or else this function isn't
+  // called.  So need to generate iLoopMax more xcorr scores for the histogram.
+  int iLoopMax = DECOY_SIZE - histogramSingletCount;
+  int seed = rand() % 3000;
+  int decoyIndex;
+
+  j = 0;
+  for (i = 0; i<iLoopMax; i++) { // iterate through required # decoys
+    dXcorr = 0.0;
+    decoyIndex = (seed + i) % 3000;
+
+    //grab precursor at random
+    badPre=0;
+    r = rand() % precursor->size();
+    while(precursor->at(r).monoMass<params->minPepMass*2+params->xLink->at(0).mass) {
+      badPre++;
+      if(badPre==50) return false;
+      r = rand() % precursor->size();
+    }
+    maxZ = precursor->at(r).charge;
+    if (maxZ>4) maxZ = 4;
+    n = (int)(precursor->at(r).monoMass / 2 - params->xLink->at(0).mass-params->minPepMass); //note, might have multiple xlink masses
+    if (n == 0) targetMass = precursor->at(r).monoMass / 2;
+    else targetMass = precursor->at(r).monoMass / 2 + rand() % n;
+    diffMass = precursor->at(r).monoMass-targetMass;
+
+    //find link site - somewhat wasted cycles
+    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
+      if (decoys.decoyIons[decoyIndex].pdIonsN[j]>targetMass) break;
+    }
+    xlSite=rand()%(j-1);
+    xlLen=j-1;
+
+    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
+      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
+      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
+      if(j>=xlSite) dBion+=diffMass;
+      if(j>=xlLen-xlSite) dYion+=diffMass;
+      if (dBion>targetMass && dYion>targetMass) break; //stop when fragment ion masses exceed precursor mass
+
+      for (n = 0; n<6; n++) {
+        if (!params->ionSeries[n]) continue;
+        switch (n) {
+        case 0: dFragmentIonMass = dBion - 27.9949141; break;
+        case 1: dFragmentIonMass = dBion; break;
+        case 2: dFragmentIonMass = dBion + 17.026547; break;
+        case 3: dFragmentIonMass = dYion + 25.9792649; break;
+        case 4: dFragmentIonMass = dYion; break;
+        case 5: dFragmentIonMass = dYion - 16.0187224; break;
+        default: break;
+        }
+        if (dFragmentIonMass>targetMass) continue;
+
+        for (z = 1; z<maxZ; z++) {
+          mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
+          mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
+          key = (int)mz;
+          if (key >= kojakBins) break;
+          if (kojakSparseArray[key] == NULL) continue;
+          pos = (int)((mz - key)*invBinSize);
+          dXcorr += kojakSparseArray[key][pos];
+        }
+      }
+    }
+
+    if (dXcorr <= 0.0) dXcorr = 0.0;
+    k = (int)(dXcorr*0.05 + 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
+    if (k < 0) k = 0;
+    else if (k >= HISTOSZ) k = HISTOSZ - 1;
+    histogramSinglet[k]++;
+    histogramSingletCount++;
+  }
+
+  return true;
+}
+
+bool KSpectrum::generateXLDecoys(kParams* params, KDecoys& decoys) {
+  int i;
+  int n;
+  int j;
+  int k;
+  int maxZ;
+  int z;
+  int r,r2;
+  int key;
+  int pos;
+  int xlSite;
+  int xlLen;
+  int badPre;
+  double dSum;
+  double d;
+  double dBion;
+  double dYion;
+  double dXcorr;
+  double dFragmentIonMass = 0.0;
+  double targetMass;
+  double diffMass;
+
+  // DECOY_SIZE is the minimum # of decoys required or else this function isn't
+  // called.  So need to generate iLoopMax more xcorr scores for the histogram.
+  int iLoopMax = DECOY_SIZE - histogramCount;
+  int seed = rand() % 3000;
+  int decoyIndex;
+
+  j = 0;
+  for (i = 0; i<iLoopMax; i++) { // iterate through required # decoys
+    dXcorr = 0.0;
+    decoyIndex = (seed + i) % 3000;
+
+    //grab precursor at random and xl at random
+    badPre=0;
+    r = rand() % precursor->size();
+    r2 = rand() % params->xLink->size();
+    while (precursor->at(r).monoMass<params->minPepMass * 2 + params->xLink->at(r2).mass) {
+      badPre++;
+      r = rand() % precursor->size();
+      r2 = rand() % params->xLink->size();
+      if(badPre==50) return false;
+    }
+    maxZ = precursor->at(r).charge;
+    if (maxZ>4) maxZ = 4;
+    targetMass = (precursor->at(r).monoMass-params->xLink->at(r2).mass-2*params->minPepMass)*((double)rand()/RAND_MAX)+params->minPepMass;
+    diffMass = precursor->at(r).monoMass - targetMass;
+
+    //find link site - somewhat wasted cycles
+    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
+      if (decoys.decoyIons[decoyIndex].pdIonsN[j]>targetMass) break;
+    }
+    xlSite = rand() % (j - 1);
+    xlLen = j - 1;
+
+    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
+      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
+      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
+      if (j >= xlSite) dBion += diffMass;
+      if (j >= xlLen - xlSite) dYion += diffMass;
+      if (dBion>targetMass && dYion>targetMass) break; //stop when fragment ion masses exceed precursor mass
+
+      for (n = 0; n<6; n++) {
+        if (!params->ionSeries[n]) continue;
+        switch (n) {
+        case 0: dFragmentIonMass = dBion - 27.9949141; break;
+        case 1: dFragmentIonMass = dBion; break;
+        case 2: dFragmentIonMass = dBion + 17.026547; break;
+        case 3: dFragmentIonMass = dYion + 25.9792649; break;
+        case 4: dFragmentIonMass = dYion; break;
+        case 5: dFragmentIonMass = dYion - 16.0187224; break;
+        default: break;
+        }
+        if (dFragmentIonMass>targetMass) continue;
+
+        for (z = 1; z<maxZ; z++) {
+          mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
+          mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
+          key = (int)mz;
+          if (key >= kojakBins) break;
+          if (kojakSparseArray[key] == NULL) continue;
+          pos = (int)((mz - key)*invBinSize);
+          dXcorr += kojakSparseArray[key][pos];
+        }
+      }
+    }
+
+    if (dXcorr <= 0.0) dXcorr = 0.0;
+    dXcorr*=0.05;
+
+    //find complement peptide randomly from proportion of singlet scores
+    d=(double)rand()/RAND_MAX;
+    dSum=0;
+    for(n=0;n<HISTOSZ;n++){
+      dSum+=(double)histogramSinglet[n]/histogramSingletCount;
+      if(d<=dSum){
+        dXcorr+=n;
+        break;
+      }
+    }
+    k = (int)(dXcorr + 0.5);
+    if (k < 0) k = 0;
+    else if (k >= HISTOSZ) k = HISTOSZ - 1;
+    histogram[k]++;
+    histogramCount++;
+  }
+
+  return true;
+}
+
+//from Comet
+// Make synthetic decoy spectra to fill out correlation histogram by going
+// through each candidate peptide and rotating spectra in m/z space.
+bool KSpectrum::generateXcorrDecoys(kParams* params, KDecoys& decoys) {
+  int i;
+  int n;
+  int j;
+  int k;
+  int maxZ;
+  int z;
+  int r;
+  int key;
+  int pos;
+  double dBion;
+  double dYion;
+  double dXcorr;
+  double dFragmentIonMass = 0.0;
+  int myCount=0;
+
+  tmpSingCount = histogramSingletCount;
+  tmpHistCount = histogramCount;
+
+  // DECOY_SIZE is the minimum # of decoys required or else this function isn't
+  // called.  So need to generate iLoopMax more xcorr scores for the histogram.
+  int iLoopMax = DECOY_SIZE - histogramCount;
+  //int seed = rand() % DECOY_SIZE;
+  int seed = (scanNumber*histogramCount);
+  if(seed<0) seed=-seed;
+  seed = seed % DECOY_SIZE; //don't always start at the top, but not random either; remains reproducible across threads
+  //if(scanNumber==12896) cout << "SEED: " << seed << endl;
+  int decoyIndex;
+
+  size_t maxPre = precursor->size();
+  r=0;
+  for (i = 0; i<iLoopMax; i++) { // iterate through required # decoys
+    dXcorr = 0.0;
+    decoyIndex = (seed + i) % DECOY_SIZE;
+
+    //grab precursor at random
+    //r = rand() % precursor->size();
+    //iterate over precursors
+    r++;
+    if(r>=(int)precursor->size()) r=0;
+    maxZ = precursor->at(r).charge;
+    if (maxZ>4) maxZ = 4;
+
+    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
+      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
+      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
+      if (dBion>precursor->at(r).monoMass && dYion>precursor->at(r).monoMass) break; //stop when fragment ion masses exceed precursor mass
+
+      for (n = 0; n<6; n++) {
+        if (!params->ionSeries[n]) continue;
+        switch (n) {
+        case 0: dFragmentIonMass = dBion - 27.9949141; break;
+        case 1: dFragmentIonMass = dBion; break;
+        case 2: dFragmentIonMass = dBion + 17.026547; break;
+        case 3: dFragmentIonMass = dYion + 25.9792649; break;
+        case 4: dFragmentIonMass = dYion; break;
+        case 5: dFragmentIonMass = dYion - 16.0187224; break;
+        default: break;
+        }
+        if (dFragmentIonMass>precursor->at(r).monoMass) continue;
+
+        for (z = 1; z<maxZ; z++) {
+          mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
+          mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
+          key = (int)mz;
+          if (key >= kojakBins) break;
+          if (kojakSparseArray[key] == NULL) continue;
+          pos = (int)((mz - key)*invBinSize);
+          dXcorr += kojakSparseArray[key][pos];
+        }
+      }
+    }
+
+    if (dXcorr <= 0.0) dXcorr = 0.0;
+    k = (int)(dXcorr*0.05 + 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
+    if (k < 0) k = 0;
+    else if (k >= HISTOSZ) k = HISTOSZ - 1;
+    histogram[k]++;
+    histogramCount++;
+    myCount++;
+    //if (scanNumber == 12896) cout << "myCount: " << myCount-1 << "\t" << k << "\t" << dXcorr*0.05 << endl;
+  }
+  return true;
+}
+
+//from Comet
+void KSpectrum::linearRegression(double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
+  double Sx, Sxy;      // Sum of square distances.
+  double Mx, My;       // means
+  double dx, dy;
+  double b, a;
+  double SumX, SumY;   // Sum of X and Y values to calculate mean.
+  double SST,SSR;
+  double rsq;
+  double bestRSQ;
+  double bestSlope;
+  double bestInt;
+
+  double dCummulative[HISTOSZ];  // Cummulative frequency at each xcorr value.
+
+  int i;
+  int bestNC;
+  int bestStart;
+  int iNextCorr;    // 2nd best xcorr index
+  int iMaxCorr = 0;   // max xcorr index
+  int iStartCorr;
+  int iNumPoints;
+
+  // Find maximum correlation score index.
+  for (i = HISTOSZ - 2; i >= 0; i--) {
+    if (histogram[i] > 0)  break;
+  }
+  iMaxCorr = i;
+  if(iMaxCorr<2) {
+    slope=0;
+    intercept=0;
+    iMaxXcorr=0;
+    iStartXcorr=0;
+    iNextXcorr=0;
+    rSquared=0;
+    return;
+  }
+
+  //get last datapoint before first zero value; I think this is best indicator of boundaries
+  iNextCorr = 0;
+  for (i = 0; i<iMaxCorr; i++){
+    if (histogram[i]==0) break;
+    iNextCorr = i;
+  }
+
+  //get the next non-zero value below iMaxCorr
+  /* MH: version 2,replaced original.
+  iNextCorr=0;
+  for(i=iMaxCorr-1;i>=0;i--){
+    if(histogram[i]>0){
+      iNextCorr=i;
+      break;
+    }
+  }
+  */
+  /* original from comet
+  //MH: this also causes problems if there are early gaps in the scores.
+  iNextCorr = 0;
+  for (i = 0; i<iMaxCorr; i++)  {
+    if (histogram[i] == 0)  {
+      // register iNextCorr if there's a histo value of 0 consecutively
+      if (histogram[i + 1] == 0 || i + 1 == iMaxCorr) {
+        if (i>0) iNextCorr = i - 1;
+        break;
+      }
+    }
+  }
+  */
+
+  /* MH: This does nothing!
+  if (i == iMaxCorr) {
+    cout << scanNumber << "\tNOT POSSIBLE: " << i << "\t" << iMaxCorr;
+    iNextCorr = iMaxCorr;
+    if (iMaxCorr>12) iNextCorr = iMaxCorr - 2;
+  }
+  */
+
+  // Create cummulative distribution function from iNextCorr down, skipping the outliers.
+  //MH: its the skipping the outliers that is causing problems, I think...
+  /*
+  dCummulative[iNextCorr] = histogram[iNextCorr];
+  for (i = iNextCorr - 1; i >= 0; i--) {
+    dCummulative[i] = dCummulative[i + 1] + histogram[i];
+    //if (histogram[i + 1] == 0) dCummulative[i + 1] = 0.0;
+  }
+  */
+  //More aggressive version summing everything below the max
+  dCummulative[iMaxCorr-1] = histogram[iMaxCorr-1];
+  for (i = iMaxCorr - 2; i >= 0; i--) {
+    dCummulative[i] = dCummulative[i + 1] + histogram[i];
+    //if (histogram[i + 1] == 0) dCummulative[i + 1] = 0.0;
+  }
+
+  // log10
+  for (i = iMaxCorr-1; i >= 0; i--)  {
+    histogram[i] = (int)dCummulative[i];  // First store cummulative in histogram. MH:...and stomp all over the original...hard to troubleshoot later
+    dCummulative[i] = log10(dCummulative[i]);
+  }
+
+  // log10
+  /*MH old version
+  for (i = iNextCorr; i >= 0; i--)  {
+    histogram[i] = (int)dCummulative[i];  // First store cummulative in histogram. MH:...and stomp all over the original...hard to troubleshoot later
+    dCummulative[i] = log10(dCummulative[i]);
+  }
+  */
+
+  iStartCorr = 0;
+  //MH: futzing around here
+  //if (iNextCorr >= 30) iStartCorr = (int)(iNextCorr - iNextCorr*0.25);
+  //else if (iNextCorr >= 15) iStartCorr = (int)(iNextCorr - iNextCorr*0.5);
+
+  bool bRight=false;
+  //if((histogram[iStartCorr]-histogram[iStartCorr+1]) < (histogram[iNextCorr-1]-histogram[iNextCorr])) bRight=false; //get rid of outlier with least slope?
+  //else bRight=true;
+  bestRSQ=0;
+  bestNC=0;
+  bestSlope=0;
+  bestInt=0;
+  rsq = Mx = My = a = b = 0.0;
+  while (iStartCorr < iNextCorr-1) {
+    Sx = Sxy = SumX = SumY = 0.0;
+    iNumPoints = 0;
+
+    // Calculate means.
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      if (histogram[i] > 0) {
+        SumY += dCummulative[i];
+        SumX += i;
+        iNumPoints++;
+      }
+    }
+    if (iNumPoints > 0) {
+      Mx = SumX / iNumPoints;
+      My = SumY / iNumPoints;
+    } else {
+      Mx = My = 0.0;
+    }
+
+    // Calculate sum of squares.
+    SST=0;
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      //if (dCummulative[i] > 0) {  //MH: this will allow skipping of data points!!!
+        dx = i - Mx;
+        dy = dCummulative[i] - My;
+        Sx += dx*dx;
+        Sxy += dx*dy;
+        SST += dy*dy;
+      //}
+    }
+    b = Sxy / Sx;
+    //if (Sx > 0) b = Sxy / Sx;   // slope //MH: don't see how Sx could be zero or less given the rules above...
+    //else b = 0;
+    a = My - b*Mx;  // y-intercept
+
+    //MH: compute R2
+    SSR=0;
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      //if (dCummulative[i] > 0) {
+        dy=dCummulative[i]-(b*i+a);
+        SSR+=(dy*dy);
+      //}
+    }
+    rsq = 1-SSR/SST;
+
+    if(rsq>bestRSQ){
+      bestRSQ=rsq;
+      bestNC=iNextCorr;
+      bestSlope=b;
+      bestInt=a;
+      bestStart=iStartCorr;
+      if(rsq>0.95) break; //stop when fit is good enough? Don't trim too many outliers?
+      if(dCummulative[iStartCorr]-dCummulative[iStartCorr+1] > dCummulative[iNextCorr-1]-dCummulative[iNextCorr]){
+      //if(bRight){
+        iNextCorr--;
+        continue;
+      } else {
+        //iNextCorr=bestNC;
+        iStartCorr++;
+        continue;
+      }
+    } else {
+      break;
+
+      if(bRight) {
+        if(iNextCorr>10 && dCummulative[iNextCorr]<10){
+          iNextCorr--;
+          continue;
+        }
+        bRight=false;
+        iNextCorr=bestNC;
+        iStartCorr++;
+        continue;
+      } else {
+        iStartCorr--;
+        break;
+      }
+    }
+  }
+
+  slope = bestSlope;
+  intercept = bestInt;
+  iMaxXcorr = iMaxCorr;
+  iStartXcorr = bestStart;
+  iNextXcorr = bestNC;
+  rSquared = bestRSQ;
+}
+
+//from Comet
+void KSpectrum::linearRegression2(double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
+  double Sx, Sxy;      // Sum of square distances.
+  double Mx, My;       // means
+  double dx, dy;
+  double b, a;
+  double SumX, SumY;   // Sum of X and Y values to calculate mean.
+  double SST, SSR;
+  double rsq;
+  double bestRSQ;
+  double bestSlope;
+  double bestInt;
+
+  double dCummulative[HISTOSZ];  // Cummulative frequency at each xcorr value.
+
+  int i;
+  int bestNC;
+  int bestStart;
+  int iNextCorr;    // 2nd best xcorr index
+  int iMaxCorr = 0;   // max xcorr index
+  int iStartCorr;
+  int iNumPoints;
+
+  // Find maximum correlation score index.
+  for (i = HISTOSZ - 2; i >= 0; i--) {
+    if (histogram[i] > 0)  break;
+  }
+  iMaxCorr = i;
+
+  //bail now if there is no width to the distribution
+  if (iMaxCorr<3) {
+    slope = 0;
+    intercept = 0;
+    iMaxXcorr = 0;
+    iStartXcorr = 0;
+    iNextXcorr = 0;
+    rSquared = 0;
+    return;
+  }
+
+  //More aggressive version summing everything below the max
+  dCummulative[iMaxCorr - 1] = histogram[iMaxCorr - 1];
+  for (i = iMaxCorr - 2; i >= 0; i--) {
+    dCummulative[i] = dCummulative[i + 1] + histogram[i];
+  }
+
+  //get middle-ish datapoint as seed. Using count/10.
+  for (i = 0; i<iMaxCorr; i++){
+    if (dCummulative[i] < histogramCount/10) break;  
+  }
+  if(i>=(iMaxCorr-1)) iNextCorr=iMaxCorr-2;
+  else iNextCorr = i;
+
+  // log10...and stomp all over the original...hard to troubleshoot later
+  for (i = iMaxCorr - 1; i >= 0; i--)  {
+    histogram[i] = (int)dCummulative[i];
+    dCummulative[i] = log10(dCummulative[i]);
+  }
+
+  iStartCorr = iNextCorr-1;
+  iNextCorr++;
+
+  bool bRight = false; // which direction to add datapoint from
+  bestRSQ = 0;
+  bestNC = 0;
+  bestSlope = 0;
+  bestInt = 0;
+  rsq = Mx = My = a = b = 0.0;
+  while (true) {
+    Sx = Sxy = SumX = SumY = 0.0;
+    iNumPoints = 0;
+
+    // Calculate means.
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      if (histogram[i] > 0) {
+        SumY += dCummulative[i];
+        SumX += i;
+        iNumPoints++;
+      }
+    }
+    if (iNumPoints > 0) {
+      Mx = SumX / iNumPoints;
+      My = SumY / iNumPoints;
+    } else {
+      Mx = My = 0.0;
+    }
+
+    // Calculate sum of squares.
+    SST = 0;
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      dx = i - Mx;
+      dy = dCummulative[i] - My;
+      Sx += dx*dx;
+      Sxy += dx*dy;
+      SST += dy*dy;
+    }
+    b = Sxy / Sx;
+    a = My - b*Mx;  // y-intercept
+
+    //MH: compute R2
+    SSR = 0;
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      dy = dCummulative[i] - (b*i + a);
+      SSR += (dy*dy);
+    }
+    rsq = 1 - SSR / SST;
+
+    if (rsq>0.95 || rsq>bestRSQ){
+      if(rsq>bestRSQ || iNextCorr-iStartCorr+1<8){ //keep better RSQ only if more than 8 datapoints, otherwise keep every RSQ below 8 datapoints
+        bestRSQ = rsq;
+        bestNC = iNextCorr;
+        bestSlope = b;
+        bestInt = a;
+        bestStart = iStartCorr;
+      }
+      if(bRight){
+        if (iNextCorr<(iMaxCorr - 1)) iNextCorr++;
+        else if (iStartCorr>0) iStartCorr--;
+        else break;
+      } else {
+        if(iStartCorr>0) iStartCorr--;
+        else if(iNextCorr<(iMaxCorr-1)) iNextCorr++;
+        else break;
+      }
+      bRight=!bRight;
+    } else {
+      break;
+    }
+  }
+
+  slope = bestSlope;
+  intercept = bestInt;
+  iMaxXcorr = iMaxCorr;
+  iStartXcorr = bestStart;
+  iNextXcorr = bestNC;
+  rSquared = bestRSQ;
+}
+
+//from Comet. THIS IS TEMPORARY! for testing singlets only...
+void KSpectrum::linearRegression3(double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
+  double Sx, Sxy;      // Sum of square distances.
+  double Mx, My;       // means
+  double dx, dy;
+  double b, a;
+  double SumX, SumY;   // Sum of X and Y values to calculate mean.
+  double SST, SSR;
+  double rsq;
+  double bestRSQ;
+  double bestSlope;
+  double bestInt;
+
+  double dCummulative[HISTOSZ];  // Cummulative frequency at each xcorr value.
+
+  int i;
+  int bestNC;
+  int bestStart;
+  int iNextCorr;    // 2nd best xcorr index
+  int iMaxCorr = 0;   // max xcorr index
+  int iStartCorr;
+  int iNumPoints;
+
+  // Find maximum correlation score index.
+  for (i = HISTOSZ - 2; i >= 0; i--) {
+    if (histogramSinglet[i] > 0)  break;
+  }
+  iMaxCorr = i;
+
+  //bail now if there is no width to the distribution
+  if (iMaxCorr<3) {
+    slope = 0;
+    intercept = 0;
+    iMaxXcorr = 0;
+    iStartXcorr = 0;
+    iNextXcorr = 0;
+    rSquared = 0;
+    return;
+  }
+
+  //More aggressive version summing everything below the max
+  dCummulative[iMaxCorr - 1] = histogramSinglet[iMaxCorr - 1];
+  for (i = iMaxCorr - 2; i >= 0; i--) {
+    dCummulative[i] = dCummulative[i + 1] + histogramSinglet[i];
+  }
+
+  //get middle-ish datapoint as seed. Using count/10.
+  for (i = 0; i<iMaxCorr; i++){
+    if (dCummulative[i] < histogramSingletCount / 10) break;
+  }
+  if (i >= (iMaxCorr - 1)) iNextCorr = iMaxCorr - 2;
+  else iNextCorr = i;
+
+  // log10...and stomp all over the original...hard to troubleshoot later
+  for (i = iMaxCorr - 1; i >= 0; i--)  {
+    histogramSinglet[i] = (int)dCummulative[i];
+    dCummulative[i] = log10(dCummulative[i]);
+  }
+
+  iStartCorr = iNextCorr - 1;
+  iNextCorr++;
+
+  bool bRight = false; // which direction to add datapoint from
+  bestRSQ = 0;
+  bestNC = 0;
+  bestSlope = 0;
+  bestInt = 0;
+  rsq = Mx = My = a = b = 0.0;
+  while (true) {
+    Sx = Sxy = SumX = SumY = 0.0;
+    iNumPoints = 0;
+
+    // Calculate means.
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      if (histogramSinglet[i] > 0) {
+        SumY += dCummulative[i];
+        SumX += i;
+        iNumPoints++;
+      }
+    }
+    if (iNumPoints > 0) {
+      Mx = SumX / iNumPoints;
+      My = SumY / iNumPoints;
+    } else {
+      Mx = My = 0.0;
+    }
+
+    // Calculate sum of squares.
+    SST = 0;
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      dx = i - Mx;
+      dy = dCummulative[i] - My;
+      Sx += dx*dx;
+      Sxy += dx*dy;
+      SST += dy*dy;
+    }
+    b = Sxy / Sx;
+    a = My - b*Mx;  // y-intercept
+
+    //MH: compute R2
+    SSR = 0;
+    for (i = iStartCorr; i <= iNextCorr; i++) {
+      dy = dCummulative[i] - (b*i + a);
+      SSR += (dy*dy);
+    }
+    rsq = 1 - SSR / SST;
+
+    if (rsq>0.95 || rsq>bestRSQ){
+      if (rsq>bestRSQ || iNextCorr - iStartCorr + 1<8){ //keep better RSQ only if more than 8 datapoints, otherwise keep every RSQ below 8 datapoints
+        bestRSQ = rsq;
+        bestNC = iNextCorr;
+        bestSlope = b;
+        bestInt = a;
+        bestStart = iStartCorr;
+      }
+      if (bRight){
+        if (iNextCorr<(iMaxCorr - 1)) iNextCorr++;
+        else if (iStartCorr>0) iStartCorr--;
+        else break;
+      } else {
+        if (iStartCorr>0) iStartCorr--;
+        else if (iNextCorr<(iMaxCorr - 1)) iNextCorr++;
+        else break;
+      }
+      bRight = !bRight;
+    } else {
+      break;
+    }
+  }
+
+  slope = bestSlope;
+  intercept = bestInt;
+  iMaxXcorr = iMaxCorr;
+  iStartXcorr = bestStart;
+  iNextXcorr = bestNC;
+  rSquared = bestRSQ;
 }
 
 void KSpectrum::resetSingletList(){

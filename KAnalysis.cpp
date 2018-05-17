@@ -44,6 +44,8 @@ bool        KAnalysis::firstPass;
 int KAnalysis::skipCount;
 int KAnalysis::nonSkipCount;
 
+KDecoys KAnalysis::decoys;
+
 /*============================
   Constructors & Destructors
 ============================*/
@@ -98,7 +100,7 @@ KAnalysis::KAnalysis(kParams& p, KDatabase* d, KData* dat){
   }
 
   //if (params.turbo) {
-    cout << "  Turbo mode in use." << endl;
+    //cout << "  Turbo mode in use." << endl;
     makePepLists();
     skipCount=0;
     nonSkipCount=0;
@@ -251,6 +253,49 @@ bool KAnalysis::doPeptideAnalysis(){
   return true;
 }
 
+bool KAnalysis::doEValueAnalysis(){
+  int i;
+  int iPercent;
+  int iTmp;
+
+  ThreadPool<KSpectrum*>* threadPool = new ThreadPool<KSpectrum*>(analyzeEValueProc, params.threads, params.threads, 1);
+
+  //Set progress meter
+  iPercent = 0;
+  printf("%2d%%", iPercent);
+  fflush(stdout);
+
+  //Iterate the peptide for the first pass
+  for (i = 0; i<spec->size(); i++){
+
+    threadPool->WaitForQueuedParams();
+
+    KSpectrum* a = &spec->at(i);
+    threadPool->Launch(a);
+
+    //Update progress meter
+    iTmp = (int)((double)i / spec->size() * 100);
+    if (iTmp>iPercent){
+      iPercent = iTmp;
+      printf("\b\b\b%2d%%", iPercent);
+      fflush(stdout);
+    }
+  }
+
+  threadPool->WaitForQueuedParams();
+  threadPool->WaitForThreads();
+
+  //Finalize progress meter
+  printf("\b\b\b100%%");
+  cout << endl;
+
+  //clean up memory & release pointers
+  delete threadPool;
+  threadPool = NULL;
+
+  return true;
+}
+
 //============================
 //  Private Functions
 //============================
@@ -279,6 +324,11 @@ void KAnalysis::analyzePeptideProc(kAnalysisStruct* s){
   analyzePeptide(s->pep,s->pepIndex,i);
   delete s;
   s=NULL;
+}
+
+void KAnalysis::analyzeEValueProc(KSpectrum* s){
+  s->calcEValue(&params, decoys);
+  s = NULL;
 }
 
 //============================
@@ -311,9 +361,11 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
     }
 
     //search non-covalent dimerization if requested by user
+    /* Deprecate this
     if(params.dimers) {
       analyzeSingletsNC(*p, pepIndex, iIndex); //this may need updating since 1.6.0
     }
+    */
 
     if(p->xlSites==0) {
       soloLoop[pepIndex]=true;
@@ -667,9 +719,14 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
   kSingletScoreCard sc;
   KIonSet* iset;
   kPepMod mod;
-  double score=0;
+  float score=0;
+  int matches;
+  int conFrag;
   int i,j;
   vector<kPepMod> v;
+
+  cout << "In deprecated scoreSingletSpectra" << endl;
+  exit(-107);
 
   //need to intercept for second pass analysis.
   //need to mark peptides in top list as noncovalent? (probably yes)
@@ -682,7 +739,7 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
   for(i=0;i<sz;i++){
     p=s->getPrecursor2(i);
     if(p->monoMass<minMass) continue;
-    score=kojakScoring(index,p->monoMass-mass,sIndex,iIndex,p->charge);
+    score=kojakScoring(index,p->monoMass-mass,sIndex,iIndex,matches,conFrag,p->charge);
     if(score==0) continue;
     tp = s->getTopPeps(i);
     //cout << tp->singletCount << "\t" << tp->singletMax << endl;
@@ -695,12 +752,14 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
     Threading::UnlockMutex(mutexSingletScore[index][i]);
 
     sc.len = len;
-    sc.simpleScore = (float)score;
+    sc.simpleScore = score;
     sc.k1 = k;
     sc.linkable = false;
     sc.pep1 = pep;
     sc.mass = mass;
     sc.pre = i;
+    sc.matches=matches;
+    sc.conFrag=conFrag;
     v.clear();
     if (sc.mods != NULL) {
       sc.modLen = 0;
@@ -739,8 +798,10 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   kSingletScoreCard* tsc;
   KIonSet* iset;
   kPepMod mod;
-  double score = 0;
-  int i,j;
+  float score = 0;
+  int matches;
+  int conFrag;
+  int i,j,y;
   vector<kPepMod> v;
 
   double low,high,m;
@@ -762,20 +823,19 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   for (i = 0; i<sz; i++){
     p = s->getPrecursor2(i);
 
-    Threading::LockMutex(mutexSingletScore[index][i]);
-    tp = s->getTopPeps(i);
     if(!firstPass && (p->monoMass-spec->getLink(linkIndex).mass)/2>mass){
 
+      //Threading::LockMutex(mutexSingletScore[index][i]);
+      tp = s->getTopPeps(i);
       int ind=(int)((p->monoMass-xlMass-mass)/10);
       if(tp->singletList[ind]==NULL) {
-        Threading::UnlockMutex(mutexSingletScore[index][i]);
+        //Threading::UnlockMutex(mutexSingletScore[index][i]);
         continue;
       }
 
       list<kSingletScoreCard*>::iterator it = tp->singletList[ind]->begin();
       while(it!=tp->singletList[ind]->end()){
         tsc=*it;
-        //clean this up
         if(fabs((p->monoMass-tsc->mass-spec->getLink(linkIndex).mass-mass)/p->monoMass*1e6)>params.ppmPrecursor){
           it++;
           continue;
@@ -784,18 +844,20 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           it++;
           continue;
         }
-        score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex,p->charge);
-        if(score<0.1) { //peptide needs a minimum score...
+        score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
+        protSC.simpleScore = tsc->simpleScore + score;
+        y = (int)(protSC.simpleScore * 10.0 + 0.5);
+        if (y >= HISTOSZ) y = HISTOSZ - 1;
+        Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
+        s->histogram[y]++;
+        s->histogramCount++;
+        if (score<0.1 || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
+          Threading::UnlockMutex(mutexSpecScore[index]);
           it++;
           continue;
         }
-
-        //add cross-link to our top hit list
-        protSC.simpleScore = (float)(tsc->simpleScore+score);
-        if(protSC.simpleScore<s->lowScore) { //don't even bother trying to rank something lower than our best hits so far
-          it++;
-          continue; 
-        }
+        Threading::UnlockMutex(mutexSpecScore[index]);
+       
 
         protSC.mods1->clear();
         protSC.mods2->clear();
@@ -814,6 +876,10 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.score2 = tsc->simpleScore;
           protSC.mass1 = mass;
           protSC.mass2 = tsc->mass;
+          protSC.matches1 = matches;
+          protSC.matches2 = tsc->matches;
+          protSC.conFrag1 = conFrag;
+          protSC.conFrag2 = tsc->conFrag;
           for (x = 0; x<tsc->modLen; x++) protSC.mods2->push_back(tsc->mods[x]);
           ret=true; //indicates where to put mods to pep2
         } else { //pep1 listed first
@@ -825,6 +891,10 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.score2 = score;
           protSC.mass1 = tsc->mass;
           protSC.mass2 = mass;
+          protSC.matches1 = tsc->matches;
+          protSC.matches2 = matches;
+          protSC.conFrag1 = tsc->conFrag;
+          protSC.conFrag2 = conFrag;
           for (x = 0; x<tsc->modLen; x++) protSC.mods1->push_back(tsc->mods[x]);
           ret=false; //indicates where to put mods to pep2
         }
@@ -841,7 +911,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.score2/=2;
           protSC.simpleScore/=2;
           it++;
-          continue;
+          continue; //WARNING...JUST SKIPPING THESE...
         }
 
         //index the mods for pep2
@@ -864,8 +934,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         Threading::UnlockMutex(mutexSpecScore[index]);
         it++;
       }
+    //Threading::UnlockMutex(mutexSingletScore[index][i]);
     }
-    Threading::UnlockMutex(mutexSingletScore[index][i]);
 
     if (firstPass && mass>(p->monoMass - spec->getLink(linkIndex).mass) / 2-0.25){
 
@@ -889,53 +959,63 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       }
       if (lowI >= highI) continue;
 
-      score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex,p->charge);
+      score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
+      bScored = true;
+      y = (int)(score * 10.0 + 0.5);
+      if (y >= HISTOSZ) y = HISTOSZ - 1;
+      Threading::LockMutex(mutexSpecScore[index]);
+      s->histogramSinglet[y]++;
+      s->histogramSingletCount++;
+      Threading::UnlockMutex(mutexSpecScore[index]);
+      if(score<0.1) continue;
 
-      Threading::LockMutex(mutexSingletScore[index][i]); //does this need to be locked? or is it more overhead than savings?
-      if(tp->singletCount==tp->singletMax && score<tp->singletLast->simpleScore) {
+      Threading::LockMutex(mutexSingletScore[index][i]);
+      tp = s->getTopPeps(i);
+      if(tp->singletCount>=tp->singletMax && score<tp->singletLast->simpleScore) {
         Threading::UnlockMutex(mutexSingletScore[index][i]);
         continue; //don't bother with the singlet overhead if it won't make the list
       }
       Threading::UnlockMutex(mutexSingletScore[index][i]);
 
       sc.len = len;
-      sc.simpleScore = (float)score;
+      sc.simpleScore = score;
       sc.k1 = k;
       sc.linkable = false;
       sc.pep1 = pep;
       sc.pre = i;
       sc.mass = mass;
       sc.site = linkSite;
-      if (sc.simpleScore>0) {
-        v.clear();
-        if (sc.mods != NULL) {
-          sc.modLen = 0;
-          delete[] sc.mods;
-          sc.mods = NULL;
-        }
-        iset = ions[iIndex].at(sIndex);
-        if (iset->difMass != 0){
-          for (j = 0; j<ions[iIndex].getIonCount(); j++) {
-            if (iset->mods[j] != 0){
-              if (j == 0 && iset->modNTerm) mod.term = true;
-              else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
-              else mod.term = false;
-              mod.pos = (char)j;
-              mod.mass = iset->mods[j];
-              v.push_back(mod);
-            }
-          }
-          sc.modLen = (char)v.size();
-          sc.mods = new kPepMod[sc.modLen];
-          for (j = 0; j<(int)sc.modLen; j++) sc.mods[j] = v[j];
-        }
-
-        Threading::LockMutex(mutexSingletScore[index][i]);
-        tp->checkSingletScore(sc);
-        Threading::UnlockMutex(mutexSingletScore[index][i]);
-
+      sc.matches=matches;
+      sc.conFrag=conFrag;
+      v.clear();
+      if (sc.mods != NULL) {
+        sc.modLen = 0;
+        delete[] sc.mods;
+        sc.mods = NULL;
       }
-      bScored=true;
+      iset = ions[iIndex].at(sIndex);
+      if (iset->difMass != 0){
+        for (j = 0; j<ions[iIndex].getIonCount(); j++) {
+          if (iset->mods[j] != 0){
+            if (j == 0 && iset->modNTerm) mod.term = true;
+            else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
+            else mod.term = false;
+            mod.pos = (char)j;
+            mod.mass = iset->mods[j];
+            v.push_back(mod);
+          }
+        }
+        sc.modLen = (char)v.size();
+        sc.mods = new kPepMod[sc.modLen];
+        for (j = 0; j<(int)sc.modLen; j++) sc.mods[j] = v[j];
+      }
+
+      Threading::LockMutex(mutexSingletScore[index][i]);
+      tp = s->getTopPeps(i);
+      tp->checkSingletScore(sc);
+      Threading::UnlockMutex(mutexSingletScore[index][i]);
+
+      //bScored=true;
     }
   }
 
@@ -944,9 +1024,11 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
 
 void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex){
   unsigned int a;
-  int i,z,ps;
+  int i,z,ps,y;
   kScoreCard sc;
   kPepMod mod;
+  int matches;
+  int conFrag;
   double mass = ions[iIndex][sIndex].mass;
 
   //score spectra
@@ -963,10 +1045,19 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
       }
     }
     
-    sc.simpleScore=kojakScoring(index[a],modMass,sIndex,iIndex,z);
-    if(sc.simpleScore==0) continue;
+    sc.simpleScore=kojakScoring(index[a],modMass,sIndex,iIndex, matches, conFrag, z);
+    y = (int)(sc.simpleScore * 10.0 + 0.5);
+    Threading::LockMutex(mutexSpecScore[index[a]]);
+    spec->at(index[a]).histogram[y]++;
+    spec->at(index[a]).histogramCount++;
+    Threading::UnlockMutex(mutexSpecScore[index[a]]);
+    if(sc.simpleScore<0.1)  continue;
+
     sc.mods1->clear();
     sc.mods2->clear();
+    sc.score1=sc.simpleScore;
+    sc.matches1=matches;
+    sc.conFrag1=conFrag;
     sc.k1=k1;
     sc.k2=k2;
     sc.mass=ions[iIndex][sIndex].mass;
@@ -996,7 +1087,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
 
 //An alternative score uses the XCorr metric from the Comet algorithm
 //This version allows for fast scoring when the cross-linked mass is added.
-float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int z) { 
+float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z) { 
 
   KSpectrum* s=spec->getSpectrum(specIndex);
   KIonSet* ki=ions[iIndex].at(sIndex);
@@ -1014,6 +1105,9 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   int i,j,k;
   int key;
   int pos;
+  int con;
+  match=0;
+  conFrag=0;
 
   //Assign ion series
   double***  ionSeries;
@@ -1037,16 +1131,33 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
     //Iterate through pfFastXcorrData
     for(j=0;j<numIonSeries;j++){
+      con=0;
+
       for(i=0;i<ionCount;i++){
 
         //get key
         if(ionSeries[j][k][i]<0) mz = params.binSize * (int)((dif-ionSeries[j][k][i])*invBinSize+binOffset);
         else mz = params.binSize * (int)(ionSeries[j][k][i]*invBinSize+binOffset);
         key = (int)mz;
-        if(key>=s->kojakBins) break;
-        if(s->kojakSparseArray[key]==NULL) continue;
+        if(key>=s->kojakBins) {
+          if (con>conFrag) conFrag = con;
+          con = 0;
+          break;
+        }
+        if(s->kojakSparseArray[key]==NULL) {
+          if (con>conFrag) conFrag = con;
+          con = 0;
+          continue;
+        }
         pos = (int)((mz-key)*invBinSize);
         dXcorr += s->kojakSparseArray[key][pos];
+        if (s->kojakSparseArray[key][pos]>5) {
+          match++;
+          con++;
+        } else {
+          if(con>conFrag) conFrag=con;
+          con=0;
+        }
       }
     }
 

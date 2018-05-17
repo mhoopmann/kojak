@@ -43,6 +43,7 @@ public:
   //Accessors & Modifiers
   void                addFixedMod         (char mod, double mass);
   kDB&                at                  (const int& i);
+  double              getAAMass           (char aa, bool n15=false);
   kEnzymeRules&       getEnzymeRules      ();
   kPeptide&           getPeptide          (int index);
   vector<kPeptide>*   getPeptideList      ();

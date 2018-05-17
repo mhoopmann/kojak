@@ -364,6 +364,11 @@ kDB& KDatabase::at(const int& i){
   return vDB[i];
 }
 
+double KDatabase::getAAMass(char aa, bool n15){
+  if (n15) return AAn15[aa];
+  return AA[aa];
+}
+
 kEnzymeRules& KDatabase::getEnzymeRules(){
   return enzyme;
 }
