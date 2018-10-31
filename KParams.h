@@ -26,6 +26,7 @@ limitations under the License.
 #define slashdir '\\'
 #else
 #define slashdir '/'
+#include <unistd.h>
 #endif
 
 class KParams {
