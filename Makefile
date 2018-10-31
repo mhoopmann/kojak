@@ -14,7 +14,7 @@ INCLUDE = -I$(MSTOOLKITPATH)/include -I$(HARDKLORPATH)
 
 
 #Do not touch these variables
-KOJAK = KParams.o KAnalysis.o KData.o KDB.o KPrecursor.o KSpectrum.o KIons.o KIonSet.o KTopPeps.o Threading.o
+KOJAK = KParams.o KAnalysis.o KData.o KDB.o KPrecursor.o CometDecoys.o KSpectrum.o KIons.o KIonSet.o KTopPeps.o Threading.o
 
 
 #Make statements
@@ -41,18 +41,21 @@ KDB.o : KDB.cpp
 KPrecursor.o : KPrecursor.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KPrecursor.cpp -c
 
+CometDecoys.o : CometDecoys.cpp
+	$(CC) $(FLAGS) $(INCLUDE) CometDecoys.cpp -c
+
 KSpectrum.o : KSpectrum.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KSpectrum.cpp -c
 
 KIons.o : KIons.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KIons.cpp -c
-		
+
 KIonSet.o : KIonSet.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KIonSet.cpp -c
-	
+
 KTopPeps.o : KTopPeps.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KTopPeps.cpp -c
-		
+
 Threading.o : Threading.cpp
 	$(CC) $(FLAGS) $(INCLUDE) Threading.cpp -c
 
