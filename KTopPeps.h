@@ -35,7 +35,7 @@ public:
   
   kSingletScoreCard*    singletFirst;   //pointer to start of linked list
   kSingletScoreCard*    singletLast;    //pointer to end of linked list
-  list<kSingletScoreCard*>**  singletList;
+  std::list<kSingletScoreCard*>**  singletList;
 
   void  checkSingletScore(kSingletScoreCard& s);
   void  resetSingletList(double mass);

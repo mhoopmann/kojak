@@ -23,6 +23,7 @@ limitations under the License.
 #include "KPrecursor.h"
 #include "KSpectrum.h"
 #include "MSReader.h"
+#include "mzIMLTools.h"
 #include "pepXMLWriter.h"
 #include <iostream>
 
@@ -63,6 +64,7 @@ public:
   bool      mapPrecursors     ();
   void      outputDiagnostics (FILE* f, KSpectrum& s, KDatabase& db);
   bool      outputIntermediate(KDatabase& db);
+  bool      outputMzID        (CMzIdentML& m, KDatabase& db, KParams& par, kResults& r);
   bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db, KParams& par);

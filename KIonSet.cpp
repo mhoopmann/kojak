@@ -29,8 +29,10 @@ KIonSet::KIonSet(int sz, double m){
   }
   mods=new double[len];
   for(i=0;i<len;i++) mods[i]=0;
-  modNTerm=false;
-  modCTerm=false;
+  nTermMass=0;
+  cTermMass=0;
+  //modNTerm=false;
+  //modCTerm=false;
 }
 
 KIonSet::KIonSet(const KIonSet& k){
@@ -62,8 +64,10 @@ KIonSet::KIonSet(const KIonSet& k){
   }
   mods=new double[len];
   for(i=0;i<len;i++) mods[i]=k.mods[i];
-  modNTerm=k.modNTerm;
-  modCTerm=k.modCTerm;
+  nTermMass=k.nTermMass;
+  cTermMass=k.cTermMass;
+  //modNTerm=k.modNTerm;
+  //modCTerm=k.modCTerm;
 }
   
 KIonSet::~KIonSet(){
@@ -117,8 +121,10 @@ KIonSet& KIonSet::operator=(const KIonSet& k){
     delete [] mods;
     mods=new double[len];
     for(i=0;i<len;i++) mods[i]=k.mods[i];
-    modNTerm = k.modNTerm;
-    modCTerm = k.modCTerm;
+    nTermMass = k.nTermMass;
+    cTermMass = k.cTermMass;
+    //modNTerm = k.modNTerm;
+    //modCTerm = k.modCTerm;
   }
   return *this;
 }

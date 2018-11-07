@@ -26,8 +26,6 @@ limitations under the License.
 
 #define HISTOSZ 152
 
-using namespace std;
-
 class KSpectrum {
 
 public:
@@ -48,7 +46,7 @@ public:
   int             kojakBins;
   
   int singletBins;
-  list<kSingletScoreCard*>**  singletList;
+  std::list<kSingletScoreCard*>**  singletList;
   float lowScore;
 
   int cc;
@@ -117,11 +115,14 @@ public:
   void  checkScore          (kScoreCard& s);
   void  checkSingletScore   (kSingletScoreCard& s);
   bool  generateSingletDecoys(kParams* params, KDecoys& decoys);
+  double  generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex,double score2);
   bool generateXLDecoys      (kParams* params, KDecoys& decoys);
   bool  generateXcorrDecoys (kParams* params, KDecoys& decoys);
+  bool  generateXcorrDecoysXL(kParams* params, KDecoys& decoys);
   void  linearRegression    (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression3   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
+  void  linearRegression4   (int* histo, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  resetSingletList    ();
   void  sortMZ              ();
   void  xCorrScore          (bool b);
@@ -136,14 +137,14 @@ private:
   double                invBinSize;
   float                 maxIntensity;
   double                mz;
-  vector<kPrecursor>*   precursor;
+  std::vector<kPrecursor>*   precursor;
   float                 rTime;
   int                   scanNumber;
   int                   singletCount;
   
   
-  vector<KTopPeps>*     singlets;
-  vector<kSpecPoint>*   spec;
+  std::vector<KTopPeps>*     singlets;
+  std::vector<kSpecPoint>*   spec;
   kScoreCard            topHit[20];
   int                   xCorrArraySize;
 

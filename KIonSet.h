@@ -18,9 +18,11 @@ public:
   double* mods;
   double  mass;
   double  difMass;
+  double nTermMass;
+  double cTermMass;
   int     len;
-  bool modNTerm;
-  bool modCTerm;
+  //bool modNTerm;
+  //bool modCTerm;
 };
 
 #endif

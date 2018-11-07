@@ -21,7 +21,7 @@ limitations under the License.
 #include "KParams.h"
 
 #define VERSION "2.0.0-dev"
-#define BDATE "April 27 2018"
+#define BDATE "Oct 16 2018"
 
 bool getBaseFileName(string& base, char* fName, string& extP);
 
@@ -118,9 +118,9 @@ int main(int argc, char* argv[]){
     cout << "  Scoring peptides ... ";
     anal.doPeptideAnalysis();
 
-    if(params.intermediate>0) spec.outputIntermediate(db);
+    //if(params.intermediate>0) spec.outputIntermediate(db);
 
-    cout << "  Calculating e-values ... ";
+    cout << "  Calculating e-values (" << DECOY_SIZE << ")... ";
     anal.doEValueAnalysis();
 
     time(&timeNow);

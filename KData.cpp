@@ -703,13 +703,13 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     else fprintf(f, " crosslinker_mass=\"%.4lf\"/>\n", link[psm.link].mass);
   }
   fprintf(f, "  </results_list>\n");
-  /*
-  fprintf(f, "  <histogramSinglet count=\"%d\">\n", s.histogramSingletCount);
+  
+  fprintf(f, "  <histogramSinglet count=\"%d\" intercept=\"%.4f\" slope=\"%.4f\" rsq=\"%.4lf\" start=\"%.4f\" next=\"%.4f\" max=\"%d\">\n", s.histogramSingletCount, s.tmpSingletIntercept, s.tmpSingletSlope, s.tmpSingletRSquare, s.tmpSingletIStartCorr, s.tmpSingletINextCorr, s.tmpSingletIMaxCorr);
   for (j = 0; j<HISTOSZ; j++){
     fprintf(f, "   <bin id=\"%d\" value=\"%d\"/>\n", j, s.histogramSinglet[j]);
   }
   fprintf(f, "  </histogramSinglet>\n");
-  */
+  
   fprintf(f, "  <histogram count=\"%d\" intercept=\"%.4f\" slope=\"%.4f\" rsq=\"%.4lf\" start=\"%.4f\" next=\"%.4f\" max=\"%d\">\n", s.histogramCount,s.tmpIntercept,s.tmpSlope,s.tmpRSquare,s.tmpIStartCorr,s.tmpINextCorr,s.tmpIMaxCorr);
   for (j = 0; j<HISTOSZ; j++){
     fprintf(f, "   <bin id=\"%d\" value=\"%d\"/>\n", j, s.histogram[j]);
@@ -793,6 +793,281 @@ bool KData::outputIntermediate(KDatabase& db){
   return true;
 }
 
+bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
+  size_t i;
+
+  char str[256];
+
+  kPeptide pep;
+
+  string cStr;
+  string analysisSoftware_ref;
+  string dbSequence_ref;
+  string peptide_ref;
+  string peptide_ref2;
+  string protein;
+  string proteinDesc;
+  string spectraData_ref;
+  string searchDatabase_ref;
+  string value;
+
+  CModification mod;
+  CSpectrumIdentification* si;
+  CSpectrumIdentificationItem* sii;
+  CSpectrumIdentificationList* sil;
+  CSpectrumIdentificationProtocol* sip;
+  CSpectrumIdentificationResult* sir;
+
+  vector<CModification> mods;
+  vector<sPeptideEvidenceRef> pepRef;
+
+  //Add/obtain the reference id for the psm data file.
+  spectraData_ref = m.addSpectraData(params->inFile);
+  searchDatabase_ref = m.addDatabase(params->dbFile);
+
+  //Get the SIL_ref from the combo of datafile and db searched; 
+  //in the future, this needs to include search algorithm; pepXML should have its own data structure
+  si = m.addSpectrumIdentification(spectraData_ref, searchDatabase_ref);
+  sil = m.getSpectrumIdentificationList(si->spectrumIdentificationListRef);
+  sip = m.getSpectrumIdentificationProtocol(si->spectrumIdentificationProtocolRef);
+
+  sip->threshold.cvParam->at(0).accession = "MS:1001494";
+  sip->threshold.cvParam->at(0).cvRef = "PSI-MS";
+  sip->threshold.cvParam->at(0).name = "no threshold";
+
+  //populate analysis software & protocol information if it is new
+  if (sip->analysisSoftwareRef.compare("null") == 0){
+    //pSearch = p.getSearchParams(i);
+
+    //manually setting search type
+    sip->searchType.cvParam.accession = "MS:1001083";
+    sip->searchType.cvParam.cvRef = "PSI-MS";
+    sip->searchType.cvParam.name = "ms-ms search";
+
+    analysisSoftware_ref = m.addAnalysisSoftware("Kojak", version);
+    sip->analysisSoftwareRef = analysisSoftware_ref;
+    //special case for cross-linking
+    sip->additionalSearchParams.cvParam->at(0).accession = "MS:1002494";
+    sip->additionalSearchParams.cvParam->at(0).cvRef = "PSI-MS";
+    sip->additionalSearchParams.cvParam->at(0).name = "cross-linking search";
+
+    //add additionalSearchParams here under userParams
+    vector<string> tokens;
+    char* tok;
+    bool nTerm;
+    bool cTerm;
+    for (i = 0; i<par.xmlParams.size(); i++){ //figure out how to write all parameters
+      if (par.xmlParams[i].name.compare("cross_link") == 0){
+        tokens.clear();
+        strcpy(str, par.xmlParams[i].value.c_str());
+        tok = strtok(str, " \t\n\r");
+        while (tok != NULL){
+          cStr = tok;
+          tokens.push_back(cStr);
+          tok = strtok(NULL, " \t\n\r");
+        }
+        sip->modificationParams.addSearchModificationXL(atof(tokens[2].c_str()), tokens[0], tokens[1]);
+      }
+    }
+    bool bTerm=false;
+    char site;
+    for(i=0;i<params->mods->size();i++){
+      cStr.clear();
+      site=(char)params->mods->at(i).index;
+      if (site == '$') cStr += 'n';
+      else if (site == '%') cStr += 'c';
+      else cStr += site;
+      if (site == 'n' || site == 'c') bTerm = true;
+      sip->modificationParams.addSearchModification(false, params->mods->at(i).mass, cStr,bTerm);
+    }
+    for (i = 0; i<params->fMods->size(); i++){
+      cStr.clear();
+      site = (char)params->fMods->at(i).index;
+      if (site == '$') cStr += 'n';
+      else if (site == '%') cStr += 'c';
+      else cStr += site;
+      if (site == 'n' || site == 'c') bTerm = true;
+      sip->modificationParams.addSearchModification(true, params->fMods->at(i).mass, cStr, bTerm);
+    }
+    m.consolidateSpectrumIdentificationProtocol();
+    sip = m.getSpectrumIdentificationProtocol(si->spectrumIdentificationProtocolRef);
+  }
+
+  //Create spectrum
+  sprintf(str, "scan=%d", r.scanNumber);
+  cStr = str;
+  sir = sil->addSpectrumIdentificationResult(cStr, spectraData_ref);
+
+  //Get peptide sequence and modifications
+  mods.clear();
+  if (r.type == 1){
+    mod.location = r.link1;
+    mod.monoisotopicMassDelta = r.xlMass;
+    mod.residues = r.peptide1[r.link1 - 1];
+    mod.cvParam->at(0).cvRef = "PSI-MS";
+    mod.cvParam->at(0).accession = "MS:1002509";
+    mod.cvParam->at(0).name = "cross-link donor";
+    mod.cvParam->push_back(sip->modificationParams.getModificationCvParam(mod.monoisotopicMassDelta, mod.residues));
+    mods.push_back(mod);
+    mod.clear();
+    mod.location = r.link2;
+    mod.monoisotopicMassDelta = 0;
+    mod.residues = r.peptide1[r.link2 - 1];
+    mod.cvParam->at(0).cvRef = "PSI-MS";
+    mod.cvParam->at(0).accession = "MS:1002510";
+    mod.cvParam->at(0).name = "cross-link acceptor";
+    mods.push_back(mod);
+    mod.clear();
+  }
+  if (r.type == 2){
+    mod.location = r.link1;
+    mod.monoisotopicMassDelta = r.xlMass;
+    mod.residues = r.peptide1[r.link1 - 1];
+    mod.cvParam->at(0).cvRef = "XLtmp";
+    mod.cvParam->push_back(sip->modificationParams.getModificationCvParam(mod.monoisotopicMassDelta, mod.residues));
+    mods.push_back(mod);
+    mod.clear();
+  }
+  for (i = 0; i < r.mods1.size(); i++){
+    mod.location = (int)r.mods1[i].pos + 1;
+    mod.monoisotopicMassDelta = r.mods1[i].mass;
+    if (mod.location>0) mod.residues = r.peptide1[r.mods1[i].pos];
+    else mod.residues.clear();
+    mod.cvParam->at(0) = sip->modificationParams.getModificationCvParam(mod.monoisotopicMassDelta, mod.residues, mod.location == 0);
+    mods.push_back(mod);
+    mod.clear();
+  }
+  //add static mods, too
+  for (i = 0; i<r.peptide1.size(); i++){
+    if (aa.getFixedModMass(r.peptide1[i])>0) {
+      mod.location = (int)i + 1;
+      mod.monoisotopicMassDelta = aa.getFixedModMass(r.peptide1[i]);
+      if (mod.location>0) mod.residues = r.peptide1[i];
+      else mod.residues.clear();
+      mod.cvParam->at(0) = sip->modificationParams.getModificationCvParam(mod.monoisotopicMassDelta, mod.residues, mod.location == 0);
+      mods.push_back(mod);
+      mod.clear();
+    }
+  }
+  if (r.type == 2){
+    vector<CModification> mods2;
+    mod.location = r.link2;
+    mod.residues = r.peptide2[r.link2 - 1];
+    mod.monoisotopicMassDelta = r.xlMass;
+    mod.cvParam->at(0).cvRef = "XLtmp";
+    mod.cvParam->push_back(sip->modificationParams.getModificationCvParam(mod.monoisotopicMassDelta, mod.residues));
+    mods2.push_back(mod);
+    mod.clear();
+    for (i = 0; i < r.mods2.size(); i++){
+      mod.location = (int)r.mods2[i].pos + 1;
+      mod.monoisotopicMassDelta = r.mods2[i].mass;
+      if (mod.location>0) mod.residues = r.peptide2[r.mods2[i].pos];
+      else mod.residues.clear();
+      mod.cvParam->at(0) = sip->modificationParams.getModificationCvParam(mod.monoisotopicMassDelta, mod.residues, mod.location == 0);
+      mods2.push_back(mod);
+      mod.clear();
+    }
+    //add static mods, too
+    for (i = 0; i<r.peptide2.size(); i++){
+      if (aa.getFixedModMass(r.peptide2[i])>0) {
+        mod.location = (int)i + 1;
+        mod.monoisotopicMassDelta = aa.getFixedModMass(r.peptide2[i]);
+        if (mod.location>0) mod.residues = r.peptide2[i];
+        else mod.residues.clear();
+        mod.cvParam->at(0) = sip->modificationParams.getModificationCvParam(mod.monoisotopicMassDelta, mod.residues, mod.location == 0);
+        mods2.push_back(mod);
+        mod.clear();
+      }
+    }
+    if (!m.addXLPeptides(r.peptide1, mods, peptide_ref, r.peptide2, mods2, peptide_ref2, value)){
+      cout << "ERROR adding XLPeptides." << endl;
+      exit(891);
+    }
+  } else {
+    peptide_ref = m.addPeptide(r.peptide1, mods);
+    peptide_ref2="null";
+  }
+
+  //Add all proteins mapped by this peptide
+  pepRef.clear();
+  pep = db.getPeptide(r.pep1);
+  for (i = 0; i<pep.map->size(); i++){
+    if (pep.n15 && db[pep.map->at(i).index].name.find(params->n15Label) == string::npos) {
+      continue;
+    }
+    if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(i).index].name.find(params->n15Label) != string::npos) {
+      continue;
+    }
+    protein = db[pep.map->at(i).index].name;
+    proteinDesc = "";
+    dbSequence_ref = m.addDBSequence(protein, searchDatabase_ref, proteinDesc);
+    pepRef.push_back(m.addPeptideEvidence(dbSequence_ref, peptide_ref));
+  }
+
+  //Add PSM
+  sii = sir->addSpectrumIdentificationItem(r.charge, (r.obsMass + 1.007276466*r.charge) / r.charge, 1, pepRef, true, peptide_ref);
+  sii->calculatedMassToCharge = (r.psmMass + 1.007276466*r.charge) / r.charge;
+  if (r.type == 2) sii->addCvParam("MS:1002511", "PSI-MS", "cross-link spectrum identification item", "", "", "", value);
+  if(sir->spectrumIdentificationItem->size()==1) sir->addCvParam("MS:1000894", (double)r.rTime);
+
+  //add scores
+  sii->addPSMValue("Kojak","kojak_score",r.score);
+  sii->addPSMValue("Kojak", "delta_score", r.scoreDelta);
+  sii->addPSMValue("Kojak", "ppm_error", r.ppm);
+  sii->addPSMValue("Kojak", "e-value", r.eVal);
+  sii->addPSMValue("Kojak", "ion_match", r.matches1 + r.matches2);
+  if (r.type<2) sii->addPSMValue("Kojak", "consecutive_ion_match", r.conFrag1);
+  if(r.type==1){
+    sii->addPSMValue("Kojak", "link", r.link1, "pep");
+    sii->addPSMValue("Kojak", "link", r.link2, "pep");
+  }
+  if(r.type==2){
+    sii->addPSMValue("Kojak", "consecutive_ion_match", (r.conFrag1 + r.conFrag2) / 2);
+    sii->addPSMValue("Kojak", "score", r.scoreA,"pep");
+    sii->addPSMValue("Kojak", "rank", r.rankA,"pep");
+    sii->addPSMValue("Kojak", "link", r.link1,"pep");
+    sii->addPSMValue("Kojak", "e-value", r.eVal1,"pep");
+    sii->addPSMValue("Kojak", "ion_match", r.matches1,"pep");
+    sii->addPSMValue("Kojak", "consecutive_ion_match", r.conFrag1,"pep");
+  }
+
+  //if we have 2nd peptide
+  if (peptide_ref2.compare("null") != 0){
+    //Add all proteins mapped by this peptide
+    pepRef.clear();
+    pep = db.getPeptide(r.pep1);
+    for (i = 0; i<pep.map->size(); i++){
+      if (pep.n15 && db[pep.map->at(i).index].name.find(params->n15Label) == string::npos) continue;
+      if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(i).index].name.find(params->n15Label) != string::npos) continue;
+      protein = db[pep.map->at(i).index].name;
+      proteinDesc = "";
+      dbSequence_ref = m.addDBSequence(protein, searchDatabase_ref, proteinDesc);
+      pepRef.push_back(m.addPeptideEvidence(dbSequence_ref, peptide_ref2));
+    }
+
+    //Add PSM
+    sii = sir->addSpectrumIdentificationItem(r.charge, (r.obsMass + 1.007276466*r.charge) / r.charge, 1, pepRef, true, peptide_ref);
+    sii->calculatedMassToCharge = (r.psmMass + 1.007276466*r.charge) / r.charge;
+    sii->addCvParam("MS:1002511", "PSI-MS", "cross-link spectrum identification item", "", "", "", value);
+
+    //add scores
+    sii->addPSMValue("Kojak", "kojak_score", r.score);
+    sii->addPSMValue("Kojak", "delta_score", r.scoreDelta);
+    sii->addPSMValue("Kojak", "ppm_error", r.ppm);
+    sii->addPSMValue("Kojak", "e-value", r.eVal);
+    sii->addPSMValue("Kojak", "ion_match", r.matches1 + r.matches2);
+    sii->addPSMValue("Kojak", "consecutive_ion_match", (r.conFrag1 + r.conFrag2) / 2);
+    sii->addPSMValue("Kojak", "score", r.scoreB, "pep");
+    sii->addPSMValue("Kojak", "rank", r.rankB, "pep");
+    sii->addPSMValue("Kojak", "link", r.link2, "pep");
+    sii->addPSMValue("Kojak", "e-value", r.eVal2, "pep");
+    sii->addPSMValue("Kojak", "ion_match", r.matches2, "pep");
+    sii->addPSMValue("Kojak", "consecutive_ion_match", r.conFrag2, "pep");
+  }
+
+  return true;
+}
+
 bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
 
   unsigned int i;
@@ -834,8 +1109,8 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   
   for(i=0;i<r.mods1.size();i++){
     //if(sq.start_scan==31877) cout << r.mods1[i].mass << "\t" << (int)r.mods1[i].pos << "\t" << (int)r.mods1[i].term << endl;
-    if (r.mods1[i].pos == 0 && r.mods1[i].term) sh.modInfo.mod_nterm_mass = r.mods1[i].mass;
-    else if (r.mods1[i].pos == r.peptide1.length() - 1 && r.mods1[i].term) sh.modInfo.mod_cterm_mass = r.mods1[i].mass;
+    if (r.mods1[i].pos == -1) sh.modInfo.mod_nterm_mass = r.mods1[i].mass;
+    else if (r.mods1[i].pos == -2) sh.modInfo.mod_cterm_mass = r.mods1[i].mass;
     else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos],r.n15Pep1));
   }
   if (r.nTerm1 && aa.getFixedModMass('$')!=0)sh.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
@@ -857,8 +1132,8 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     shB.massdiff=r.obsMass-r.massB;
 
     for(i=0;i<r.mods2.size();i++){
-      if (r.mods2[i].pos == 0 && r.mods2[i].term) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
-      else if (r.mods2[i].pos == r.peptide2.length() - 1 && r.mods2[i].term) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
+      if (r.mods2[i].pos == -1) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
+      else if (r.mods2[i].pos -2) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
       else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos],r.n15Pep2));
     }
     if (r.nTerm2 && aa.getFixedModMass('$')!=0)shB.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
@@ -1107,6 +1382,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   PXWSearchSummary ss;
   PXWSpectrumQuery sq;
 
+  CMzIdentML mzID;
+  string analysisSoftware_ref;
+
   bool bBadFiles;
   bool bInter;
   bool bTarget1;
@@ -1135,6 +1413,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   sprintf(fName,"%s.kojak.txt",params->outFile);
   fOut=fopen(fName,"wt");
   if(fOut==NULL) bBadFiles=true;
+  if(params->exportMzID){
+    analysisSoftware_ref = mzID.addAnalysisSoftware("Kojak", version);
+  }
   if(params->exportPercolator) {
     sprintf(fName,"%s.perc.intra.txt",params->outFile);
     fIntra=fopen(fName,"wt");
@@ -1700,6 +1981,10 @@ bool KData::outputResults(KDatabase& db, KParams& par){
           if(!bInter) break;
         }
       }
+
+      if(params->exportMzID){
+        outputMzID(mzID,db,par,res);
+      }
       
       if(params->exportPercolator) {
         switch(res.type){
@@ -1740,6 +2025,10 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   }
   if(params->exportPepXML){
     p.closePepXML();
+  }
+  if (params->exportMzID){
+    sprintf(fName, "%s.mzid", params->outFile);
+    mzID.writeFile(fName);
   }
   if (fDiag != NULL){
     fprintf(fDiag, "</kojak_analysis>\n");
@@ -2508,7 +2797,7 @@ string KData::processPeptide(kPeptide& pep, vector<kPepMod>* mod, KDatabase& db)
     seq += tmp;
   }
   for (k = 0; k<mod->size(); k++){ //check for n-terminal peptide mod
-    if (mod->at(k).pos == 0 && mod->at(k).term){
+    if (mod->at(k).pos == -1){
       sprintf(tmp, "n[%.2lf]", mod->at(k).mass);
       seq += tmp;
     }
@@ -2516,14 +2805,15 @@ string KData::processPeptide(kPeptide& pep, vector<kPepMod>* mod, KDatabase& db)
   for (j = 0; j<peptide.size(); j++) {
     seq += peptide[j];
     for (k = 0; k<mod->size(); k++){
-      if (j == (unsigned int)mod->at(k).pos && !mod->at(k).term){
+      if(mod->at(k).pos<0) continue;
+      if (j == (size_t)mod->at(k).pos){
         sprintf(tmp, "[%.2lf]", mod->at(k).mass);
         seq += tmp;
       }
     }
   }
   for (k = 0; k<mod->size(); k++){ //check for c-terminal peptide mod
-    if (mod->at(k).pos > 0 && mod->at(k).term){
+    if (mod->at(k).pos ==-2){
       sprintf(tmp, "c[%.2lf]", mod->at(k).mass);
       seq += tmp;
     }

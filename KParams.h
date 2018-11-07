@@ -25,6 +25,7 @@ limitations under the License.
 #define getcwd _getcwd
 #define slashdir '\\'
 #else
+#include <unistd.h>
 #define slashdir '/'
 #include <unistd.h>
 #endif
@@ -35,7 +36,7 @@ public:
   KParams(kParams* p);
   ~KParams();
 
-  vector<pxwBasicXMLTag> xmlParams;
+  std::vector<pxwBasicXMLTag> xmlParams;
 
   bool buildOutput(char* in, char* base, char* ext);
   bool parseConfig(char* fname);

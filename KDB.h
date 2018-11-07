@@ -24,9 +24,6 @@ limitations under the License.
 
 #include "KStructs.h"
 
-using namespace std;
-
-
 class KDatabase{
 public:
 
@@ -46,12 +43,12 @@ public:
   double              getAAMass           (char aa, bool n15=false);
   kEnzymeRules&       getEnzymeRules      ();
   kPeptide&           getPeptide          (int index);
-  vector<kPeptide>*   getPeptideList      ();
+  std::vector<kPeptide>*   getPeptideList();
   int                 getPeptideListSize  ();
   bool                getPeptideSeq       (int index, int start, int stop, char* str);
-  bool                getPeptideSeq       (int index, int start, int stop, string& str);
-  bool                getPeptideSeq       (kPeptide& p, string& str);
-  bool                getPeptideSeq       (int pepIndex, string& str);
+  bool                getPeptideSeq       (int index, int start, int stop, std::string& str);
+  bool                getPeptideSeq       (kPeptide& p, std::string& str);
+  bool                getPeptideSeq       (int pepIndex, std::string& str);
   kDB&                getProtein          (int index);
   int                 getProteinDBSize    ();
   void                setAAMass           (char aa, double mass, bool n15 = false);
@@ -70,12 +67,12 @@ private:
   double        fixMassProtN;
   char          xlTable[128][20];
   kEnzymeRules  enzyme;    //Where to cut to generate peptides
-  string        n15Label;
+  std::string   n15Label;
 
-  vector<kDB>      vDB;    //Entire FASTA database stored in memory
-  vector<kPeptide> vPep;   //List of all peptides
+  std::vector<kDB>      vDB;    //Entire FASTA database stored in memory
+  std::vector<kPeptide> vPep;   //List of all peptides
 
-  void addPeptide(int index, int start, int len, double mass, kPeptide& p, vector<kPeptide>& vP, bool bN, bool bC, bool bN15, char xlSites);
+  void addPeptide(int index, int start, int len, double mass, kPeptide& p, std::vector<kPeptide>& vP, bool bN, bool bC, bool bN15, char xlSites);
   bool checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t seqSize, bool& bN, bool& bC);
 
   //Utility functions (for sorting)
