@@ -16,6 +16,8 @@ limitations under the License.
 
 #include "KDB.h"
 
+using namespace std;
+
 //==============================
 //  Constructors & Destructors
 //==============================
@@ -45,6 +47,10 @@ KDatabase::KDatabase(){
   AA['V']=99.0684087;
   AA['W']=186.0793065;
   AA['Y']=163.0633228;
+  AA['n'] = 1.00782503;
+  AA['c'] = 17.00273963;
+  AA['$'] = 1.00782503;
+  AA['%'] = 17.00273963;
 
   AAn15['A'] = 72.0341452;
   AAn15['C'] = 104.0062152;
@@ -67,6 +73,10 @@ KDatabase::KDatabase(){
   AAn15['V'] = 100.0654436;
   AAn15['W'] = 188.0733763;
   AAn15['Y'] = 164.0603577;
+  AAn15['n'] = 1.00782503;
+  AAn15['c'] = 17.00273963;
+  AAn15['$'] = 1.00782503;
+  AAn15['%'] = 17.00273963;
 
   fixMassPepC=0;
   fixMassPepN=0;

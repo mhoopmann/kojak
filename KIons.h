@@ -21,8 +21,6 @@ limitations under the License.
 #include "KIonSet.h"
 #include <vector>
 
-using namespace std;
-
 typedef struct kModPos{
   int     pos;        //position of aa to add
   int     mod;        //index of mods at this position
@@ -70,7 +68,7 @@ public:
   double*   getMods       ();
   void      getPeptide    (bool bPepOne, char* seq);
   int       getPeptideLen ();
-  void      getPeptideMods(vector<kPepMod>& v);
+  void      getPeptideMods(std::vector<kPepMod>& v);
   int       size          ();
 
   //Modifiers
@@ -123,9 +121,9 @@ private:
   bool cPep1; //peptide has protein c-terminus
   bool cPep2; //peptide has protein c-terminus
 
-  vector<kModPos> modQueue;
-  vector<double>  modMassArray;
-  vector<KIonSet> sets;
+  std::vector<kModPos> modQueue;
+  std::vector<double>  modMassArray;
+  std::vector<KIonSet> sets;
 
   //Utilities
   static int compareD(const void *p1,const void *p2);

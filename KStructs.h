@@ -26,18 +26,16 @@ limitations under the License.
 #include <iostream>
 #include <exception>
 
-using namespace std;
-
 //FASTA database structure
 typedef struct kDB{
-  string name;      //FASTA header
-  string sequence;  //FASTA sequence
+  std::string name;      //FASTA header
+  std::string sequence;  //FASTA sequence
 } kDB;
 
 typedef struct kFile{
-  string input;
-  string base;
-  string ext;
+  std::string input;
+  std::string base;
+  std::string ext;
 } kFile;
 
 //structure holds peptide mappings to database
@@ -54,14 +52,14 @@ typedef struct kPeptide{
   bool n15;
   char xlSites;
   double mass;            //monoisotopic, zero mass
-  vector<kPepMap>* map;   //array of mappings where peptides appear in more than one place
+  std::vector<kPepMap>* map;   //array of mappings where peptides appear in more than one place
   kPeptide(){
     cTerm=false;
     nTerm=false;
     n15=false;
     xlSites=0;
     mass=0;
-    map=new vector<kPepMap>;
+    map = new std::vector<kPepMap>;
   }
   kPeptide(const kPeptide& m){
     cTerm=m.cTerm;
@@ -69,8 +67,7 @@ typedef struct kPeptide{
     n15=m.n15;
     xlSites=m.xlSites;
     mass=m.mass;
-    map=new vector<kPepMap>;
-    for(unsigned int i=0;i<m.map->size();i++) map->push_back(m.map->at(i));
+    map = new std::vector<kPepMap>(*m.map);
   }
   ~kPeptide(){
     delete map;
@@ -83,8 +80,7 @@ typedef struct kPeptide{
       xlSites = m.xlSites;
       mass=m.mass;
       delete map;
-      map=new vector<kPepMap>;
-      for(unsigned int i=0;i<m.map->size();i++) map->push_back(m.map->at(i));
+      map = new std::vector<kPepMap>(*m.map);
     }
     return (*this);
   }
@@ -99,14 +95,14 @@ typedef struct kPeptideB{
 //For sorting peptide lists
 typedef struct kPepSort{
   int index;        //peptide array index
-  string sequence;  //peptide sequence
+  std::string sequence;  //peptide sequence
   bool n15;
 } kPepSort;
 
 typedef struct kLinker{
-  string label;
-  string motifA;
-  string motifB;
+  std::string label;
+  std::string motifA;
+  std::string motifB;
   double mass;
   int mono;     //0=cross-link, 1=mono-link
   int motifAIndex;    //for reference to motif list
@@ -152,6 +148,7 @@ typedef struct kParams {
   bool    diffModsOnXL;
   bool    dimers;
   bool    dimersXL;
+  bool    exportMzID;
   bool    exportPepXML;
   bool    exportPercolator;
   bool    ionSeries[6];
@@ -176,12 +173,12 @@ typedef struct kParams {
   char    n15Label[256];
   char    outFile[1024];  //true output file with full path
   char    resPath[1024];
-  vector<kMass>*    aaMass;
-  vector<int>*      diag;
-  vector<kLinker>*  xLink;
-  vector<kLinker>*  mLink;
-  vector<kMass>*    mods;
-  vector<kMass>*    fMods;
+  std::vector<kMass>*    aaMass;
+  std::vector<int>*      diag;
+  std::vector<kLinker>*  xLink;
+  std::vector<kLinker>*  mLink;
+  std::vector<kMass>*    mods;
+  std::vector<kMass>*    fMods;
   kParams(){
     instrument=1;
     intermediate=0;
@@ -203,6 +200,7 @@ typedef struct kParams {
     diffModsOnXL=false;
     dimers=false;
     dimersXL=true;
+    exportMzID=false;
     exportPepXML=false;
     exportPercolator=false;
     ionSeries[0]=false; //a-ions
@@ -232,12 +230,12 @@ typedef struct kParams {
     n15Label[0]='\0';
     outFile[0]='\0';
     resPath[0]='\0';
-    aaMass = new vector<kMass>;
-    diag = new vector<int>;
-    xLink = new vector<kLinker>;
-    mLink = new vector<kLinker>;
-    mods = new vector<kMass>;
-    fMods = new vector<kMass>;
+    aaMass = new std::vector<kMass>;
+    diag = new std::vector<int>;
+    xLink = new std::vector<kLinker>;
+    mLink = new std::vector<kLinker>;
+    mods = new std::vector<kMass>;
+    fMods = new std::vector<kMass>;
   }
   kParams(const kParams& p){
     instrument=p.instrument;
@@ -260,6 +258,7 @@ typedef struct kParams {
     diffModsOnXL=p.diffModsOnXL;
     dimers=p.dimers;
     dimersXL=p.dimersXL;
+    exportMzID=p.exportMzID;
     exportPepXML=p.exportPepXML;
     exportPercolator=p.exportPercolator;
     monoLinksOnXL=p.monoLinksOnXL;
@@ -283,20 +282,13 @@ typedef struct kParams {
     strcpy(n15Label, p.n15Label);
     strcpy(outFile,p.outFile);
     strcpy(resPath, p.resPath);
-    aaMass = new vector<kMass>;
-    diag = new vector<int>;
-    xLink = new vector<kLinker>;
-    mLink = new vector<kLinker>;
-    mods = new vector<kMass>;
-    fMods = new vector<kMass>;
-    unsigned int i;
-    for(i=0;i<p.aaMass->size();i++) aaMass->push_back(p.aaMass->at(i));
-    for(i=0;i<p.diag->size();i++) diag->push_back(p.diag->at(i));
-    for(i=0;i<p.xLink->size();i++) xLink->push_back(p.xLink->at(i));
-    for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));
-    for(i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));
-    for(i=0;i<p.fMods->size();i++) fMods->push_back(p.fMods->at(i));
-    for(i=0;i<6;i++) ionSeries[i]=p.ionSeries[i];
+    aaMass = new std::vector<kMass>(*p.aaMass);
+    diag = new std::vector<int>(*p.diag);
+    xLink = new std::vector<kLinker>(*p.xLink);
+    mLink = new std::vector<kLinker>(*p.mLink);
+    mods = new std::vector<kMass>(*p.mods);
+    fMods = new std::vector<kMass>(*p.fMods);
+    for(unsigned int i=0;i<6;i++) ionSeries[i]=p.ionSeries[i];
   }
   ~kParams(){
     delete aaMass;
@@ -328,6 +320,7 @@ typedef struct kParams {
       diffModsOnXL=p.diffModsOnXL;
       dimers=p.dimers;
       dimersXL=p.dimersXL;
+      exportMzID = p.exportMzID;
       exportPepXML=p.exportPepXML;
       exportPercolator=p.exportPercolator;
       monoLinksOnXL=p.monoLinksOnXL;
@@ -357,20 +350,13 @@ typedef struct kParams {
       delete mLink;
       delete mods;
       delete fMods;
-      aaMass = new vector<kMass>;
-      diag = new vector<int>;
-      xLink = new vector<kLinker>;
-      mLink = new vector<kLinker>;
-      mods = new vector<kMass>;
-      fMods = new vector<kMass>;
-      unsigned int i;
-      for(i=0;i<p.aaMass->size();i++) aaMass->push_back(p.aaMass->at(i));
-      for(i=0;i<p.diag->size();i++) diag->push_back(p.diag->at(i));
-      for(i=0;i<p.xLink->size();i++) xLink->push_back(p.xLink->at(i));
-      for(i=0;i<p.mLink->size();i++) mLink->push_back(p.mLink->at(i));
-      for(i=0;i<p.mods->size();i++) mods->push_back(p.mods->at(i));
-      for(i=0;i<p.fMods->size();i++) fMods->push_back(p.fMods->at(i));
-      for(i=0;i<6;i++) ionSeries[i]=p.ionSeries[i];
+      aaMass = new std::vector<kMass>(*p.aaMass);
+      diag = new std::vector<int>(*p.diag);
+      xLink = new std::vector<kLinker>(*p.xLink);
+      mLink = new std::vector<kLinker>(*p.mLink);
+      mods = new std::vector<kMass>(*p.mods);
+      fMods = new std::vector<kMass>(*p.fMods);
+      for(unsigned int i=0;i<6;i++) ionSeries[i]=p.ionSeries[i];
     }
     return (*this);
   }
@@ -388,7 +374,6 @@ typedef struct kPreprocessStruct { //adapted from Comet
 } kPreprocessStruct;
 
 typedef struct kPepMod{
-  bool term;
   char pos;
   double mass;
 } kPepMod;
@@ -415,8 +400,8 @@ typedef struct kScoreCard{
   double  mass2;
   float  score1;
   float  score2;
-  vector<kPepMod>* mods1;
-  vector<kPepMod>* mods2;
+  std::vector<kPepMod>* mods1;
+  std::vector<kPepMod>* mods2;
   kScoreCard(){
     linkable1=false;
     linkable2=false;
@@ -439,11 +424,10 @@ typedef struct kScoreCard{
     matches2=0;
     conFrag1=0;
     conFrag2=0;
-    mods1=new vector<kPepMod>;
-    mods2=new vector<kPepMod>;
+    mods1 = new std::vector<kPepMod>;
+    mods2 = new std::vector<kPepMod>;
   }
   kScoreCard(const kScoreCard& p){
-    unsigned int i;
     linkable1=p.linkable1;
     linkable2=p.linkable2;
     precursor=p.precursor;
@@ -465,10 +449,8 @@ typedef struct kScoreCard{
     matches2=p.matches2;
     conFrag1=p.conFrag1;
     conFrag2=p.conFrag2;
-    mods1=new vector<kPepMod>;
-    for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
-    mods2=new vector<kPepMod>;
-    for(i=0;i<p.mods2->size();i++) mods2->push_back(p.mods2->at(i));
+    mods1 = new std::vector<kPepMod>(*p.mods1);
+    mods2 = new std::vector<kPepMod>(*p.mods2);
   }
   ~kScoreCard(){
     delete mods1;
@@ -476,7 +458,6 @@ typedef struct kScoreCard{
   }
   kScoreCard& operator=(const kScoreCard& p){
     if(this!=&p){
-      unsigned int i;
       linkable1=p.linkable1;
       linkable2=p.linkable2;
       precursor=p.precursor;
@@ -499,11 +480,9 @@ typedef struct kScoreCard{
       conFrag1 = p.conFrag1;
       conFrag2 = p.conFrag2;
       delete mods1;
-      mods1=new vector<kPepMod>;
-      for(i=0;i<p.mods1->size();i++) mods1->push_back(p.mods1->at(i));
+      mods1 = new std::vector<kPepMod>(*p.mods1);
       delete mods2;
-      mods2=new vector<kPepMod>;
-      for(i=0;i<p.mods2->size();i++) mods2->push_back(p.mods2->at(i));
+      mods2 = new std::vector<kPepMod>(*p.mods2);
     }
     return *this;
   }
@@ -658,13 +637,13 @@ typedef struct kResults{
   double  scoreDelta;
   double  scorePepDif;
   double  xlMass;
-  string  modPeptide1;
-  string  modPeptide2;
-  string  peptide1;
-  string  peptide2;
-  string  xlLabel;
-  vector<kPepMod> mods1;
-  vector<kPepMod> mods2;
+  std::string  modPeptide1;
+  std::string  modPeptide2;
+  std::string  peptide1;
+  std::string  peptide2;
+  std::string  xlLabel;
+  std::vector<kPepMod> mods1;
+  std::vector<kPepMod> mods2;
 } kResults;
 
 typedef struct kCKey{
@@ -761,7 +740,7 @@ typedef struct kMatchSet{
 } kMatchSet;
 
 typedef struct kXLMotif {
-  string motif;
+  std::string motif;
   int xlIndex[10];
   int counterMotif[10];
 } kXLMotif;

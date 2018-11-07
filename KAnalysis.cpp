@@ -578,9 +578,18 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
 
     //iterate through all ion sets
     for(i=0;i<ions[iIndex].size();i++){
+      //cout << i << " of " << ions[iIndex].size() << " = " << ions[iIndex][i].mass << "\t" << ions[iIndex][i].difMass << endl;
+      for(j=0;j<ions[iIndex][i].len;j++){
+        if (ions[iIndex][i].mods[j]==0) continue;
+        //cout << "\t" << j << " " << ions[iIndex][i].mods[j];
+      }
+      //cout << endl;
 
       //Iterate all spectra from (peptide mass + low linker + minimum mass) to (peptide mass + high linker + maximum mass)
+      //cout << minMass + ions[iIndex][i].difMass << " to " << maxMass + ions[iIndex][i].difMass << endl;
       if (!spec->getBoundaries(minMass + ions[iIndex][i].difMass, maxMass + ions[iIndex][i].difMass, scanIndex, scanBuffer[iIndex])) continue;
+      //cout << "Scans to search: "  << scanIndex.size() << endl;
+      //cout << spec->at(scanIndex[0]).getScanNumber() << endl;
 
       for(j=0;j<scanIndex.size();j++){
         if (params.turbo){
@@ -770,9 +779,25 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
     if (iset->difMass != 0){
       for (j = 0; j<ions[iIndex].getIonCount(); j++) {
         if (iset->mods[j] != 0){
-          if (j == 0 && iset->modNTerm) mod.term = true;
-          else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
-          else mod.term = false;
+          if (j == 0){
+            if (iset->nTermMass != 0){
+              mod.pos = -1;
+              mod.mass = iset->nTermMass;
+              v.push_back(mod);
+            }
+            if (fabs(iset->mods[j] - iset->nTermMass)<0.0001) continue;
+          }
+          if (j == ions[iIndex].getIonCount() - 1){
+            if (iset->cTermMass != 0){
+              mod.pos = -2;
+              mod.mass = iset->cTermMass;
+              v.push_back(mod);
+            }
+            if (fabs(iset->mods[j] - iset->cTermMass)<0.0001) continue;
+          }
+          //if (j == 0 && iset->modNTerm) mod.term = true;
+          //else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
+          //else mod.term = false;
           mod.pos = (char)j;
           mod.mass = iset->mods[j];
           v.push_back(mod);
@@ -863,11 +888,16 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         protSC.mods2->clear();
 
         //alphabetize cross-linked peptides before storing them; this prevents confusion with duplications downstream
-        //char str[256];
-        if(seq2.size()==0) ret=db->getPeptideSeq(pep,seq2);
-        ret=db->getPeptideSeq(tsc->pep1, seq1);
-        alpha=seq1.compare(seq2);
-        if(alpha>0 || (alpha==0 && k<tsc->k1)){ //pep2 listed first
+        //instead of alphabetical, order them by mass (larger first), this has implications with downstream scoring...
+        //resort to alphabetical in case of equal mass
+        bool bSecond=false;
+        if(mass==tsc->mass){
+          if(seq2.size()==0) ret=db->getPeptideSeq(pep,seq2);
+          ret=db->getPeptideSeq(tsc->pep1, seq1);
+          alpha=seq1.compare(seq2);
+          if (alpha>0 || (alpha == 0 && k<tsc->k1)) bSecond=true;
+        }
+        if (mass>tsc->mass || bSecond){ //pep2 listed first
           protSC.k1 = k;
           protSC.k2 = tsc->k1;
           protSC.pep1 = pep;
@@ -919,9 +949,27 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         if (iset->difMass != 0){
           for (j = 0; j<ions[iIndex].getIonCount(); j++) {
             if (iset->mods[j] != 0){
-              if (j == 0 && iset->modNTerm) mod.term = true;
-              else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
-              else mod.term = false;
+              if(j==0){
+                if(iset->nTermMass!=0){
+                  mod.pos=-1;
+                  mod.mass=iset->nTermMass;
+                  if (ret) protSC.mods1->push_back(mod);
+                  else protSC.mods2->push_back(mod);
+                }
+                if(fabs(iset->mods[j]-iset->nTermMass)<0.0001) continue;
+              }
+              if (j == ions[iIndex].getIonCount() - 1){
+                if (iset->cTermMass != 0){
+                  mod.pos = -2;
+                  mod.mass = iset->cTermMass;
+                  if (ret) protSC.mods1->push_back(mod);
+                  else protSC.mods2->push_back(mod);
+                }
+                if (fabs(iset->mods[j] - iset->cTermMass)<0.0001) continue;
+              }
+              //if (j == 0 && iset->modNTerm) mod.term = true;
+              //else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
+              //else mod.term = false;
               mod.pos = (char)j;
               mod.mass = iset->mods[j];
               if(ret) protSC.mods1->push_back(mod);
@@ -938,7 +986,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
     }
 
     if (firstPass && mass>(p->monoMass - spec->getLink(linkIndex).mass) / 2-0.25){
-
       low = p->monoMass;
       high = low;
       m = low / 1000000 * params.ppmPrecursor;
@@ -997,9 +1044,25 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       if (iset->difMass != 0){
         for (j = 0; j<ions[iIndex].getIonCount(); j++) {
           if (iset->mods[j] != 0){
-            if (j == 0 && iset->modNTerm) mod.term = true;
-            else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
-            else mod.term = false;
+            if (j == 0){
+              if (iset->nTermMass != 0){
+                mod.pos = -1;
+                mod.mass = iset->nTermMass;
+                v.push_back(mod);
+              }
+              if (fabs(iset->mods[j] - iset->nTermMass)<0.0001) continue;
+            }
+            if (j == ions[iIndex].getIonCount() - 1){
+              if (iset->cTermMass != 0){
+                mod.pos = -2;
+                mod.mass = iset->cTermMass;
+                v.push_back(mod);
+              }
+              if (fabs(iset->mods[j] - iset->cTermMass)<0.0001) continue;
+            }
+            //if (j == 0 && iset->modNTerm) mod.term = true;
+            //else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
+            //else mod.term = false;
             mod.pos = (char)j;
             mod.mass = iset->mods[j];
             v.push_back(mod);
@@ -1069,9 +1132,25 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     if(ions[iIndex][sIndex].difMass!=0){
       for(i=0;i<ions[iIndex].getPeptideLen();i++) {
         if(ions[iIndex][sIndex].mods[i]!=0){
-          if (i == 0 && ions[iIndex][sIndex].modNTerm) mod.term = true;
-          else if (i == ions[iIndex].getIonCount() - 1 && ions[iIndex][sIndex].modCTerm) mod.term = true;
-          else mod.term = false;
+          if (i == 0){
+            if (ions[iIndex][sIndex].nTermMass != 0){
+              mod.pos = -1;
+              mod.mass = ions[iIndex][sIndex].nTermMass;
+              sc.mods1->push_back(mod);
+            }
+            if (fabs(ions[iIndex][sIndex].mods[i] - ions[iIndex][sIndex].nTermMass)<0.0001) continue;
+          }
+          if (i == ions[iIndex].getIonCount() - 1){
+            if (ions[iIndex][sIndex].cTermMass != 0){
+              mod.pos = -2;
+              mod.mass = ions[iIndex][sIndex].cTermMass;
+              sc.mods1->push_back(mod);
+            }
+            if (fabs(ions[iIndex][sIndex].mods[i] - ions[iIndex][sIndex].cTermMass)<0.0001) continue;
+          }
+          //if (i == 0 && ions[iIndex][sIndex].modNTerm) mod.term = true;
+          //else if (i == ions[iIndex].getIonCount() - 1 && ions[iIndex][sIndex].modCTerm) mod.term = true;
+          //else mod.term = false;
           mod.pos=(char)i;
           mod.mass=ions[iIndex][sIndex].mods[i];
           sc.mods1->push_back(mod);
@@ -1323,19 +1402,40 @@ void KAnalysis::makePepLists(){
       if (p->at(i).xlSites==0) continue;
 
       //determine which motifs are allowed for this peptide
-      db->getPeptideSeq(p->at(i),pep);
+      //check termini first
       bMatch=false;
-      for (k = 0; k < pep.size(); k++){
-        if (xlTable[pep[k]][0]>-1) {
-          for (m = 0; m < 20; m++){
-            if (xlTable[pep[k]][m]==-1) break;
-            if (xlTable[pep[k]][m] == (char)j) {
-              bMatch=true;
-              break;
-            }
+      if(p->at(i).nTerm){
+        for (m = 0; m < 20; m++){
+          if (xlTable['n'][m] == -1) break;
+          if (xlTable['n'][m] == (char)j) {
+            bMatch = true;
+            break;
           }
         }
-        if (bMatch) break; //if we match our desired motif, stop searching
+      }
+      if(!bMatch && p->at(i).cTerm){
+        for (m = 0; m < 20; m++){
+          if (xlTable['c'][m] == -1) break;
+          if (xlTable['c'][m] == (char)j) {
+            bMatch = true;
+            break;
+          }
+        }
+      }
+      if(!bMatch){
+        db->getPeptideSeq(p->at(i),pep);
+        for (k = 0; k < pep.size(); k++){
+          if (xlTable[pep[k]][0]>-1) {
+            for (m = 0; m < 20; m++){
+              if (xlTable[pep[k]][m]==-1) break;
+              if (xlTable[pep[k]][m] == (char)j) {
+                bMatch=true;
+                break;
+              }
+            }
+          }
+          if (bMatch) break; //if we match our desired motif, stop searching
+        }
       }
 
       //skip peptide if it doesn't have the desired motif anywhere
@@ -1352,7 +1452,6 @@ void KAnalysis::makePepLists(){
       ions[0].buildIons();
       ions[0].modIonsRec(0, -1, 0, 0, false);
       for (m = 1; m<ions[0].size(); m++) v.push_back(ions[0][m].mass);
-      
     } //i
 
     //copy our list to memory

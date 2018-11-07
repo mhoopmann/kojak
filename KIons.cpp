@@ -16,6 +16,8 @@ limitations under the License.
 
 #include "KIons.h"
 
+using namespace std;
+
 KIons::KIons(){
   int i;
   for(i=0;i<128;i++){
@@ -354,8 +356,14 @@ void KIons::addModIonSet(int index, char aa, int pos, int modIndex, int loopPos)
       else s.zIons[n][k] += (aaMod[aa].mod[modIndex].mass / n);
     }
   }
-  if (aa == 'n' || aa=='$') s.modNTerm=true;
-  if (aa == 'c' || aa=='%') s.modCTerm=true;
+  if (aa == 'n' || aa=='$') {
+    s.nTermMass += aaMod[aa].mod[modIndex].mass;
+    //s.modNTerm = true;
+  }
+  if (aa == 'c' || aa=='%') {
+    s.cTermMass += aaMod[aa].mod[modIndex].mass;
+    //s.modCTerm = true;
+  }
   if (loopPos>-1) s.mods[loopPos] = aaMod[aa].mod[modIndex].mass;
   else s.mods[pos] = aaMod[aa].mod[modIndex].mass;
   s.mass += aaMod[aa].mod[modIndex].mass;
@@ -460,6 +468,8 @@ void KIons::modIonsRec2(int start, int link, int index, int depth, bool xl){
   }
 
   //now proceed with linking on an amino acid
+  if(link==0 && !site[pep1[link]]) return; //if this is not a linkable side chain, stop here.
+  else if (link == pep1Len - 1 && site[pep1[pep1Len-1]]) return;
   modIonsRec(start, link, index, depth, xl);
   //if(link<0) return; //stop now if peptide cannot be linked, as modifications have been exhausted
 
