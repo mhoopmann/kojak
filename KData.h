@@ -100,6 +100,7 @@ private:
   double      polynomialBestFit (vector<double>& x, vector<double>& y, vector<double>& coeff, int degree=2);
   bool        processPath       (const char* in_path, char* out_path);
   string      processPeptide    (kPeptide& pep, vector<kPepMod>* mod, KDatabase& db);
+  void        processProtein    (int pepIndex, int site, char linkSite, string& prot, string& sites, bool& decoy, KDatabase& db);
 
 };
 

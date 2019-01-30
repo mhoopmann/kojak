@@ -703,7 +703,8 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     else fprintf(f, " crosslinker_mass=\"%.4lf\"/>\n", link[psm.link].mass);
   }
   fprintf(f, "  </results_list>\n");
-  
+
+  /*
   fprintf(f, "  <histogramSinglet count=\"%d\" intercept=\"%.4f\" slope=\"%.4f\" rsq=\"%.4lf\" start=\"%.4f\" next=\"%.4f\" max=\"%d\">\n", s.histogramSingletCount, s.tmpSingletIntercept, s.tmpSingletSlope, s.tmpSingletRSquare, s.tmpSingletIStartCorr, s.tmpSingletINextCorr, s.tmpSingletIMaxCorr);
   for (j = 0; j<HISTOSZ; j++){
     fprintf(f, "   <bin id=\"%d\" value=\"%d\"/>\n", j, s.histogramSinglet[j]);
@@ -715,6 +716,8 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     fprintf(f, "   <bin id=\"%d\" value=\"%d\"/>\n", j, s.histogram[j]);
   }
   fprintf(f, "  </histogram>\n");
+  */
+
   fprintf(f, " </scan>\n");
 }
 
@@ -1133,7 +1136,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
 
     for(i=0;i<r.mods2.size();i++){
       if (r.mods2[i].pos == -1) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
-      else if (r.mods2[i].pos -2) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
+      else if (r.mods2[i].pos ==-2) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
       else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos],r.n15Pep2));
     }
     if (r.nTerm2 && aa.getFixedModMass('$')!=0)shB.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
@@ -1579,6 +1582,8 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   //Must iterate through all possible precursors for that spectrum
   for(i=0;i<spec.size();i++) {
 
+    cout << "Scan: " << spec[i].getScanNumber() << endl;
+
     //Check if we need to output diagnostic information
     bDiag=false;
     if(params->diag->size()>0){
@@ -1691,6 +1696,8 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       res.mods1.clear();
       res.cTerm1 = pep.cTerm;
       res.nTerm1 = pep.nTerm;
+      res.linkSite1 = tmpSC.site1;
+      if(tmpSC.site2>-1) res.linkSite2=tmpSC.site2; //loop-link
       res.n15Pep1 = pep.n15;
       for(j=0;j<tmpSC.mods1->size();j++) res.mods1.push_back(tmpSC.mods1->at(j));
       res.peptide2 = "";
@@ -1701,79 +1708,17 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         res.mods2.clear();
         res.cTerm2 = pep2.cTerm;
         res.nTerm2 = pep2.nTerm;
+        res.linkSite2 = tmpSC.site2;
         res.n15Pep2 = pep2.n15;
         for(j=0;j<tmpSC.mods2->size();j++) res.mods2.push_back(tmpSC.mods2->at(j));
       }
 
-      res.modPeptide1 = processPeptide(pep,tmpSC.mods1,db);
-      /*
-      res.modPeptide1 = "";
-      if (pep.nTerm && aa.getFixedModMass('$')!=0) {
-        sprintf(tmp, "n[%.2lf]", aa.getFixedModMass('$'));
-        res.modPeptide1 += tmp;
-      }
-      for (k = 0; k<tmpSC.mods1->size(); k++){ //check for n-terminal peptide mod
-        if (tmpSC.mods1->at(k).pos==0 && tmpSC.mods1->at(k).term){
-          sprintf(tmp, "n[%.2lf]", tmpSC.mods1->at(k).mass);
-          res.modPeptide1 += tmp;
-        }
-      }
-      for(j=0;j<res.peptide1.size();j++) {
-        res.modPeptide1 += res.peptide1[j];
-        for(k=0;k<tmpSC.mods1->size();k++){
-          if(j==(unsigned int)tmpSC.mods1->at(k).pos && !tmpSC.mods1->at(k).term){
-            sprintf(tmp,"[%.2lf]",tmpSC.mods1->at(k).mass);
-            res.modPeptide1 += tmp;
-          }
-        }
-      }
-      for (k = 0; k<tmpSC.mods1->size(); k++){ //check for c-terminal peptide mod
-        if (tmpSC.mods1->at(k).pos > 0 && tmpSC.mods1->at(k).term){
-          sprintf(tmp, "c[%.2lf]", tmpSC.mods1->at(k).mass);
-          res.modPeptide1 += tmp;
-        }
-      }
-      if (pep.cTerm && aa.getFixedModMass('%')!=0) {
-        sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('%'));
-        res.modPeptide1 += tmp;
-      }
-      */
-      
+      //Process the peptide
+      res.modPeptide1 = processPeptide(pep,tmpSC.mods1,db);      
       res.modPeptide2 = "";
       if(res.peptide2.size()>0){
         res.modPeptide2=processPeptide(pep2,tmpSC.mods2,db);
       }
-      /*
-      if (res.peptide2.size()>0 && pep2.nTerm && aa.getFixedModMass('$')!=0) {
-        sprintf(tmp, "n[%.2lf]", aa.getFixedModMass('$'));
-        res.modPeptide2 += tmp;
-      }
-      for (k = 0; k<tmpSC.mods2->size(); k++){ //check for n-terminal peptide mod
-        if (tmpSC.mods2->at(k).pos == 0 && tmpSC.mods2->at(k).term){
-          sprintf(tmp, "n[%.2lf]", tmpSC.mods2->at(k).mass);
-          res.modPeptide2 += tmp;
-        }
-      }
-      for(j=0;j<res.peptide2.size();j++) {
-        res.modPeptide2+=res.peptide2[j];
-        for(k=0;k<tmpSC.mods2->size();k++){
-          if(j==(unsigned int)tmpSC.mods2->at(k).pos && !tmpSC.mods2->at(k).term){
-            sprintf(tmp,"[%.2lf]",tmpSC.mods2->at(k).mass);
-            res.modPeptide2 += tmp;
-          }
-        }
-      }
-      for (k = 0; k<tmpSC.mods2->size(); k++){ //check for c-terminal peptide mod
-        if (tmpSC.mods2->at(k).pos > 0 && tmpSC.mods2->at(k).term){
-          sprintf(tmp, "c[%.2lf]", tmpSC.mods2->at(k).mass);
-          res.modPeptide2 += tmp;
-        }
-      }
-      if (res.peptide2.size()>0 && pep2.cTerm && aa.getFixedModMass('%')!=0) {
-        sprintf(tmp, "c[%.2lf]", aa.getFixedModMass('%'));
-        res.modPeptide2 += tmp;
-      }
-      */
 
       //Get the link positions - relative to the peptide
       res.link1 = tmpSC.k1;
@@ -1820,6 +1765,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
             if(tmpPep1.compare(tmpPep2)==0){
               res.pep2=tmpSC2.pep1;
               res.linkable2=tmpSC2.linkable1;
+              res.linkSite2=tmpSC2.site1;
               bDupe=true;
               break;
             }
@@ -1827,63 +1773,19 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         }
       }
 
-      //Determine if target or decoy
-      bTarget1=false;
-      pep = db.getPeptide(res.pep1);
-      for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
-      if(bTarget1 && res.pep2>=0){
-        if(!bDupe) bTarget1=false;
-        pep = db.getPeptide(res.pep2);
-        for(j=0;j<pep.map->size();j++) if(db[pep.map->at(j).index].name.find(params->decoy)==string::npos) bTarget1=true;
+      //Process the protein
+      processProtein(res.pep1, res.link1-1, res.linkSite1, res.protein1, res.protPos1, res.decoy1, db);
+      if (res.modPeptide2.size()>1) processProtein(res.pep2, res.link2-1, res.linkSite2, res.protein2, res.protPos2, res.decoy2, db);
+      else if(res.linkSite2>-1){ //loop link special case.
+        processProtein(res.pep1, res.link2 - 1, res.linkSite2, res.protein2, res.protPos2, res.decoy2, db);
       }
-      if(bTarget1) res.decoy=false;
-      else res.decoy=true;
+
       tmpPep1=res.peptide1;
       sprintf(tmp,"(%d)",res.link1);
       tmpPep1+=tmp;
       tmpPep2 = res.peptide2;
       sprintf(tmp, "(%d)", res.link2);
       tmpPep2 += tmp;
-
-      //reorder peptides alphabetically
-      /* now obsolete in 1.6.2
-      if(res.type>1 && tmpPep1.compare(tmpPep2)>0){
-        cout << "Oddity 2: " << spec[i].getScanNumber() << "\t" << tmpPep1 << "\t" << tmpPep2 << "\t" << tmpPep1.compare(tmpPep2) << endl;
-        tmpPep1=res.peptide1;
-        res.peptide1=res.peptide2;
-        res.peptide2=tmpPep1;
-        x=res.link1;
-        res.link1=res.link2;
-        res.link2=x;
-        b=res.n15Pep1;
-        res.n15Pep1=res.n15Pep2;
-        res.n15Pep2=b;
-        b=res.linkable1;
-        res.linkable1=res.linkable2;
-        res.linkable2=b;
-        tmpPep1=res.modPeptide1;
-        res.modPeptide1=res.modPeptide2;
-        res.modPeptide2=tmpPep1;
-        x=res.pep1;
-        res.pep1=res.pep2;
-        res.pep2=x;
-        x=res.rankA;
-        res.rankA=res.rankB;
-        res.rankB=x;
-        dbl=res.scoreA;
-        res.scoreA=res.scoreB;
-        res.scoreB=dbl;
-        dbl=res.massA;
-        res.massA=res.massB;
-        res.massB=dbl;
-        vector<kPepMod> vpm;
-        for(j=0;j<res.mods1.size();j++) vpm.push_back(res.mods1[j]);
-        res.mods1.clear();
-        for(j=0;j<res.mods2.size();j++) res.mods1.push_back(res.mods2[j]);
-        res.mods2.clear();
-        for(j=0;j<vpm.size();j++) res.mods2.push_back(vpm[j]);
-      }
-      */
 
       //Export Results:
       fprintf(fOut,"%d",res.scanNumber);
@@ -1905,27 +1807,8 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       fprintf(fOut,"\t%d",res.link1);
 
       //export protein
-      fprintf(fOut,"\t");
-      tmpPep1.clear();
-      pep = db.getPeptide(res.pep1);
-      for(j=0;j<pep.map->size();j++){
-        if(j>0) fprintf(fOut,";");
-        fprintf(fOut,"%s",&db[pep.map->at(j).index].name[0]);
-        if(res.link1>=0) {
-          sprintf(tmp, "%d", pep.map->at(j).start + res.link1);
-          if(tmpPep1.size()>0) tmpPep1+=";";
-          tmpPep1+=tmp;
-          //fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //put position from start of protein
-        }
-        /* this doesn't belong here
-        if (res.link2 >= 0) {
-          sprintf(tmp, "%d", pep.map->at(j).start + res.link2);
-          if (tmpPep1.size()>0) tmpPep1 += ";";
-          tmpPep1 += tmp;
-          //fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //put position from start of protein
-        }
-        */
-      }
+      fprintf(fOut, "\t%s", res.protein1.c_str());
+      /* not sure about this anymore - probably breaking something by removing it
       if(bDupe){
         pep = db.getPeptide(res.pep2);
         for(j=0;j<pep.map->size();j++){
@@ -1933,7 +1816,8 @@ bool KData::outputResults(KDatabase& db, KParams& par){
           //if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //only non-linked peptides
         }
       }
-      if(res.link1>-1) fprintf(fOut,"\t%s",&tmpPep1[0]);
+      */
+      if(res.link1>-1) fprintf(fOut,"\t%s",res.protPos1.c_str());
       else fprintf(fOut,"\t-");
 
       if(res.modPeptide2.size()>1) {
@@ -1942,24 +1826,12 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         fprintf(fOut,"\t%s",&res.modPeptide2[0]);
         if (res.n15Pep2) fprintf(fOut, "-15N");
         fprintf(fOut,"\t%d",res.link2);
-        fprintf(fOut,"\t");
-        tmpPep1.clear();
-        pep = db.getPeptide(res.pep2);
-        for(j=0;j<pep.map->size();j++){
-          if (j>0) fprintf(fOut, ";");
-          fprintf(fOut,"%s",&db[pep.map->at(j).index].name[0]);
-          if(res.link2>=0) {
-            sprintf(tmp, "%d", pep.map->at(j).start + res.link2);
-            if (tmpPep1.size()>0) tmpPep1 += ";";
-            tmpPep1 += tmp;
-            //fprintf(fOut,"(%d);",pep.map->at(j).start+res.link2); //put position from start of protein
-          }
-        }
-        fprintf(fOut, "\t%s", &tmpPep1[0]);
+        fprintf(fOut,"\t%s",res.protein2.c_str());
+        fprintf(fOut, "\t%s", res.protPos2.c_str());
         if(tmpSC.link>-1)fprintf(fOut,"\t%.4lf",link[tmpSC.link].mass);
         else fprintf(fOut,"\t0");
       } else if(res.link2>-1){
-        fprintf(fOut,"\t0\t999\t-\t%d\t-\t-",res.link2);
+        fprintf(fOut,"\t0\t999\t-\t%d\t-\t%s",res.link2,res.protPos2.c_str());
         fprintf(fOut,"\t%.4lf",link[tmpSC.link].mass);
       } else {
         fprintf(fOut,"\t0\t999\t-\t-1\t-\t-\t0");
@@ -2826,5 +2698,45 @@ string KData::processPeptide(kPeptide& pep, vector<kPepMod>* mod, KDatabase& db)
   return seq;
 }
 
+void KData::processProtein(int pepIndex, int site, char linkSite, string& prot, string& sites, bool& decoy, KDatabase& db){
+
+  cout << "Process protein: " << pepIndex << "\t" << site << "\t" << linkSite << "\t" << (int)linkSite << endl;
+
+  size_t j;
+  kPeptide pep;
+  char tmp[16];
+
+  //automatically set decoyness to true; remains so until first non-decoy peptide is found
+  decoy=true;
+
+  //export protein
+  pep = db.getPeptide(pepIndex);
+  string peps;
+  db.getPeptideSeq(pepIndex,peps);
+  prot.clear();
+  sites.clear();
+  for (j = 0; j<pep.map->size(); j++){
+
+    //for linkage to n- or c- termini, skip protein if not those things
+    if(linkSite=='n' && pep.map->at(j).start>1) continue;
+    if (linkSite == 'c' && pep.map->at(j).stop < db[pep.map->at(j).index].sequence.size()-1) continue;
+
+    if(prot.size()>0) prot+=";"; //add spacer if appending a prior protein
+    prot+=db[pep.map->at(j).index].name;
+
+    if(site>-1){//add the protein site location
+      if(sites.size()>0) sites+=";";
+      sprintf(tmp, "%d", pep.map->at(j).start + site+1); 
+      sites+=tmp;
+    }
+
+    //determine if target (if it is currently still decoy)
+    if(decoy){
+      if (db[pep.map->at(j).index].name.find(params->decoy) == string::npos) decoy=false;
+    }
+
+  }
+
+}
 
 

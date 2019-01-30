@@ -382,6 +382,8 @@ typedef struct kScoreCard{
   bool    linkable1;
   bool    linkable2;
   char    precursor;
+  char    site1;
+  char    site2;
   int     k1;
   int     k2;
   int     link;
@@ -406,6 +408,8 @@ typedef struct kScoreCard{
     linkable1=false;
     linkable2=false;
     precursor=0;
+    site1=0;
+    site2=0;
     k1=0;
     k2=0;
     link=0;
@@ -431,6 +435,8 @@ typedef struct kScoreCard{
     linkable1=p.linkable1;
     linkable2=p.linkable2;
     precursor=p.precursor;
+    site1 = p.site1;
+    site2 = p.site2;
     k1=p.k1;
     k2=p.k2;
     link=p.link;
@@ -461,6 +467,8 @@ typedef struct kScoreCard{
       linkable1=p.linkable1;
       linkable2=p.linkable2;
       precursor=p.precursor;
+      site1 = p.site1;
+      site2 = p.site2;
       k1=p.k1;
       k2=p.k2;
       link=p.link;
@@ -599,6 +607,8 @@ typedef struct kPrecursor{
 
 typedef struct kResults{
   bool    decoy;
+  bool    decoy1;
+  bool    decoy2;
   bool    linkable1;
   bool    linkable2;
   bool    cTerm1; //peptide contains protein c-terminus
@@ -607,6 +617,8 @@ typedef struct kResults{
   bool    nTerm2; //peptide contains protein n-terminus
   bool    n15Pep1;
   bool    n15Pep2;
+  char    linkSite1;  //actual amino acid that is linked
+  char    linkSite2;  //actual amino acid that is linked
   int     charge;
   int     link1;
   int     link2;
@@ -641,6 +653,10 @@ typedef struct kResults{
   std::string  modPeptide2;
   std::string  peptide1;
   std::string  peptide2;
+  std::string  protein1;
+  std::string  protein2;
+  std::string  protPos1;
+  std::string  protPos2;
   std::string  xlLabel;
   std::vector<kPepMod> mods1;
   std::vector<kPepMod> mods2;

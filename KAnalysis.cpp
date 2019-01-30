@@ -357,7 +357,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
 
     for(j=0;j<ions[iIndex].size();j++){
       bt=spec->getBoundaries2(ions[iIndex][j].mass,params.ppmPrecursor,index,scanBuffer[iIndex]);
-      if(bt) scoreSpectra(index,j,ions[iIndex][j].difMass,pepIndex,-1,-1,-1,-1,iIndex);
+      if(bt) scoreSpectra(index,j,ions[iIndex][j].difMass,pepIndex,-1,-1,-1,-1,iIndex,-1,-1);
     }
 
     //search non-covalent dimerization if requested by user
@@ -392,6 +392,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
   string pepSeq;
   vector<int> xlIndex;
   int x;
+  char site1, site2;
   db->getPeptideSeq(*p,pepSeq);
 
   //iterate over every amino acid (except last - it has nothing to link)
@@ -407,12 +408,17 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
         //site can be linked, so check remaining sites
         for (k2 = k + 1; k2 < pepSeq.size(); k2++){
           if (k2 == pepSeq.size() - 1){ //handle c-terminus differently
-            if (p->cTerm) checkXLMotif(xlTable[pepSeq[k]][x], xlTable['c'],xlIndex);
-            else continue;
+            if (p->cTerm) {
+              checkXLMotif(xlTable[pepSeq[k]][x], xlTable['c'],xlIndex);
+              site1 = pepSeq[k];
+              site2='c';
+            } else continue;
           } else if (xlTable[pepSeq[k2]][0] == -1) {
             continue;
           } else {
             checkXLMotif((int)xlTable[pepSeq[k]][x], xlTable[pepSeq[k2]],xlIndex);
+            site1=pepSeq[k];
+            site2=pepSeq[k2];
           }
 
           if (xlIndex.size()>0){
@@ -423,7 +429,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
               ions[iIndex].modLoopIonsRec2(0, (int)k, (int)k2, 0, 0, true);
               for (j = 0; j<ions[iIndex].size(); j++){
                 bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
-                if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex[k3], iIndex);
+                if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex[k3], iIndex,site1,site2);
               }
             } //k3
           }
@@ -442,12 +448,17 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
         //site can be linked, so check remaining sites
         for (k2 = k + 1; k2 < pepSeq.size(); k2++){
           if (k2 == pepSeq.size() - 1){ //handle c-terminus differently
-            if (p->cTerm) checkXLMotif(xlTable['n'][x], xlTable['c'],xlIndex);
-            else continue;
+            if (p->cTerm) {
+              checkXLMotif(xlTable['n'][x], xlTable['c'],xlIndex);
+              site1='n';
+              site2='c';
+            } else continue;
           } else if (xlTable[pepSeq[k2]][0] == -1) {
             continue;
           } else {
             checkXLMotif((int)xlTable['n'][x], xlTable[pepSeq[k2]],xlIndex);
+            site1 = 'n';
+            site2 = pepSeq[k2];
           }
 
           if (xlIndex.size()>0){
@@ -458,7 +469,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
               ions[iIndex].modLoopIonsRec2(0, (int)k, (int)k2, 0, 0, true);
               for (j = 0; j<ions[iIndex].size(); j++){
                 bt = spec->getBoundaries2(ions[iIndex][j].mass, params.ppmPrecursor, index, scanBuffer[iIndex]);
-                if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex[k3], iIndex);
+                if (bt) scoreSpectra(index, j, 0, pepIndex, -1, (int)k, (int)k2, xlIndex[k3], iIndex,site1,site2);
               }
             } //k3
           }
@@ -505,71 +516,52 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   //Find mod mass as difference between precursor and peptide
   
   len=(pep.map->at(0).stop-pep.map->at(0).start)+1;
-  ions[iIndex].setPeptide(true, &db->at(pep.map->at(0).index).sequence[pep.map->at(0).start], len, pep.mass, pep.nTerm, pep.cTerm,pep.n15);
+  ions[iIndex].setPeptide(true, &db->at(pep.map->at(0).index).sequence[pep.map->at(0).start], len, pep.mass, pep.nTerm, pep.cTerm, pep.n15);
   
   //Iterate every link site
   for(k=0;k<len;k++){
-    if (params.turbo){
-      m=0;
-      if (k == len - 1 && pep.cTerm){ //check if we are at the c-terminus on a c-terminal peptide
-        i=0;
-        while (xlTable['c'][i]>-1){
-          for (n=0;n<m;n++){
-            if (xlTable['c'][i]==mot[n]) break;
-          }
-          if (n==m) {
-            site[m]='c';
-            mot[m++] = xlTable['c'][i];
-          }
-          i++;
-          //cout << "cTerm" << endl;
+    m=0; //number of motifs (linker-to-site combinations) found in the peptide
+    if (k == len - 1 && pep.cTerm){ //check if we are at the c-terminus on a c-terminal peptide
+      i=0;
+      while (xlTable['c'][i]>-1){ //check if c-terminus can be linked
+        for (n=0;n<m;n++){ //if we've seen motif(s) already, check if we are seeing them again
+          if (xlTable['c'][i]==mot[n]) break;
         }
-      } else if (k == len - 1) { //if we are at the c-term of any other peptide, stop the analysis because it cannot be linked.
-        continue;
-      } else {
-        i=0;
-        while (xlTable[pepSeq[k]][i]>-1){ //check if amino acid can be linked
+        if (n==m) { //we have a new motif
+          site[m]='c'; //mark it as c-terminal
+          mot[m++] = xlTable['c'][i]; //mark the corresponding site
+        }
+        i++;
+      }
+    } else if (k == len - 1) { //if we are at the c-term of any other peptide, stop the analysis because it cannot be linked.
+      continue;
+    } else {
+      i=0;
+      while (xlTable[pepSeq[k]][i]>-1){ //check if amino acid can be linked
+        for (n = 0; n<m; n++){
+          if (xlTable[pepSeq[k]][i] == mot[n]) break;
+        }
+        if (n == m) {
+          site[m]=pepSeq[k];
+          mot[m++] = xlTable[pepSeq[k]][i];
+        }
+        i++;
+      }
+      if (/*m==0 &&*/ k == 0 && pep.nTerm){ // /*if it cannot be linked,*/ but is the n-terminus of a protein, check for a linker
+        i = 0;
+        while (xlTable['n'][i]>-1){
           for (n = 0; n<m; n++){
-            if (xlTable[pepSeq[k]][i] == mot[n]) break;
+            if (xlTable['n'][i] == mot[n]) break;
           }
           if (n == m) {
-            site[m]=pepSeq[k];
-            mot[m++] = xlTable[pepSeq[k]][i];
+            site[m] = 'n';
+            mot[m++] = xlTable['n'][i];
           }
           i++;
-        }
-        if (m==0 && k == 0 && pep.nTerm){ //if it cannot be linked, but is the n-terminus of a protein, check for a linker
-          i = 0;
-          while (xlTable['n'][i]>-1){
-            for (n = 0; n<m; n++){
-              if (xlTable['n'][i] == mot[n]) break;
-            }
-            if (n == m) {
-              site[m] = 'n';
-              mot[m++] = xlTable['n'][i];
-            }
-            i++;
-            //cout << "nTerm" << endl;
-          }
-        }
-      }
-      //cout << "pos: " << k << " aa: " << pepSeq[k] << " linkables: " << m;
-      //if(m>0) cout << " site: " << (int)site[0];
-      //cout << endl;
-      if (m==0) continue;
-    } else { //shorthand version of above approach when not in turbo mode.
-      if (k == len - 1 && pep.cTerm){
-        if (xlTable['c'][0] == -1)  continue;
-      } else if (k==len-1) {
-        continue;
-      } else if (xlTable[pepSeq[k]][0]==-1) {
-        if (k == 0 && pep.nTerm){
-          if(xlTable['n'][0] == -1) continue;
-        } else {
-          continue;
         }
       }
     }
+    if (m==0) continue; //no matching motifs, so check next site on peptide
   
     //build fragment ions and score against all potential spectra
     ions[iIndex].reset();
@@ -578,32 +570,22 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
 
     //iterate through all ion sets
     for(i=0;i<ions[iIndex].size();i++){
-      //cout << i << " of " << ions[iIndex].size() << " = " << ions[iIndex][i].mass << "\t" << ions[iIndex][i].difMass << endl;
       for(j=0;j<ions[iIndex][i].len;j++){
         if (ions[iIndex][i].mods[j]==0) continue;
-        //cout << "\t" << j << " " << ions[iIndex][i].mods[j];
       }
-      //cout << endl;
 
       //Iterate all spectra from (peptide mass + low linker + minimum mass) to (peptide mass + high linker + maximum mass)
-      //cout << minMass + ions[iIndex][i].difMass << " to " << maxMass + ions[iIndex][i].difMass << endl;
       if (!spec->getBoundaries(minMass + ions[iIndex][i].difMass, maxMass + ions[iIndex][i].difMass, scanIndex, scanBuffer[iIndex])) continue;
-      //cout << "Scans to search: "  << scanIndex.size() << endl;
-      //cout << spec->at(scanIndex[0]).getScanNumber() << endl;
 
-      for(j=0;j<scanIndex.size();j++){
-        if (params.turbo){
-          for (n = 0; n < m; n++){
-            x=0;
-            while (spec->getCounterMotif(mot[n], x)>-1){
-              bSearch = scoreSingletSpectra2(scanIndex[j], i, ions[iIndex][i].mass, spec->getLink(spec->getXLIndex((int)mot[n], x)).mass, spec->getCounterMotif((int)mot[n], x), len, index, (char)k, minMass, iIndex, site[n], spec->getXLIndex((int)mot[n], x));
-              if (bSearch) break;
-              x++;
-            }
+      for(j=0;j<scanIndex.size();j++){ //iterate over all potential spectra
+        for (n = 0; n < m; n++){ //iterate over sites
+          x=0;
+          while (spec->getCounterMotif(mot[n], x)>-1){ //only check peptide if it has a counterpart at this link site.
+            bSearch = scoreSingletSpectra2(scanIndex[j], i, ions[iIndex][i].mass, spec->getLink(spec->getXLIndex((int)mot[n], x)).mass, spec->getCounterMotif((int)mot[n], x), len, index, (char)k, minMass, iIndex, site[n], spec->getXLIndex((int)mot[n], x));
             if (bSearch) break;
+            x++;
           }
-        } else {
-          scoreSingletSpectra(scanIndex[j],i,ions[iIndex][i].mass,len,index,(char)k,minMass,iIndex);
+          if (bSearch) break;
         }
       }
     }
@@ -818,6 +800,19 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
 
 }
 
+//Breakdown of the many parameters:
+// index   = spectrum index in data spectra object
+// sIndex  = ion set index
+// mass    = peptide mass (including all modifications, but not the linker)
+// xlMass  = cross-linker mass
+// counterMotif = index of complementary linker site (the one on the "unknown" peptide).
+// len     = peptide length (amino acids)
+// pep     = peptide index in database array
+// k       = link site position on peptide (relative to peptide)
+// minMass = lowest allowed mass boundary on spectrum (for spectra with multiple possible precursors)
+// iIndex  = thread index
+// linkSite  = amino acid being linked (or 'n' or 'c')
+// linkIndex = motif index of linked amino acid or terminus
 bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex){
   kSingletScoreCard sc;
   kSingletScoreCard* tsc;
@@ -900,6 +895,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         if (mass>tsc->mass || bSecond){ //pep2 listed first
           protSC.k1 = k;
           protSC.k2 = tsc->k1;
+          protSC.site1 = linkSite;
+          protSC.site2 = tsc->site;
           protSC.pep1 = pep;
           protSC.pep2 = tsc->pep1;
           protSC.score1 = score;
@@ -915,6 +912,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         } else { //pep1 listed first
           protSC.k1 = tsc->k1;
           protSC.k2 = k;
+          protSC.site1 = tsc->site;
+          protSC.site2 = linkSite;
           protSC.pep1 = tsc->pep1;
           protSC.pep2 = pep;
           protSC.score1 = tsc->simpleScore;
@@ -1085,7 +1084,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   return bScored;
 }
 
-void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex){
+void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex, char linkSite1, char linkSite2){
   unsigned int a;
   int i,z,ps,y;
   kScoreCard sc;
@@ -1123,6 +1122,8 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     sc.conFrag1=conFrag;
     sc.k1=k1;
     sc.k2=k2;
+    sc.site1=linkSite1; //need to be amino acids
+    sc.site2=linkSite2; //need to be amino acids
     sc.mass=ions[iIndex][sIndex].mass;
     sc.linkable1=sc.linkable2=false;
     sc.pep1=pep1;
@@ -1376,6 +1377,8 @@ void KAnalysis::setBinList(kMatchSet* m, int iIndex, int charge, double preMass,
 
 }
 
+//This function determines if a site on a peptide is linkable to another peptide in the database.
+//Sites may have multiple partners, such as in dual-linker searches with K-K and K-D/E
 void KAnalysis::makePepLists(){
   int j;
   int m;
@@ -1396,7 +1399,6 @@ void KAnalysis::makePepLists(){
 
     //iterate through peptide list
     for (i = 0; i < p->size(); i++){
-      //cout << i << " of " << p->size() << endl;
 
       //skip peptides that cannot be linked
       if (p->at(i).xlSites==0) continue;
