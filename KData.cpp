@@ -1582,8 +1582,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   //Must iterate through all possible precursors for that spectrum
   for(i=0;i<spec.size();i++) {
 
-    cout << "Scan: " << spec[i].getScanNumber() << endl;
-
     //Check if we need to output diagnostic information
     bDiag=false;
     if(params->diag->size()>0){
@@ -2699,8 +2697,6 @@ string KData::processPeptide(kPeptide& pep, vector<kPepMod>* mod, KDatabase& db)
 }
 
 void KData::processProtein(int pepIndex, int site, char linkSite, string& prot, string& sites, bool& decoy, KDatabase& db){
-
-  cout << "Process protein: " << pepIndex << "\t" << site << "\t" << linkSite << "\t" << (int)linkSite << endl;
 
   size_t j;
   kPeptide pep;

@@ -7,11 +7,10 @@
 #define MAX_DECOY_PEP_LEN 70
 #define DECOY_SIZE        10000
 
-typedef struct DecoysStruct
-{
-   char *szPeptide;
-   double pdIonsN[MAX_DECOY_PEP_LEN];
-   double pdIonsC[MAX_DECOY_PEP_LEN];
+typedef struct DecoysStruct {
+  const char* szPeptide; //this is never used (in Kojak) and can probably be omitted for savings.
+  double pdIonsN[MAX_DECOY_PEP_LEN];
+  double pdIonsC[MAX_DECOY_PEP_LEN];
 } DecoysStruct;
 
 class KDecoys{
