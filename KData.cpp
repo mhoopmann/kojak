@@ -726,7 +726,7 @@ bool KData::outputIntermediate(KDatabase& db){
 
   size_t i,n;
   int j, k, x,z;
-  char fName[256];
+  char fName[1056];
 
   FILE* fOut = NULL;
 
@@ -1363,7 +1363,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   size_t i;
   int j,k,n,d;
   char fName[256];
-  char outPath[1024];
+  char outPath[1056];
   char peptide[256];
   char tmp[16];
   char specID[256];
@@ -2595,7 +2595,7 @@ double KData::polynomialBestFit(vector<double>& x, vector<double>& y, vector<dou
 //Takes relative path and finds absolute path
 bool KData::processPath(const char* in_path, char* out_path){
   char cwd[1024];
-  getcwd(cwd,1024);
+  if(getcwd(cwd,1024)==NULL) return false; //stop if failed to get CWD
 
   //if windows or unix in_path, just copy it to out_path
   if (strlen(in_path) > 0 && in_path[0] == '/'){ //unix
