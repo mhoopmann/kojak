@@ -1362,7 +1362,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
   size_t i;
   int j,k,n,d;
-  char fName[256];
+  char fName[1056];
   char outPath[1056];
   char peptide[256];
   char tmp[16];
@@ -1634,7 +1634,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       if(params->exportPepXML){
         sq.assumed_charge=res.charge;
         sq.precursor_neutral_mass=res.obsMass;
-        sprintf(specID,"%s.%d.%d.%d",&outFile[0],res.scanNumber,res.scanNumber,res.charge);
+        sprintf(specID,"%s.%d.%d.%d",outFile.c_str(),res.scanNumber,res.scanNumber,res.charge);
         sq.spectrum=specID;
       }
 
