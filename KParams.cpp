@@ -66,8 +66,9 @@ bool KParams::parseConfig(char* fname){
 //==============================
 bool KParams::buildOutput(char* in, char* base, char* ext){
   char cwd[1024];
-  char str[1024];
+  char str[1056];
   char outPath[1024];
+  char* ret;
   string tmp;
   string outFile;
   size_t i;
@@ -76,7 +77,7 @@ bool KParams::buildOutput(char* in, char* base, char* ext){
   //get current working directory and process input file
   strcpy(params->msFile, in);
   strcpy(params->ext, ext);
-  getcwd(cwd, 1024);
+  ret=getcwd(cwd, 1024);
   processPath(cwd, in, str);
   strcpy(params->inFile, str);
   

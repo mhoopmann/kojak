@@ -1912,12 +1912,13 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 void KData::readLinkers(char* fn){
   FILE* f;
   kLinker k;
+  int ret;
 
   cout << "Reading linker file...";
 
   f=fopen(fn,"rt");
   while(!feof(f)){
-    fscanf(f,"%lf\t%d\n",&k.mass,&k.mono);
+    ret=fscanf(f,"%lf\t%d\n",&k.mass,&k.mono);
     link.push_back(k);
   }
   fclose(f);
