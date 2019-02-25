@@ -1773,9 +1773,16 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
       //Process the protein
       processProtein(res.pep1, res.link1-1, res.linkSite1, res.protein1, res.protPos1, res.decoy1, db);
-      if (res.modPeptide2.size()>1) processProtein(res.pep2, res.link2-1, res.linkSite2, res.protein2, res.protPos2, res.decoy2, db);
-      else if(res.linkSite2>-1){ //loop link special case.
+      if (res.modPeptide2.size()>1) {
+        processProtein(res.pep2, res.link2-1, res.linkSite2, res.protein2, res.protPos2, res.decoy2, db);
+        if(res.decoy1 || res.decoy2) res.decoy=true;
+        else res.decoy=false;
+      } else if(res.linkSite2>-1){ //loop link special case.
         processProtein(res.pep1, res.link2 - 1, res.linkSite2, res.protein2, res.protPos2, res.decoy2, db);
+        if(!res.decoy1 || !res.decoy2) res.decoy=false;
+        else res.decoy=true;
+      } else {
+        res.decoy=res.decoy1;
       }
 
       tmpPep1=res.peptide1;
