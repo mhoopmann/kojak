@@ -1114,7 +1114,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     //if(sq.start_scan==31877) cout << r.mods1[i].mass << "\t" << (int)r.mods1[i].pos << "\t" << (int)r.mods1[i].term << endl;
     if (r.mods1[i].pos == -1) sh.modInfo.mod_nterm_mass = r.mods1[i].mass;
     else if (r.mods1[i].pos == -2) sh.modInfo.mod_cterm_mass = r.mods1[i].mass;
-    else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos],r.n15Pep1));
+    else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos],r.n15Pep1),r.mods1[i].mass,true);
   }
   if (r.nTerm1 && aa.getFixedModMass('$')!=0)sh.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
   if (r.cTerm1 && aa.getFixedModMass('%')!=0)sh.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
@@ -1124,7 +1124,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
   if(sh.modInfo.mod_cterm_mass!=0) sh.modInfo.mod_cterm_mass+=17.00273963;
   for(i=0;i<r.peptide1.size();i++){
     if(aa.getFixedModMass(r.peptide1[i])>0) {
-      sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i],r.n15Pep1));
+      sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i],r.n15Pep1),aa.getFixedModMass(r.peptide1[i]),false);
     }
   }
 
@@ -1137,7 +1137,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     for(i=0;i<r.mods2.size();i++){
       if (r.mods2[i].pos == -1) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
       else if (r.mods2[i].pos ==-2) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
-      else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos],r.n15Pep2));
+      else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos],r.n15Pep2),r.mods2[i].mass,true);
     }
     if (r.nTerm2 && aa.getFixedModMass('$')!=0)shB.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
     if (r.cTerm2 && aa.getFixedModMass('%')!=0)shB.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
@@ -1147,7 +1147,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     if (shB.modInfo.mod_cterm_mass != 0) shB.modInfo.mod_cterm_mass += 17.00273963;
     for(i=0;i<r.peptide2.size();i++){
       if(aa.getFixedModMass(r.peptide2[i])>0) {
-        shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i],r.n15Pep2));
+        shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i],r.n15Pep2),aa.getFixedModMass(r.peptide2[i]),false);
       }
     }
   }
