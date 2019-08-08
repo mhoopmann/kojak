@@ -649,6 +649,7 @@ typedef struct kResults{
   double  scoreDelta;
   double  scorePepDif;
   double  xlMass;
+  std::string  baseName;
   std::string  modPeptide1;
   std::string  modPeptide2;
   std::string  peptide1;

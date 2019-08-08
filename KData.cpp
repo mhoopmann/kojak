@@ -1290,7 +1290,7 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   //Export Results:
   if(r.decoy) fprintf(f,"D-");
   else fprintf(f,"T-");
-  fprintf(f,"%d-%.2f",r.scanNumber,r.rTime);
+  fprintf(f,"%s-%d-%.2f",r.baseName.c_str(),r.scanNumber,r.rTime);
   if(count>1) fprintf(f,"-%d",count);
   if(r.decoy) fprintf(f,"\t-1");
   else fprintf(f,"\t1");
@@ -1577,6 +1577,8 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     fprintf(fDiag,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     fprintf(fDiag,"<kojak_analysis date=\"now\">\n");
   }
+
+  res.baseName=params->outFile;
 
   //Output top score for each spectrum
   //Must iterate through all possible precursors for that spectrum
