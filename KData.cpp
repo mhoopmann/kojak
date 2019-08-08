@@ -1579,6 +1579,11 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   }
 
   res.baseName=params->outFile;
+  if (res.baseName[0] == '/'){ //unix
+    res.baseName = res.baseName.substr(res.baseName.find_last_of("/") + 1, res.baseName.size());
+  } else { //assuming windows
+    res.baseName = res.baseName.substr(res.baseName.find_last_of("\\") + 1, res.baseName.size());
+  }
 
   //Output top score for each spectrum
   //Must iterate through all possible precursors for that spectrum
