@@ -436,8 +436,8 @@ bool KData::mapPrecursors(){
   int iPercent=0;
   int iTmp;
   
-  unsigned int i;
-  int j,k;
+  size_t i;
+  int j,k,n;
 
   KPrecursor pre(params);
   kMass      m;
@@ -468,6 +468,57 @@ bool KData::mapPrecursors(){
       fflush(stdout);
     }
 
+    bool bAddHardklor=false;
+    bool bAddEstimate=false;
+
+    if(params->preferPrecursor==1){
+      if(spec[i].sizePrecursor()==0){
+        if(spec[i].getCharge()>0) bAddEstimate=true;
+        else bAddHardklor=true;
+      }
+    } else if(params->preferPrecursor==0){
+      spec[i].clearPrecursors();
+      bAddHardklor=true;
+      if (spec[i].getCharge()) bAddEstimate = true;
+    } else {
+      bAddHardklor=true;
+      if(spec[i].getCharge()) bAddEstimate=true;
+    }
+
+    if(bAddHardklor){
+      //only do Hardklor analysis if data contain precursor scans
+      if (params->precursorRefinement) ret = pre.getSpecRange(spec[i]);
+    }
+
+    if(bAddEstimate){
+      kPrecursor pre;
+      pre.monoMass = spec[i].getMZ()*spec[i].getCharge() - 1.007276466*spec[i].getCharge();
+      pre.charge = spec[i].getCharge();
+      pre.corr = -5;
+      spec[i].setCharge(pre.charge);
+      spec[i].addPrecursor(pre, params->topCount);
+      for (int px = 1; px <= params->isotopeError; px++){
+        if (px == 4) break;
+        pre.monoMass -= 1.00335483;
+        pre.corr -= 0.1;
+        spec[i].addPrecursor(pre, params->topCount);
+      }
+    }
+
+    //Now clean up any duplicate precursors. They should already be in order of priority. Use 5ppm as tolerance
+    for(k=0;k<spec[i].sizePrecursor()-1;k++){
+      for(n=k+1;n<spec[i].sizePrecursor();n++){
+        double m1=spec[i].getPrecursor(k).monoMass;
+        double m2=spec[i].getPrecursor(n).monoMass;
+        double m=(m1-m2)/m1*1e6;
+        if(fabs(m)<5){
+          spec[i].erasePrecursor(n);
+          n--;
+        }
+      }
+    }
+
+    /*
     //If instrument determined precursors are preferred, only compute precursors if none supplied
     if(params->preferPrecursor==1 && spec[i].sizePrecursor()>0){
       prePre++;
@@ -547,6 +598,7 @@ bool KData::mapPrecursors(){
       }
 
     }
+    */
 
     if(spec[i].sizePrecursor()>0){
       foundPre++;
@@ -2060,7 +2112,14 @@ bool KData::readSpectra(){
         pre.charge=s.getCharge();
         pre.corr=0;
         pls.addPrecursor(pre,params->topCount);
+        for(int px=1;px<=params->isotopeError;px++){
+          if(px==4) break;
+          pre.monoMass -= 1.00335483;
+          pre.corr -= 0.1;
+          pls.addPrecursor(pre, params->topCount);
+         }
         pls.setInstrumentPrecursor(true);
+        /*
       } else if(s.sizeZ()>0){
         for(j=0; j<s.sizeZ(); j++){
           pre.monoMass=s.atZ(j).mh-1.007276466;
@@ -2068,8 +2127,15 @@ bool KData::readSpectra(){
           pre.corr=-5;
           pls.setCharge(pre.charge);
           pls.addPrecursor(pre, params->topCount);
+          for (int px = 1; px <= params->isotopeError; px++){
+            if (px == 4) break;
+            pre.monoMass -= 1.00335483;
+            pre.corr -= 0.1;
+            pls.addPrecursor(pre, params->topCount);
+          }
           pls.setInstrumentPrecursor(true);
         }
+        */
       }
     }
 

@@ -36,7 +36,7 @@ KParams::~KParams(){
 //==============================
 //  Public Functions
 //==============================
-bool KParams::parseConfig(char* fname){
+bool KParams::parseConfig(const char* fname){
   FILE* f;
   char str[512];
 
@@ -53,7 +53,12 @@ bool KParams::parseConfig(char* fname){
 
   while(!feof(f)) {
     if(!fgets(str,512,f)) continue;
+    if(strlen(str)==0) continue;
     if(str[0]=='#') continue;
+    if(strlen(str)>4096) {
+      printf("Parameter line too long!\n");
+      return false;
+    }
     parse(str);
   }
 
@@ -127,10 +132,10 @@ bool KParams::checkMod(kMass m){
   return false;
 }
 
-void KParams::parse(char* cmd) {
+void KParams::parse(const char* cmd) {
 
   char *tok;
-
+  char c_cmd[4096];
   char param[32];
   char tmpstr[256];
 
@@ -144,18 +149,20 @@ void KParams::parse(char* cmd) {
 
   pxwBasicXMLTag xml;
 
+  strcpy(c_cmd,cmd);
+
   //Pre-process entire line to remove characters that should not be read
 	//Replace first # with a terminator
-	tok=strstr(cmd,"#");
+	tok=strstr(c_cmd,"#");
 	if(tok!=NULL) strncpy(tok,"\0",1);
 
 	//if we have only white space, exit here
-	strcpy(tmpstr,cmd);
+	strcpy(tmpstr,c_cmd);
 	tok=strtok(tmpstr," \t\n\r");
 	if(tok==NULL) return;
 
 	//Check if we have a parameter (has '=' in it) or lots of random text.
-	tok=strstr(cmd,"=");
+	tok=strstr(c_cmd,"=");
   if(tok==NULL) {
     printf("Unknown parameter line in config file: %s\n",cmd);
     return;
@@ -163,7 +170,7 @@ void KParams::parse(char* cmd) {
 
   //Process parameters
 	//Read parameter into param name (before = sign) and value (after = sign)
-	tok=strtok(cmd," \t=\n\r");
+	tok=strtok(c_cmd," \t=\n\r");
 	if(tok==NULL) return;
 	strcpy(param,tok);
 	tok=strtok(NULL," \t=\n\r");
@@ -378,7 +385,7 @@ void KParams::parse(char* cmd) {
 
   } else if (strcmp(param, "isotope_error")==0){
     params->isotopeError = atoi(&values[0][0]);
-    if (params->isotopeError < 0 || params->isotopeError>2){
+    if (params->isotopeError < 0 || params->isotopeError>3){
       warn("ERROR: isotope_error has invalid value. Stopping analysis.",3);
       exit(-5);
     }
@@ -620,6 +627,10 @@ void KParams::parse(char* cmd) {
 		warn(param,1);
 	}
 
+}
+
+void KParams::setParams(kParams* p){
+  params=p;
 }
 
 void KParams::warn(const char* c, int i){

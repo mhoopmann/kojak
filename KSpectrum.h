@@ -112,6 +112,7 @@ public:
 
   //Functions
   bool  calcEValue          (kParams* params, KDecoys& decoys);
+  void  clearPrecursors     ();
   void  checkScore          (kScoreCard& s);
   void  checkSingletScore   (kSingletScoreCard& s);
   bool  generateSingletDecoys(kParams* params, KDecoys& decoys);

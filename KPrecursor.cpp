@@ -435,6 +435,11 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
         pre.corr = -2;
         pls.addPrecursor(pre, params->topCount);
       }
+      if (params->isotopeError>2){
+        pre.monoMass -= 1.00335483;
+        pre.corr = -3;
+        pls.addPrecursor(pre, params->topCount);
+      }
     }
 
   }

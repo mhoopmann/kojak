@@ -38,14 +38,15 @@ public:
   std::vector<pxwBasicXMLTag> xmlParams;
 
   bool buildOutput(char* in, char* base, char* ext);
-  bool parseConfig(char* fname);
+  void parse(const char* cmd);
+  bool parseConfig(const char* fname);
+  void setParams(kParams* p);
  
 private:
 
   kParams* params;
   
   bool checkMod(kMass m);
-  void parse(char* cmd);
   bool processPath(const char* cwd, const char* in_path, char* out_path);
   void warn(const char* c, int i);
 

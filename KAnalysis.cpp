@@ -345,9 +345,8 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
   vector<int> index;
   vector<kPepMod> mods;
 
-  //char str[256];
-  //db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
-  //cout << str << "\t" << p->mass << endl;
+  char str[256];
+  db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
   //Set the peptide, calc the ions, and score it against the spectra
   ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm,p->n15);
   

@@ -452,6 +452,11 @@ void KSpectrum::clear(){
   singlets->clear();
 }
 
+void KSpectrum::clearPrecursors(){
+  precursor->clear();
+  singlets->clear();
+}
+
 void KSpectrum::erasePrecursor(int i){
   precursor->erase(precursor->begin()+i);
   singlets->erase(singlets->begin()+i);
