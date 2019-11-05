@@ -4,6 +4,7 @@ using namespace std;
 
 KojakManager::KojakManager(){
   param_obj.setParams(&params);
+  param_obj.setLog(&log);
 }
 
 void KojakManager::clearFiles(){
@@ -35,6 +36,7 @@ void KojakManager::setParam(string& s){
 
 bool KojakManager::setParams(const char* fn){
   kFile f;
+  paramFile=fn; //hang onto this
 
   cout << " Parameter file: " << fn << endl;
   param_obj.parseConfig(fn);
@@ -58,12 +60,14 @@ int KojakManager::run(){
 
   //Step 1: Prepare from settings
   KData spec(&params);
+  spec.setLog(&log);
   spec.setVersion(VERSION);
   for (i = 0; i<params.xLink->size(); i++) spec.setLinker(params.xLink->at(i));
   spec.buildXLTable();
 
   //Step #2: Read in database and generate peptide lists
   KDatabase db;
+  db.setLog(&log);
   for (i = 0; i<params.fMods->size(); i++) db.addFixedMod(params.fMods->at(i).index, params.fMods->at(i).mass);
   for (i = 0; i<params.aaMass->size(); i++) db.setAAMass((char)params.aaMass->at(i).index, params.aaMass->at(i).mass, params.aaMass->at(i).xl);
   if (strlen(params.n15Label)>0) db.setN15Label(params.n15Label);
@@ -75,20 +79,27 @@ int KojakManager::run(){
     return -1;
   }
   db.buildPeptides(params.minPepMass, params.maxPepMass, params.miscleave);
-
+  log.setDBinfo(string(params.dbFile),db.getProteinDBSize(),db.getPeptideListSize(),db.linkablePepCount);
 
   //Step #3: Read in spectra and map precursors
   //Iterate over all input files
   for (i = 0; i<files.size(); i++){
+
+    //set up our log
+    log.clear();
     param_obj.buildOutput(&files[i].input[0], &files[i].base[0], &files[i].ext[0]);
+    log.setLog(param_obj.logFile);
+    log.addMessage("Kojak version: " + string(VERSION), true);
+    log.addMessage("Parameter file: " + paramFile,true);
 
     if (strcmp(params.ext, ".mgf") == 0 && params.precursorRefinement){
-      cout << "\n ERROR: Cannot perform precursor refinement using MGF files. Please disable by setting precursor_refinement=0" << endl;
+      log.addError("Cannot perform precursor refinement using MGF files. Please disable by setting precursor_refinement=0");
       return -10;
     }
-    cout << "\n Reading spectra data file: " << &files[i].input[0] << " ... ";
+    log.addMessage("Reading spectra data file: " + files[i].input,true);
+    cout << "\n Reading spectra data file: " << files[i].input.c_str() << " ... ";
     if (!spec.readSpectra()){
-      cout << "  Error reading MS_data_file. Exiting." << endl;
+      log.addError("Error reading MS_data_file: " + files[i].input);
       return -2;
     }
     spec.mapPrecursors();
@@ -96,17 +107,24 @@ int KojakManager::run(){
 
     //Step #4: Analyze single peptides, monolinks, and crosslinks
     KAnalysis anal(params, &db, &spec);
+    anal.setLog(&log);
 
+    log.addMessage("Start spectral search.",true);
     time(&timeNow);
     cout << "\n Start spectral search: " << ctime(&timeNow);
+    log.addMessage("Scoring peptides (first pass).",true);
     cout << "  Scoring peptides ... ";
     anal.doPeptideAnalysis();
 
     //if(params.intermediate>0) spec.outputIntermediate(db);
 
+    char ts[16];
+    sprintf(ts,"%d",DECOY_SIZE);
+    log.addMessage("Calculating e-values (" + string(ts) + ")",true);
     cout << "  Calculating e-values (" << DECOY_SIZE << ")... ";
     anal.doEValueAnalysis();
 
+    log.addMessage("Finish spectral search.",true);
     time(&timeNow);
     cout << " Finished spectral search: " << ctime(&timeNow) << endl;
 
@@ -114,8 +132,12 @@ int KojakManager::run(){
     //spec.diagSinglet();
 
     //Step #5: Output results
+    log.addMessage("Exporting results.",true);
     cout << " Exporting Results." << endl;
     spec.outputResults(db, param_obj);
+
+    log.addMessage("Finished Kojak analysis.",true);
+    log.exportLog();
 
   }
 

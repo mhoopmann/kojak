@@ -1278,7 +1278,7 @@ bool KSpectrum::generateXcorrDecoysXL(kParams* params, KDecoys& decoys) {
     decoyIndex = (seed + i) % DECOY_SIZE;
     //cout << "Decoy Index 1: " << decoyIndex << endl;
 
-    //iterate over precursors
+    //iterate over precursors -- does this matter???
     r++;
     if (r >= (int)precursor->size()) r = 0;
     maxZ = precursor->at(r).charge;

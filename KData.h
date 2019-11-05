@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "KDB.h"
 #include "KIons.h"
+#include "KLog.h"
 #include "KParams.h"
 #include "KPrecursor.h"
 #include "KSpectrum.h"
@@ -51,8 +52,8 @@ public:
   void      buildXLTable      ();
   bool      checkLink         (char p1Site, char p2Site, int linkIndex);
   void      diagSinglet       ();
-  bool      getBoundaries     (double mass1, double mass2, vector<int>& index, bool* buffer);
-  bool      getBoundaries2    (double mass, double prec, vector<int>& index, bool* buffer);
+  bool      getBoundaries     (double mass1, double mass2, std::vector<int>& index, bool* buffer);
+  bool      getBoundaries2    (double mass, double prec, std::vector<int>& index, bool* buffer);
   int       getCounterMotif   (int motifIndex, int counterIndex);
   kLinker&  getLink           (int i);
   double    getMaxMass        ();
@@ -71,6 +72,7 @@ public:
   void      readLinkers       (char* fn);
   bool      readSpectra       ();
   void      setLinker         (kLinker x);
+  void      setLog            (KLog* c);
   void      setVersion        (const char* v);
   int       size              ();
   int       sizeLink          ();
@@ -82,25 +84,26 @@ private:
   bool* bScans;
   char               version[32];
   char**             xlTable;
-  vector<KSpectrum>  spec;
-  vector<kLinker>    link;  //just cross-links, not mono-links
-  vector<kMass>      massList;
+  std::vector<KSpectrum>  spec;
+  std::vector<kLinker>    link;  //just cross-links, not mono-links
+  std::vector<kMass>      massList;
   kParams*           params;
   KIons              aa;
   kXLMotif           motifs[20]; //lets put a cap on this for now
   int                motifCount;
   kXLTarget          xlTargets[128][5]; //capping analysis at 5 crosslinkers for now
+  KLog*              klog;
 
   //Utilities
-  void        centroid          (Spectrum& s, Spectrum& out, double resolution, int instrument=0);
-  void        collapseSpectrum  (Spectrum& s);
+  void        centroid(MSToolkit::Spectrum& s, MSToolkit::Spectrum& out, double resolution, int instrument = 0);
+  void        collapseSpectrum(MSToolkit::Spectrum& s);
   static int  compareInt        (const void *p1, const void *p2);
   static int  compareMassList   (const void *p1, const void *p2);
-  int         getCharge         (Spectrum& s, int index, int next);
-  double      polynomialBestFit (vector<double>& x, vector<double>& y, vector<double>& coeff, int degree=2);
+  int         getCharge(MSToolkit::Spectrum& s, int index, int next);
+  double      polynomialBestFit (std::vector<double>& x, std::vector<double>& y, std::vector<double>& coeff, int degree=2);
   bool        processPath       (const char* in_path, char* out_path);
-  string      processPeptide    (kPeptide& pep, vector<kPepMod>* mod, KDatabase& db);
-  void        processProtein    (int pepIndex, int site, char linkSite, string& prot, string& sites, bool& decoy, KDatabase& db);
+  std::string processPeptide    (kPeptide& pep, std::vector<kPepMod>* mod, KDatabase& db);
+  void        processProtein    (int pepIndex, int site, char linkSite, std::string& prot, std::string& sites, bool& decoy, KDatabase& db);
 
 };
 

@@ -16,6 +16,8 @@ limitations under the License.
 
 #include "KAnalysis.h"
 
+using namespace std;
+
 bool*       KAnalysis::bKIonsManager;
 KDatabase*  KAnalysis::db;
 double      KAnalysis::highLinkMass;
@@ -45,6 +47,7 @@ int KAnalysis::skipCount;
 int KAnalysis::nonSkipCount;
 
 KDecoys KAnalysis::decoys;
+KLog*   KAnalysis::klog;
 
 /*============================
   Constructors & Destructors
@@ -99,14 +102,10 @@ KAnalysis::KAnalysis(kParams& p, KDatabase* d, KData* dat){
     }
   }
 
-  //if (params.turbo) {
-    //cout << "  Turbo mode in use." << endl;
-    makePepLists();
-    skipCount=0;
-    nonSkipCount=0;
-  //}
-
-  //xCorrCount=0;
+  makePepLists();
+  skipCount=0;
+  nonSkipCount=0;
+  klog=NULL;
 }
 
 KAnalysis::~KAnalysis(){
@@ -141,6 +140,7 @@ KAnalysis::~KAnalysis(){
   db=NULL;
   spec=NULL;
   xlTable=NULL;
+  klog=NULL;
   
 }
 
@@ -207,6 +207,7 @@ bool KAnalysis::doPeptideAnalysis(){
 
   //Perform the second pass
   firstPass=false;
+  if(klog!=NULL) klog->addMessage("Scoring peptides (second pass).",true);
   cout << "  Second pass ... ";
 
   //get boundary for second pass
@@ -345,8 +346,9 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
   vector<int> index;
   vector<kPepMod> mods;
 
-  char str[256];
-  db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
+  //char str[256];
+  //db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
+  //cout << str << "\t" << p->mass << endl;
   //Set the peptide, calc the ions, and score it against the spectra
   ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm,p->n15);
   
@@ -1003,7 +1005,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         lowI++;
       }
       if (lowI >= highI) continue;
-
+      
       score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
       bScored = true;
       y = (int)(score * 10.0 + 0.5);
@@ -1374,6 +1376,10 @@ void KAnalysis::setBinList(kMatchSet* m, int iIndex, int charge, double preMass,
   delete [] mod;
   delete [] modRev;
 
+}
+
+void KAnalysis::setLog(KLog* c){
+  klog=c;
 }
 
 //This function determines if a site on a peptide is linkable to another peptide in the database.

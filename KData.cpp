@@ -16,6 +16,9 @@ limitations under the License.
 
 #include "KData.h"
 
+using namespace std;
+using namespace MSToolkit;
+
 /*============================
   Constructors
 ============================*/
@@ -23,6 +26,7 @@ KData::KData(){
   int i,j,k;
   bScans=NULL;
   params=NULL;
+  klog=NULL;
   xlTable = new char*[128];
   for (i = 0; i<128; i++) xlTable[i] = new char[20];
   for(i=0;i<128;i++){
@@ -36,6 +40,7 @@ KData::KData(){
 
 KData::KData(kParams* p){
   bScans=NULL;
+  klog=NULL;
   params=p;
   size_t i;
   int j,k;
@@ -53,6 +58,7 @@ KData::KData(kParams* p){
 
 KData::~KData(){
   params=NULL;
+  klog=NULL;
   if(bScans!=NULL) delete[] bScans;
   for (int i = 0; i<128; i++) delete[] xlTable[i];
   delete[] xlTable;
@@ -454,6 +460,7 @@ bool KData::mapPrecursors(){
   //if(!pre.setFile(&p)) return false;
 
   //Print progress
+  if(klog!=NULL) klog->addMessage("Mapping precursors to MS/MS spectra",true);
   printf("  Mapping precursors ... %2d%%",iPercent);
   fflush(stdout);
 
@@ -518,88 +525,6 @@ bool KData::mapPrecursors(){
       }
     }
 
-    /*
-    //If instrument determined precursors are preferred, only compute precursors if none supplied
-    if(params->preferPrecursor==1 && spec[i].sizePrecursor()>0){
-      prePre++;
-      specCounts++;
-      peakCounts+=spec[i].size();
-      continue;
-    }
-
-    //if (spec[i].getScanNumber() == 25028) {
-    //  cout << "Current precursors: " << spec[i].sizePrecursor() << endl;
-    //  for (j = 0; j<spec[i].sizePrecursor(); j++) cout << spec[i].getPrecursor(j).monoMass << " " << spec[i].getPrecursor(j).charge << endl;
-    //}
-
-    //Find precursor using object function. Take results and copy them to spectra
-    if (params->precursorRefinement){
-      ret=pre.getSpecRange(spec[i]);
-    } else {
-      ret=0;
-    }
-
-    //if (spec[i].getScanNumber() == 1008) {
-    //  cout << "Current precursors: " << spec[i].sizePrecursor() << "\tret = " << ret << endl;
-    //  for (j = 0; j<spec[i].sizePrecursor(); j++) cout << spec[i].getPrecursor(j).monoMass << " " << spec[i].getPrecursor(j).charge << endl;
-    //}
-
-    if(ret>0){
-
-      //if supplementing instrument predicted precursor, then chance for precursor
-      //to be seen twice (first by instrument, then by Hardklor). Keep Hardklor result.
-      if(spec[i].getInstrumentPrecursor() && spec[i].sizePrecursor()>1){
-        if(spec[i].getPrecursor(0).charge==spec[i].getPrecursor(1).charge && 
-           fabs((spec[i].getPrecursor(0).monoMass-spec[i].getPrecursor(1).monoMass)/spec[i].getPrecursor(0).monoMass*1e6)<10.0 ){
-          spec[i].erasePrecursor(0);
-          spec[i].setInstrumentPrecursor(false);
-        }
-      }
-
-      //if precursor prediction doesn't overlap selected ion, predict additional
-      //precursors using presumed charge states and the selected ion.
-      if(ret==2) {
-        pre.estimatePrecursor(spec[i]);
-
-        //if (spec[i].getScanNumber() == 25028) {
-        //  cout << "Current precursors: " << spec[i].sizePrecursor() << endl;
-        //  for (j = 0; j<spec[i].sizePrecursor(); j++) cout << spec[i].getPrecursor(j).monoMass << " " << spec[i].getPrecursor(j).charge << endl;
-        //}
-
-        //if supplementing instrument predicted precursor, then chance for precursor
-        //to be seen twice (first by instrument, then by charge prediction). Keep instrument.
-        if(spec[i].getInstrumentPrecursor() && spec[i].sizePrecursor()>1){
-          for(k=1;k<spec[i].sizePrecursor();k++){
-            if(spec[i].getPrecursor(0).charge==spec[i].getPrecursor(k).charge && 
-               fabs((spec[i].getPrecursor(0).monoMass-spec[i].getPrecursor(k).monoMass)/spec[i].getPrecursor(0).monoMass*1e6)<10.0 ){
-              spec[i].erasePrecursor(k);
-              k--;
-            }
-          }
-        }
-
-      }
-
-    } else { 
-      
-      //If no precursors found, estimate using mercury and selected mass
-      pre.estimatePrecursor(spec[i]);
-      
-      //if supplementing instrument predicted precursor, then chance for precursor
-      //to be seen twice (first by instrument, then by charge prediction). Keep instrument.
-      if(spec[i].getInstrumentPrecursor() && spec[i].sizePrecursor()>1){
-        for(k=1;k<spec[i].sizePrecursor();k++){
-          if(spec[i].getPrecursor(0).charge==spec[i].getPrecursor(k).charge && 
-             fabs(spec[i].getPrecursor(0).monoMass-spec[i].getPrecursor(k).monoMass)<0.01 ){
-            spec[i].erasePrecursor(k);
-            k--;
-          }
-        }
-      }
-
-    }
-    */
-
     if(spec[i].sizePrecursor()>0){
       foundPre++;
       specCounts++;
@@ -618,6 +543,11 @@ bool KData::mapPrecursors(){
   cout << endl;
 
   cout << "  " << specCounts << " spectra with " << peakCounts << " peaks will be analyzed." << endl;
+  if (klog != NULL) {
+    char tempStr[256];
+    sprintf(tempStr,"%d spectra with %d peaks will be analyzed.",specCounts,peakCounts);
+    klog->addMessage(string(tempStr),true);
+  }
 
   //Build mass list - this orders all precursor masses, with an index pointing to the actual
   //array position for the spectrum. This is because all spectra will have more than 1
@@ -1591,7 +1521,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
   //check that all output files are valid
   if(bBadFiles){
-    cout << "Error exporting results. Please make sure drive is writable." << endl;
     if(fOut!=NULL)    fclose(fOut);
     if(fIntra!=NULL)  fclose(fIntra);
     if(fInter!=NULL)  fclose(fInter);
@@ -1599,6 +1528,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     if(fSingle!=NULL) fclose(fSingle);
     if(fDimer!=NULL)  fclose(fDimer);
     if(fDiag!=NULL)   fclose(fDiag);
+    klog->addError("Error exporting results. Please make sure drive is writable.");
     return false;
   }
 
@@ -2007,12 +1937,13 @@ bool KData::readSpectra(){
   int totalScans=0;
   int totalPeaks=0;
   int collapsedPeaks=0;
-  int finalPeaks=0;
   int iPercent=0;
   int iTmp;
 
   int i;
   int j;
+
+  bool doCentroid;
 
   spec.clear();
   msr.setFilter(MS2);
@@ -2030,78 +1961,60 @@ bool KData::readSpectra(){
       continue;
     }
 
-    //This is for the methods used in old grad school data
-    /*
-    if(s.getRTime()<15){
-      msr.readFile(NULL,s);
-      continue;
-    }
-    */
-
     pls.clear();
     pls.setRTime(s.getRTime());
     pls.setScanNumber(s.getScanNumber());
     max=0;
 
-    //Check whether scans are centroided or not (info supplied by user in params)
-    if(!params->ms2Centroid) {
-
-      //If not centroided, do so now.
-      centroid(s,c,params->ms2Resolution,params->instrument);
-
-      totalPeaks+=c.size();
-      
-      //Collapse the isotope peaks
-      if(params->specProcess==1 && c.size()>1) {
-        collapseSpectrum(c);
-        collapsedPeaks+=c.size();
+    doCentroid=false;
+    switch(s.getCentroidStatus()){
+    case 0:
+      if(params->ms2Centroid) {
+        char tmpStr[256];
+        sprintf(tmpStr,"Kojak parameter indicates MS/MS data are centroid, but spectrum %d labeled as profile.",s.getScanNumber());
+        klog->addError(string(tmpStr));
+      } else doCentroid=true;
+      break;
+    case 1:
+      if (!params->ms2Centroid) {
+        klog->addWarning(0, "Spectrum is labeled as centroid, but Kojak parameter indicates data are profile. Ignoring Kojak parameter.");
       }
-
-      //If user limits number of peaks to analyze, sort by intensity and take top N
-      if(params->maxPeaks>0){
-        if(c.size()>1) c.sortIntensityRev();
-        if(c.size()<params->maxPeaks) j=c.size();
-        else j=params->maxPeaks;
-      } else {
-        j=c.size();
-      }
-      for(i=0;i<j;i++){
-        sp.mass=c[i].mz;
-        sp.intensity=c[i].intensity;
-        pls.addPoint(sp);
-        if(sp.intensity>max) max=sp.intensity;
-      }
-      pls.setMaxIntensity(max);
-
-      //Sort again by MZ, if needed
-      if(pls.size()>1 && params->maxPeaks>0) pls.sortMZ();
-
-      finalPeaks+=pls.size();
-
-    } else {
-
-      //Collapse the isotope peaks
-      if(params->specProcess==1 && s.size()>1) collapseSpectrum(s);
-
-      //If user limits number of peaks to analyze, sort by intensity and take top N
-      if(params->maxPeaks>0){
-        if(s.size()>1) s.sortIntensityRev();
-        if(s.size()<params->maxPeaks) j=s.size();
-        else j=params->maxPeaks;
-      } else {
-        j=s.size();
-      }
-      for(i=0;i<j;i++){
-        sp.mass=s[i].mz;
-        sp.intensity=s[i].intensity;
-        pls.addPoint(sp);
-        if(sp.intensity>max) max=sp.intensity;
-      }
-      pls.setMaxIntensity(max);
-      
-      //Sort again by MZ, if needed
-      if(pls.size()>1 && params->maxPeaks>0) pls.sortMZ();
+      break;
+    default:
+      if(!params->ms2Centroid) doCentroid=true;
+      break;
     }
+
+    //If not centroided, do so now.
+    if(doCentroid){
+      centroid(s, c, params->ms2Resolution, params->instrument);
+      totalPeaks += c.size();
+    } else c=s;
+
+    //Collapse the isotope peaks
+    if (params->specProcess == 1 && c.size()>1) {
+      collapseSpectrum(c);
+      collapsedPeaks += c.size();
+    }
+
+    //If user limits number of peaks to analyze, sort by intensity and take top N
+    if (params->maxPeaks>0){
+      if (c.size()>1) c.sortIntensityRev();
+      if (c.size()<params->maxPeaks) j = c.size();
+      else j = params->maxPeaks;
+    } else {
+      j = c.size();
+    }
+    for (i = 0; i<j; i++){
+      sp.mass = c[i].mz;
+      sp.intensity = c[i].intensity;
+      pls.addPoint(sp);
+      if (sp.intensity>max) max = sp.intensity;
+    }
+    pls.setMaxIntensity(max);
+
+    //Sort again by MZ, if needed
+    if (pls.size()>1 && params->maxPeaks>0) pls.sortMZ();
 
     //Get any additional information user requested
     pls.setCharge(s.getCharge());
@@ -2119,23 +2032,6 @@ bool KData::readSpectra(){
           pls.addPrecursor(pre, params->topCount);
          }
         pls.setInstrumentPrecursor(true);
-        /*
-      } else if(s.sizeZ()>0){
-        for(j=0; j<s.sizeZ(); j++){
-          pre.monoMass=s.atZ(j).mh-1.007276466;
-          pre.charge=s.atZ(j).z;
-          pre.corr=-5;
-          pls.setCharge(pre.charge);
-          pls.addPrecursor(pre, params->topCount);
-          for (int px = 1; px <= params->isotopeError; px++){
-            if (px == 4) break;
-            pre.monoMass -= 1.00335483;
-            pre.corr -= 0.1;
-            pls.addPrecursor(pre, params->topCount);
-          }
-          pls.setInstrumentPrecursor(true);
-        }
-        */
       }
     }
 
@@ -2183,6 +2079,10 @@ void KData::setLinker(kLinker x){
   if(x.mono==0) link.push_back(x);
 }
 
+void KData::setLog(KLog* c){
+  klog=c;
+}
+
 void KData::setVersion(const char* v){
   strcpy(version,v);
 }
@@ -2196,9 +2096,15 @@ int KData::sizeLink(){
 }
 
 void KData::xCorr(bool b){
-  if(b) cout << "  Using XCorr scores." << endl;
-  else  cout << "  Using Kojak modified XCorr scores." << endl;
+  if(b) {
+    klog->addMessage("Using XCorr scores.",true);
+    cout << "  Using XCorr scores." << endl;
+  } else  {
+    klog->addMessage("Using Kojak modified XCorr scores.",true);
+    cout << "  Using Kojak modified XCorr scores." << endl;
+  }
 
+  klog->addMessage("Transforming spectra.",true);
   cout << "  Transforming spectra ... ";
   int iTmp;
   int iPercent = 0;

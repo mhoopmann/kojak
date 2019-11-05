@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "KDB.h"
 #include "KData.h"
+#include "KLog.h"
 #include "KIons.h"
 #include "Threading.h"
 #include "ThreadPool.h"
@@ -50,9 +51,9 @@ struct kAnalysisStruct {
 struct kAnalysisNCStruct {
   bool*               bKIonsMem;    //Pointer to the memory manager array to mark memory is in use
   Mutex*              mutex;        //Pointer to a mutex for protecting memory
-  vector<kPeptideB>*  pep;
+  std::vector<kPeptideB>*  pep;
   int                 pepIndex;
-  kAnalysisNCStruct(Mutex* m, vector<kPeptideB>* p, int i){
+  kAnalysisNCStruct(Mutex* m, std::vector<kPeptideB>* p, int i){
     mutex=m;
     pep=p;
     pepIndex=i;
@@ -97,6 +98,8 @@ public:
   //Master Functions
   bool doPeptideAnalysis ();
   bool doEValueAnalysis  ();
+
+  void setLog(KLog* c);
   //bool doPeptideAnalysisNC ();
   //__int64 xCorrCount;
 
@@ -113,12 +116,12 @@ private:
   bool         allocateMemory          (int threads);
   static bool  analyzeSinglets         (kPeptide& pep, int index, double lowLinkMass, double highLinkMass, int iIndex);
   static bool  analyzeSingletsNC       (kPeptide& pep, int index, int iIndex);
-  static void  checkXLMotif            (int motifA, char* motifB, vector<int>& v);
+  static void  checkXLMotif            (int motifA, char* motifB, std::vector<int>& v);
   void         deallocateMemory        (int threads);
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);
   static void  scoreSingletSpectra     (int index, int sIndex, double mass, int len, int pep, char k, double minMass, int iIndex);
-  static void  scoreSpectra            (vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex, char linkSite1, char linkSite2);
-  static float kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z = 0);
+  static void  scoreSpectra            (std::vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex, char linkSite1, char linkSite2);
+  static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z = 0);
   static void  setBinList              (kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen);
 
   //Data Members
@@ -149,6 +152,7 @@ private:
   static bool firstPass;
 
   static KDecoys decoys;
+  static KLog* klog;
 
   static bool scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex);
 

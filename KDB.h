@@ -22,6 +22,7 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "KLog.h"
 #include "KStructs.h"
 
 class KDatabase{
@@ -29,6 +30,7 @@ public:
 
   //Constructors & Destructors
   KDatabase();
+  ~KDatabase();
 
   //Operators
   kDB& operator[ ](const int& i);
@@ -53,8 +55,11 @@ public:
   int                 getProteinDBSize    ();
   void                setAAMass           (char aa, double mass, bool n15 = false);
   bool                setEnzyme           (char* str);
+  void                setLog              (KLog* c);
   void                setN15Label         (char* str);
   void                setXLTable          (char** arr, int szA, int szB);
+
+  int linkablePepCount;
 
 private:
   
@@ -71,6 +76,8 @@ private:
 
   std::vector<kDB>      vDB;    //Entire FASTA database stored in memory
   std::vector<kPeptide> vPep;   //List of all peptides
+
+  KLog* klog;
 
   void addPeptide(int index, int start, int len, double mass, kPeptide& p, std::vector<kPeptide>& vP, bool bN, bool bC, bool bN15, char xlSites);
   bool checkAA(kPeptide& p, size_t i, size_t start, size_t n, size_t seqSize, bool& bN, bool& bC);

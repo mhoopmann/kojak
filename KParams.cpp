@@ -22,6 +22,7 @@ using namespace std;
 //  Constructors & Destructors
 //==============================
 KParams::KParams(){
+  log=NULL;
   params = NULL;
 }
 
@@ -30,6 +31,7 @@ KParams::KParams(kParams* p){
 }
 
 KParams::~KParams(){
+  log=NULL;
   params = NULL;
 }
 
@@ -47,7 +49,8 @@ bool KParams::parseConfig(const char* fname){
 
   f=fopen(fname,"rt");
   if(f==NULL){
-    printf("Cannot open config file!\n");
+    if (log != NULL) log->addError("Cannot open config file!");
+    else printf("Cannot open config file!\n");
     return false;
   }
 
@@ -56,7 +59,8 @@ bool KParams::parseConfig(const char* fname){
     if(strlen(str)==0) continue;
     if(str[0]=='#') continue;
     if(strlen(str)>4096) {
-      printf("Parameter line too long!\n");
+      if(log!=NULL) log->addError("Parameter line too long!");
+      else printf("Parameter line too long!\n");
       return false;
     }
     parse(str);
@@ -115,11 +119,24 @@ bool KParams::buildOutput(char* in, char* base, char* ext){
   sprintf(str, "%s.kojak.txt", params->outFile);
   f = fopen(str, "wt");
   if (f == NULL) {
-    cout << "\nERROR: cannot open " << str << " for output. Please ensure path and write permissions are correct." << endl;
+    if (log != NULL) log->addError("\nERROR: cannot open " + string(str) + " for output. Please ensure path and write permissions are correct.");
+    else cout << "\nERROR: cannot open " << str << " for output. Please ensure path and write permissions are correct." << endl;
     return false;
   } else {
     fclose(f);
   }
+
+  //Create Kojak log file
+  sprintf(str,"%s.log",params->outFile);
+  f = fopen(str, "wt");
+  if (f == NULL) {
+    if (log != NULL) log->addError("\nERROR: cannot open " + string(str) + " to log Kojak. Please ensure path and write permissions are correct.");
+    else cout << "\nERROR: cannot open " << str << " to log Kojak. Please ensure path and write permissions are correct." << endl;
+    return false;
+  } else {
+    fclose(f);
+  }
+  logFile=str;
 
   return true;
 }
@@ -130,6 +147,19 @@ bool KParams::checkMod(kMass m){
     if(params->mods->at(i).index == m.index && params->mods->at(i).mass == m.mass && params->mods->at(i).xl == m.xl) return true;
   }
   return false;
+}
+
+void KParams::logParam(string name, string value){
+  pxwBasicXMLTag t;
+  t.name=name;
+  t.value=value;
+  if (log != NULL) log->addParameter(t.name + " = " + t.value);
+  xmlParams.push_back(t);
+}
+
+void KParams::logParam(pxwBasicXMLTag& t){
+  if(log!=NULL) log->addParameter(t.name + " = " + t.value);
+  xmlParams.push_back(t);
 }
 
 void KParams::parse(const char* cmd) {
@@ -164,7 +194,8 @@ void KParams::parse(const char* cmd) {
 	//Check if we have a parameter (has '=' in it) or lots of random text.
 	tok=strstr(c_cmd,"=");
   if(tok==NULL) {
-    printf("Unknown parameter line in config file: %s\n",cmd);
+    if (log != NULL) log->addParameterWarning("Unknown parameter line in config file: " + string(cmd));
+    else printf("Unknown parameter line in config file: %s\n",cmd);
     return;
   }
 
@@ -192,9 +223,7 @@ void KParams::parse(const char* cmd) {
     if (values.size() > 2 && values[2][0]!='0') m.xl=true;
     else m.xl=false;
     params->aaMass->push_back(m);
-    xml.name = "aa_mass";
-    xml.value = values[0] + " " + values[1];
-    xmlParams.push_back(xml);
+    logParam("aa_mass",values[0] + " " + values[1]);
 
   } else if(strcmp(param,"cross_link")==0){
     //Check number of parameters
@@ -218,70 +247,63 @@ void KParams::parse(const char* cmd) {
     x.mono = 0;
     x.label = values[3];
     params->xLink->push_back(x);
-    xml.name="cross_link";
-    xml.value=values[0]+" "+values[1]+" "+values[2]+" "+values[3];
-    xmlParams.push_back(xml);
+    logParam("cross_link",values[0]+" "+values[1]+" "+values[2]+" "+values[3]);
 
 	} else if(strcmp(param,"database")==0){
     strcpy(params->dbFile,&values[0][0]);
-    xml.name = "database";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("database",values[0]);
 
   } else if(strcmp(param,"diagnostic")==0){  //a value of -1 means diagnose all spectra, overriding any existing or following spectrum specifications
     if (atoi(&values[0][0])==-1) params->diag->clear();
     params->diag->push_back(atoi(&values[0][0]));
-    xml.name = "diagnostic";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("diagnostic",values[0]);
 
   } else if(strcmp(param,"diff_mods_on_xl")==0){
     if(atoi(&values[0][0])!=0) params->diffModsOnXL=true;
     else params->diffModsOnXL=false;
-    xml.name = "diff_mods_on_xl";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("diff_mods_on_xl",values[0]);
 
 	} else if(strcmp(param,"decoy_filter")==0){
     strcpy(params->decoy,&values[0][0]);
-    xml.name = "decoy_filter";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("decoy_filter",values[0]);
  
   } else if(strcmp(param,"enrichment")==0){
     params->enrichment=atof(&values[0][0]);
-    xml.name = "enrichment";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("enrichment",values[0]);
 
   } else if(strcmp(param,"enzyme")==0){
     strcpy(params->enzyme,&values[0][0]);
     xml.name = "enzyme";
     xml.value = values[0];
-    if (values.size() > 1) strcpy(params->enzymeName, &values[1][0]);
-    else strcpy(params->enzymeName, "Unnamed");
-    xmlParams.push_back(xml);
+    if (values.size() > 1) {
+      strcpy(params->enzymeName, &values[1][0]);
+      xml.value+= " " + values[1];
+    } else {
+      strcpy(params->enzymeName, "Unnamed");
+      warn("Using deprecated enzyme paramter format. Enzyme name will be set to \"Unnamed\"",4);
+    }
+    logParam(xml);
 
   } else if (strcmp(param, "export_mzID") == 0 || strcmp(param, "export_mzid") == 0){
     if (atoi(&values[0][0]) != 0) params->exportMzID = true;
     else params->exportMzID = false;
     xml.name = "export_mzID";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param, "export_pepXML")==0 || strcmp(param, "export_pepxml")==0){
     if(atoi(&values[0][0])!=0) params->exportPepXML=true;
     else params->exportPepXML=false;
     xml.name = "export_pepXML";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"export_percolator")==0){
     if(atoi(&values[0][0])!=0) params->exportPercolator=true;
     else params->exportPercolator=false;
     xml.name = "export_percolator";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"fixed_modification")==0){
     m.index=(int)values[0][0];
@@ -289,7 +311,7 @@ void KParams::parse(const char* cmd) {
     if(m.mass!=0) params->fMods->push_back(m);
     xml.name = "fixed_modification";
     xml.value = values[0]+" "+values[1];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "fixed_modification_protC") == 0){
     m.index = (int)'%';
@@ -297,7 +319,7 @@ void KParams::parse(const char* cmd) {
     if (m.mass != 0) params->fMods->push_back(m);
     xml.name = "fixed_modification_protC";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "fixed_modification_protN") == 0){
     m.index = (int)'$';
@@ -305,13 +327,11 @@ void KParams::parse(const char* cmd) {
     if (m.mass != 0) params->fMods->push_back(m);
     xml.name = "fixed_modification_protN";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"fragment_bin_offset")==0){
     params->binOffset=1.0-atof(&values[0][0]);
-    xml.name = "fragment_bin_offset";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("fragment_bin_offset",values[0]);
 
 	} else if(strcmp(param,"fragment_bin_size")==0){
     params->binSize=atof(&values[0][0]);
@@ -319,9 +339,7 @@ void KParams::parse(const char* cmd) {
       warn("ERROR: Invalid value for fragment_bin_size parameter. Stopping analysis.",3);
       exit(-5);
     }
-    xml.name = "fragment_bin_size";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("fragment_bin_size",values[0]);
 
 	} else if(strcmp(param,"instrument")==0){
     params->instrument=atoi(&values[0][0]);
@@ -329,9 +347,7 @@ void KParams::parse(const char* cmd) {
       warn("ERROR: instrument value out of range for instrument. Stopping analysis.",3);
       exit(-5);
     }
-    xml.name = "instrument";
-    xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam("instrument",values[0]);
 
   } else if (strcmp(param, "intermediate") == 0){
     params->intermediate = atoi(&values[0][0]);
@@ -346,42 +362,42 @@ void KParams::parse(const char* cmd) {
     else params->ionSeries[0]=true;
     xml.name = "ion_series_A";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"ion_series_B")==0){
     if(atoi(&values[0][0])==0) params->ionSeries[1]=false;
     else params->ionSeries[1]=true;
     xml.name = "ion_series_B";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"ion_series_C")==0){
     if(atoi(&values[0][0])==0) params->ionSeries[2]=false;
     else params->ionSeries[2]=true;
     xml.name = "ion_series_C";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"ion_series_X")==0){
     if(atoi(&values[0][0])==0) params->ionSeries[3]=false;
     else params->ionSeries[3]=true;
     xml.name = "ion_series_X";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"ion_series_Y")==0){
     if(atoi(&values[0][0])==0) params->ionSeries[4]=false;
     else params->ionSeries[4]=true;
     xml.name = "ion_series_Y";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"ion_series_Z")==0){
     if(atoi(&values[0][0])==0) params->ionSeries[5]=false;
     else params->ionSeries[5]=true;
     xml.name = "ion_series_Z";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "isotope_error")==0){
     params->isotopeError = atoi(&values[0][0]);
@@ -391,37 +407,37 @@ void KParams::parse(const char* cmd) {
     }
     xml.name = "isotope_error";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"max_miscleavages")==0){
     params->miscleave=atoi(&values[0][0]);
     xml.name = "max_miscleavages";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"max_mods_per_peptide")==0){
     params->maxMods=atoi(&values[0][0]);
     xml.name = "max_mods_per_peptide";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"max_peptide_mass")==0){
     params->maxPepMass=atof(&values[0][0]);
     xml.name = "max_peptide_mass";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"max_spectrum_peaks")==0){
     params->maxPeaks=atoi(&values[0][0]);
     xml.name = "max_spectrum_peaks";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"min_peptide_mass")==0){
     params->minPepMass=atof(&values[0][0]);
     xml.name = "min_peptide_mass";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"modification")==0){
     m.xl=false;
@@ -430,7 +446,7 @@ void KParams::parse(const char* cmd) {
     if(m.mass!=0 && !checkMod(m)) params->mods->push_back(m);
     xml.name = "modification";
     xml.value = values[0]+" "+values[1];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "modification_protC") == 0){
     m.xl = false;
@@ -441,7 +457,7 @@ void KParams::parse(const char* cmd) {
     }
     xml.name = "modification_protC";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "modification_protN") == 0){
     m.xl = false;
@@ -452,7 +468,7 @@ void KParams::parse(const char* cmd) {
     }
     xml.name = "modification_protN";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
     
   } else if(strcmp(param,"mono_link")==0){
     //Check number of parameters
@@ -475,50 +491,50 @@ void KParams::parse(const char* cmd) {
     }
     xml.name = "mono_link";
     xml.value = values[0] + " " + values[1];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"mono_links_on_xl")==0){
     if(atoi(&values[0][0])!=0) params->monoLinksOnXL=true;
     else params->monoLinksOnXL=false;
     xml.name = "mono_links_on_xl";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"MS_data_file")==0){
     strcpy(params->msFile,&values[0][0]);
     xml.name = "MS_data_file";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"MS1_centroid")==0){
     params->ms1Centroid=atoi(&values[0][0]);
     xml.name = "MS1_centroid";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"MS2_centroid")==0){
     params->ms2Centroid=atoi(&values[0][0]);
     xml.name = "MS2_centroid";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"MS1_resolution")==0){
     params->ms1Resolution=atoi(&values[0][0]);
     xml.name = "MS1_resolution";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"MS2_resolution")==0){
 		params->ms2Resolution=atoi(&values[0][0]);
     xml.name = "MS2_resolution";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "15N_filter") == 0){
     strcpy(params->n15Label, &values[0][0]);
     xml.name = "15N_filter";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"output_file")==0){
     warn(param,2);
@@ -530,39 +546,39 @@ void KParams::parse(const char* cmd) {
     params->percVersion=atof(&values[0][0]);
     xml.name = "percolator_version";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
 	} else if(strcmp(param,"ppm_tolerance_pre")==0){
     params->ppmPrecursor=atof(&values[0][0]);
     xml.name = "ppm_tolerance_pre";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "precursor_refinement") == 0){
     if (atoi(&values[0][0]) == 0) params->precursorRefinement = false;
     else params->precursorRefinement = true;
     xml.name = "precursor_refinement";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"prefer_precursor_pred")==0){
     params->preferPrecursor=atoi(&values[0][0]);
     xml.name = "prefer_precursor_pred";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "results_path") == 0){
     strcpy(params->resPath, &values[0][0]);
     xml.name = "results_path";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"search_dimers")==0){
     if (atoi(&values[0][0]) == 0) params->dimers = false;
     else params->dimers = true;
     xml.name = "search_dimers";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
     //warn(param,2);
 
   } else if(strcmp(param,"search_dimers_xl")==0){
@@ -570,63 +586,84 @@ void KParams::parse(const char* cmd) {
     else params->dimersXL=true;
     xml.name = "search_dimers_xl";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"spectrum_processing")==0) {
     params->specProcess=atoi(&values[0][0]);
     xml.name = "spectrum_processing";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"threads")==0) {
     params->threads=atoi(&values[0][0]);
-    if(params->threads<1) {
-      warn("WARNING: Invalid threads parameter. Setting to 1.",3);
-      params->threads=1;
+    int iCores;
+#ifdef _WIN32
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    iCores = sysinfo.dwNumberOfProcessors;
+#else
+    iCores = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+    if(params->threads==0){
+      params->threads=iCores;
+      char tst[8];
+      sprintf(tst,"%d",iCores);
+      string ts="Setting number of threads from 0 to maximum of ";
+      ts+=tst;
+      warn(ts,4);
+    } else if(params->threads<0) {
+      params->threads+=iCores;
+      if(params->threads<1) {
+        warn("Net number of threads is less than 1. Forcing thread value of 1.", 4);
+        params->threads=1;
+      } else {
+        char tst[8];
+        sprintf(tst, "%d", iCores);
+        string ts = "Adjusting number of threads to " + values[0] + " below to maximum of ";
+        sprintf(tst, "%d", iCores);
+        ts+=tst;
+        warn(ts,4);
+      }
+    } else if (params->threads>iCores) {
+      warn("Requested threads exceeds number of CPU cores. Performance may be degraded.",4);
     }
     xml.name = "threads";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"top_count")==0) {
     params->topCount=atoi(&values[0][0]);
     if(params->topCount>50) {
-      warn("WARNING: top_count is larger than expected. Are you using a pre-version 1.6.0 value? An appropriate value is likely between 5 and 50.",3);
+      warn("WARNING: top_count is larger than expected. Are you using a pre-version 1.6.0 value? An appropriate value is likely between 5 and 50.",4);
     }
     if (params->topCount<1){
-      warn("ERROR: top_count must be greater than zero. Stopping Kojak.", 4);
+      warn("ERROR: top_count must be greater than zero. Stopping Kojak.", 3);
       params->topCount=1;
     }
     xml.name = "top_count";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if(strcmp(param,"truncate_prot_names")==0) {
     params->truncate=atoi(&values[0][0]);
     xml.name = "truncate_prot_names";
     xml.value = values[0];
-    xmlParams.push_back(xml);
+    logParam(xml);
 
   } else if (strcmp(param, "turbo_button") == 0){
     warn(param,2);
-    //if (atoi(&values[0][0]) != 0) params->turbo = true;
-    //else params->turbo = false;
-    //xml.name = "turbo_button";
-    //xml.value = values[0];
-    //xmlParams.push_back(xml);
 
   } else if(strcmp(param,"use_comet_xcorr")==0){
     warn(param, 2);
-    //if(atoi(&values[0][0])!=0) params->xcorr=true;
-    //else params->xcorr=false;
-    //xml.name = "use_comet_xcorr";
-    //xml.value = values[0];
-    //xmlParams.push_back(xml);
 
 	} else {
 		warn(param,1);
 	}
 
+}
+
+void KParams::setLog(KLog* c){
+  log = c;
 }
 
 void KParams::setParams(kParams* p){
@@ -636,25 +673,34 @@ void KParams::setParams(kParams* p){
 void KParams::warn(const char* c, int i){
 	switch(i){
 		case 0:
-			printf("  WARNING: Parameter %s has no value.",c);
+      if(log!=NULL) log->addParameterWarning("Parameter " + string(c) + " has no value.");
+      else printf("  WARNING: Parameter %s has no value.",c);
 			break;
 		case 1:
-			printf("  WARNING: Unknown parameter: %s\n",c);
+      if (log != NULL) log->addParameterWarning("Unknown parameter: " + string(c));
+			else printf("  WARNING:  %s\n",c);
 			break;
 		case 2:
-      printf("  WARNING: Parameter %s has been deprecated and will be ignored.\n",c);
+      if (log != NULL) log->addParameterWarning("Parameter " + string(c) + "has been deprecated and will be ignored.");
+      else printf("  WARNING: Parameter %s has been deprecated and will be ignored.\n",c);
       break;
     case 3:
-      printf("  %s\n", c);
+      if(log!=NULL) log->addError(string(c));
+      else printf("  %s\n", c);
       break;
     case 4:
-      printf("  %s\n", c);
-      exit(-10);
+      if(log!=NULL) log->addParameterWarning(string(c));
+      else printf("  WARNING: %s\n", c);
       break;
 		default:
-			printf("  %s\n",c);
+      if (log != NULL) log->addParameterWarning(string(c));
+      else printf("  %s\n", c);
 			break;
 	}
+}
+
+void KParams::warn(string c, int i){
+  warn(c.c_str(),i);
 }
 
 //Takes relative path and finds absolute path

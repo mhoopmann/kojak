@@ -16,6 +16,9 @@ limitations under the License.
 
 #include "KPrecursor.h"
 
+using namespace std;
+using namespace MSToolkit;
+
 /*============================
   Constructors & Destructors
 ============================*/

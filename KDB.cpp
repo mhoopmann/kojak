@@ -84,6 +84,12 @@ KDatabase::KDatabase(){
   fixMassProtN=0;
 
   n15Label="NON15LABEL";
+  klog=NULL;
+  linkablePepCount=0;
+}
+
+KDatabase::~KDatabase(){
+  klog=NULL;
 }
 
 //==============================
@@ -120,7 +126,8 @@ bool  KDatabase::buildDB(char* fname) {
     if(str[0]=='>') {
       if(d.name.compare("NIL")!=0) {
         if(d.sequence.length()>65000){
-          cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
+          if (klog != NULL) klog->addDBWarning(d.name + " has a sequence that is too long. It will be skipped.");
+          else cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
         } else {
           vDB.push_back(d);
         }
@@ -130,16 +137,25 @@ bool  KDatabase::buildDB(char* fname) {
     } else {
       for(unsigned int i=0;i<strlen(str);i++){
         c=toupper(str[i]);
-        if(AA[c]==0) cout << "  WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space: '" << c << "'" << endl;
+        if(AA[c]==0) {
+          if (klog != NULL) klog->addDBWarning(d.name+" has an unexpected amino acid character or errant white space: '" + c + "'");
+          else cout << "  WARNING: " << &d.name[0] << " has an unexpected amino acid character or errant white space: '" << c << "'" << endl;
+        }
         if(c==' ' || c=='\t') continue;
-        if (AA[c] == 0) cout << "  WARNING: Mass of '" << c << "' is currently set to 0. Consider revising with the aa_mass parameter." << endl;
+        if (AA[c] == 0) {
+          if (klog != NULL) {
+            string tmpStr="Mass of '";
+            klog->addDBWarning(tmpStr + c + "' is currently set to 0. Consider revising with the aa_mass parameter.");
+          } else cout << "  WARNING: Mass of '" << c << "' is currently set to 0. Consider revising with the aa_mass parameter." << endl;
+        }
         d.sequence+=c;
       }
     }
   }
   fclose(f);
   if(d.sequence.length()>65000){
-    cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
+    if (klog != NULL) klog->addDBWarning(d.name + " has a sequence that is too long. It will be skipped.");
+    else cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
    } else {
     vDB.push_back(d);
   }
@@ -150,7 +166,7 @@ bool  KDatabase::buildDB(char* fname) {
 
 
 //buildPeptides creates lists of peptides to search based on the user-defined enzyme rules
-bool  KDatabase::buildPeptides(double min, double max, int mis){
+bool KDatabase::buildPeptides(double min, double max, int mis){
 
   double mass;
   bool bCutMarked;
@@ -331,6 +347,7 @@ bool  KDatabase::buildPeptides(double min, double max, int mis){
 
   cout << "  " << vPep.size() << " peptides to search (" << n << " linkable)." << endl;
   qsort(&vPep[0],vPep.size(),sizeof(kPeptide),compareMass);
+  linkablePepCount=(int)n;
 
   //Reporting list
   /*
@@ -420,6 +437,10 @@ bool KDatabase::getPeptideSeq(int pepIndex, string& str){
   return true;
 }
 
+int KDatabase::getProteinDBSize(){
+  return (int)vDB.size();
+}
+
 void KDatabase::setAAMass(char aa, double mass, bool n15){
   if (n15) AAn15[aa] = mass;
   else AA[aa] = mass;
@@ -493,6 +514,10 @@ bool KDatabase::setEnzyme(char* str){
 
   return true;
 
+}
+
+void KDatabase::setLog(KLog* c){
+  klog=c;
 }
 
 void KDatabase::setN15Label(char* str){

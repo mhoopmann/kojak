@@ -21,11 +21,9 @@ limitations under the License.
 #include "KParams.h"
 #include "KojakManager.h"
 
-//#define VERSION "2.0.0-dev"
-//#define BDATE "August 8 2019"
+using namespace std;
 
 int main(int argc, char* argv[]){
-
   cout << "\nKojak version " << VERSION << ", " << BDATE << endl;
   cout << "Copyright Michael Hoopmann, Institute for Systems Biology" << endl;
   cout << "Visit http://kojak-ms.org for full documentation." << endl;
@@ -50,6 +48,8 @@ int main(int argc, char* argv[]){
   }
   manager.run();
 
+  time(&timeNow);
+  cout << " Time at finish: " << ctime(&timeNow) << endl;
   cout << "\n****** Finished Kojak Analysis ******" << endl;
 
   return 0;

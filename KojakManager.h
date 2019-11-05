@@ -5,10 +5,11 @@
 #include "KData.h"
 #include "KDB.h"
 #include "KIons.h"
+#include "KLog.h"
 #include "KParams.h"
 
 #define VERSION "2.0.0-dev"
-#define BDATE "October 16 2019"
+#define BDATE "October 31 2019"
 
 class KojakManager {
 public:
@@ -17,18 +18,20 @@ public:
   void clearFiles();
 
   int setFile(const char* fn);
-  int setFile(string& s);
+  int setFile(std::string& s);
   void setParam(const char* p);
-  void setParam(string& s);
+  void setParam(std::string& s);
   bool setParams(const char* fn);
-  bool setParams(string& s);
+  bool setParams(std::string& s);
 
-  bool getBaseFileName(string& base, const char* fName, string& extP);
+  bool getBaseFileName(std::string& base, const char* fName, std::string& extP);
   int run();
 
 
 private:
-  vector<kFile> files;
+  std::vector<kFile> files;
+  KLog log;
+  std::string paramFile;
   KParams param_obj;
   kParams params;
   

@@ -17,11 +17,13 @@ limitations under the License.
 #ifndef _KPARAMS_H
 #define _KPARAMS_H
 
+#include "KLog.h"
 #include "KStructs.h"
 #include "pepXMLWriter.h"
 
 #ifdef _MSC_VER
 #include <direct.h>
+#include <Windows.h>
 #define getcwd _getcwd
 #define slashdir '\\'
 #else
@@ -40,15 +42,22 @@ public:
   bool buildOutput(char* in, char* base, char* ext);
   void parse(const char* cmd);
   bool parseConfig(const char* fname);
+  void setLog(KLog* c);
   void setParams(kParams* p);
+
+  std::string logFile;
  
 private:
 
+  KLog* log;
   kParams* params;
   
   bool checkMod(kMass m);
+  void logParam(std::string name, std::string value);
+  void logParam(pxwBasicXMLTag& t);
   bool processPath(const char* cwd, const char* in_path, char* out_path);
   void warn(const char* c, int i);
+  void warn(std::string c, int i);
 
 };
 

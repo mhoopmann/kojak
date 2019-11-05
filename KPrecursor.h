@@ -51,26 +51,26 @@ public:
   int   getSpecRange      (KSpectrum& pls);
   bool  setFile           ();
 
-  vector<int> preCharges;
+  std::vector<int> preCharges;
 
 private:
 
   //Functions
-  void    averageScansCentroid  (vector<Spectrum*>& s, Spectrum& avg, double min, double max);
-  void    centroid              (Spectrum& s, Spectrum& out, double resolution, int instrument=0);
-  int     findPeak              (Spectrum& s, double mass);
-  int     findPeak              (Spectrum& s, double mass, double prec);
-  double  polynomialBestFit     (vector<double>& x, vector<double>& y, vector<double>& coeff, int degree=2);
+  void    averageScansCentroid(std::vector<MSToolkit::Spectrum*>& s, MSToolkit::Spectrum& avg, double min, double max);
+  void    centroid(MSToolkit::Spectrum& s, MSToolkit::Spectrum& out, double resolution, int instrument = 0);
+  int     findPeak(MSToolkit::Spectrum& s, double mass);
+  int     findPeak(MSToolkit::Spectrum& s, double mass, double prec);
+  double  polynomialBestFit(std::vector<double>& x, std::vector<double>& y, std::vector<double>& coeff, int degree = 2);
 
   //Data Members
   char      fileName[256];
   int       lastScan;
-  MSObject  mso;
-  MSReader  msr;
-  MSReader  msw;
-  Spectrum  avg;
-  Spectrum  cent;
-  Spectrum  spec;
+  MSToolkit::MSObject  mso;
+  MSToolkit::MSReader  msr;
+  MSToolkit::MSReader  msw;
+  MSToolkit::Spectrum  avg;
+  MSToolkit::Spectrum  cent;
+  MSToolkit::Spectrum  spec;
   
   CAveragine*      averagine;
 	CMercury8*       mercury;
@@ -82,7 +82,7 @@ private:
   CHardklorSetting hs4;
   CHardklorVariant hv;
 
-  deque<Spectrum>*  centBuf;
+  std::deque<MSToolkit::Spectrum>*  centBuf;
 
   kParams*   params;
 
