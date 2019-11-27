@@ -505,47 +505,27 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
   tmpHistCount = histogramCount;
   if (topHit[0].simpleScore == 0) return true; //no need to do any of this if there are no PSMs...
 
-  /*
-  if(histogramSingletCount < DECOY_SIZE) {
-    if(!generateSingletDecoys(params, decoys)) {
-      bSingletFail=true;
+  if (histogramCount < decoys.decoySize) {
+
+    //precompute which ion series to use
+    decoyIonSz=0;
+    for (i = 0; i<6; i++){
+      if (params->ionSeries[i]) {
+        if (i<3) {
+          decoyIons[decoyIonSz].b = true;
+          if (i == 0) decoyIons[decoyIonSz++].mass = -27.9949141;
+          else if (i == 1) decoyIons[decoyIonSz++].mass = 0;
+          else decoyIons[decoyIonSz++].mass = 17.026547;
+        } else {
+          decoyIons[decoyIonSz].b = false;
+          if (i == 3) decoyIons[decoyIonSz++].mass = 25.9792649;
+          else if (i == 4) decoyIons[decoyIonSz++].mass = 0;
+          else decoyIons[decoyIonSz++].mass = -16.0187224;
+        }
+      }
     }
-  }
 
-  if(!bSingletFail){
-    linearRegression3(dSlopeS, dInterceptS, iMaxCorr, iStartCorr, iNextCorr, dRSquareS);
-    tmpSingletIntercept = (float)dInterceptS;  // b
-    tmpSingletSlope = (float)dSlopeS;  // m
-    tmpSingletIStartCorr = (float)iStartCorr;
-    tmpSingletINextCorr = (float)iNextCorr;
-    tmpSingletIMaxCorr = (short)iMaxCorr;
-    tmpSingletRSquare = dRSquareS;
-  } else {
-    dInterceptS=0;
-    dSlopeS=0;
-    dRSquareS=0;
-    tmpSingletIntercept = 0;  // b
-    tmpSingletSlope = 0;  // m
-    tmpSingletIStartCorr = 0;
-    tmpSingletINextCorr = 0;
-    tmpSingletIMaxCorr = 0;
-    tmpSingletRSquare = 0;
-  }
-  */
-
-  if (histogramCount < DECOY_SIZE) {
-    
-        //if(!generateXcorrDecoys(params,decoys)) return false;
-        //if (!generateXcorrDecoysXL(params, decoys)) return false;
- 
-    //if(!bSkipXL){ //if singletdecoys were successful, use xl decoy analysis
-      //if (!generateXLDecoys(params, decoys)) {
-        //if (!generateXcorrDecoys(params, decoys)) return false; 
-        //if (!generateXcorrDecoysXL(params, decoys)) return false;
-      //}
-   // }
     if (!generateXcorrDecoys(params, decoys)) return false;
-    //if (!generateXcorrDecoysXL(params, decoys)) return false;
   }
 
   linearRegression2(dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr,dRSquare);
@@ -562,24 +542,6 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
   dSlope *= 10.0;
   dSlopeS *=10.0;
 
-  /*
-  iLoopCount = 20; //score all e-values among top hits?
-  for (i = 0; i<iLoopCount; i++) {
-    if (topHit[i].simpleScore == 0) break; //score all e-values among top hits?
-    if (dSlope >= 0.0) {
-      topHit[i].eVal = 999.0;
-      topHit[i].eVal1 = 999.0;
-      topHit[i].eVal2 = 999.0;
-    } else {
-      topHit[i].eVal = pow(10.0, dSlope * topHit[i].simpleScore + dIntercept);
-      topHit[i].eVal1 = pow(10.0, dSlope * topHit[i].score1 + dIntercept);
-      topHit[i].eVal2 = pow(10.0, dSlope * topHit[i].score2 + dIntercept);
-      if (topHit[i].eVal>999.0) topHit[i].eVal=999.0;
-      if (topHit[i].eVal1>999.0) topHit[i].eVal1 = 999.0;
-      if (topHit[i].eVal2>999.0) topHit[i].eVal2 = 999.0;
-    }
-  }
-  */
   iLoopCount = 20; //score all e-values among top hits?
   double topScore=topHit[0].simpleScore;
   for (i = 0; i<iLoopCount; i++) {
@@ -593,24 +555,17 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
     //score individual peptides
     if(topHit[i].score2>0){
       if(topHit[i].simpleScore==topScore){ //only do this for top hits right now: it is slow...
-        //if (scanNumber == 16660) cout << "E1" << "\t" << topHit[i].score1 << "\t" << topHit[i].mass1 << endl;
-        topHit[i].eVal1 = generateSingletDecoys2(params,decoys,topHit[i].score1,topHit[i].mass1,(int)topHit[i].precursor,topHit[i].score2);
-        //if(topHit[i].eVal1>999.0) topHit[i].eVal1=999.0;
-        //if (scanNumber == 16660) cout << "E2" << "\t" << topHit[i].score2 << "\t" << topHit[i].mass2 << endl;
-        topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor,topHit[i].score1);
-        //if (topHit[i].eVal2>999.0) topHit[i].eVal2 = 999.0;
+        if(i>0){
+          //check if we've computed these already - happens with one of the peptides in ties.
+          if(topHit[i].score1==topHit[i-1].score1) topHit[i].eVal1=topHit[i-1].eVal1;
+          else topHit[i].eVal1 = generateSingletDecoys2(params, decoys, topHit[i].score1, topHit[i].mass1, (int)topHit[i].precursor, topHit[i].score2);
+          if(topHit[i].score2==topHit[i-1].score2) topHit[i].eVal2=topHit[i-1].eVal2;
+          else topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor, topHit[i].score1);
+        } else {
+          topHit[i].eVal1 = generateSingletDecoys2(params,decoys,topHit[i].score1,topHit[i].mass1,(int)topHit[i].precursor,topHit[i].score2);
+          topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor,topHit[i].score1);
+        }
       }
-      /*
-      if(dSlopeS>=0.0){
-        topHit[i].eVal1 = 999.0;
-        topHit[i].eVal2 = 999.0;
-      } else {
-        topHit[i].eVal1 = pow(10.0, dSlopeS * topHit[i].score1 + dInterceptS);
-        topHit[i].eVal2 = pow(10.0, dSlopeS * topHit[i].score2 + dInterceptS);
-        if (topHit[i].eVal1>999.0) topHit[i].eVal1 = 999.0;
-        if (topHit[i].eVal2>999.0) topHit[i].eVal2 = 999.0;
-      }
-      */
     } else {
       if (dSlope >= 0.0) {
         topHit[i].eVal1 = 999.0;
@@ -818,6 +773,7 @@ void KSpectrum::checkSingletScore(kSingletScoreCard& s){
 //from Comet
 // Make synthetic decoy spectra to fill out correlation histogram by going
 // through each candidate peptide and rotating spectra in m/z space.
+/*
 bool KSpectrum::generateSingletDecoys(kParams* params, KDecoys& decoys) {
   int i;
   int n;
@@ -840,7 +796,7 @@ bool KSpectrum::generateSingletDecoys(kParams* params, KDecoys& decoys) {
 
   // DECOY_SIZE is the minimum # of decoys required or else this function isn't
   // called.  So need to generate iLoopMax more xcorr scores for the histogram.
-  int iLoopMax = DECOY_SIZE - histogramSingletCount;
+  int iLoopMax = decoys.decoySize - histogramSingletCount;
   int seed = rand() % 3000;
   int decoyIndex;
 
@@ -913,10 +869,13 @@ bool KSpectrum::generateSingletDecoys(kParams* params, KDecoys& decoys) {
 
   return true;
 }
+*/
 
 //from Comet
 // Make synthetic decoy spectra to fill out correlation histogram by going
 // through each candidate peptide and rotating spectra in m/z space.
+
+//Rethink the need to have score2 as a parameter...
 double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex,double score2) {
   int i;
   int n;
@@ -938,7 +897,7 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   int tempHistogram[HISTOSZ];
   for(i=0;i<HISTOSZ;i++) tempHistogram[i]=0;
 
-  int seed = rand() % DECOY_SIZE;
+  int seed = rand() % decoys.decoySize;
   int decoyIndex;
 
   //compute modification mass
@@ -947,9 +906,10 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   preMass = precursor->at(preIndex).monoMass;
   diffMass=preMass-mass;
 
-  for (i = 0; i<DECOY_SIZE - 1; i++) { // iterate through required # decoys
+  //Does this function need as many DECOY_SIZE as the other? Can this be shortened?
+  for (i = 0; i<decoys.decoySize / 2 - 1; i++) { // iterate through required # decoys
     dXcorr = 0.0;
-    decoyIndex = (seed + i) % DECOY_SIZE;
+    decoyIndex = (seed + i) % decoys.decoySize;
  
     //find link site - somewhat wasted cycles
     for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
@@ -960,25 +920,17 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
     else xlSite = rand() % (j - 1);
     xlLen = j - 1;
 
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
-      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
-      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
-      if (j >= xlSite) dBion += diffMass;
-      if (j >= xlLen - xlSite) dYion += diffMass;
-      if (dBion>preMass && dYion>preMass) break; //stop when fragment ion masses exceed precursor mass
-
-      for (n = 0; n<6; n++) {
-        if (!params->ionSeries[n]) continue;
-        switch (n) {
-        case 0: dFragmentIonMass = dBion - 27.9949141; break;
-        case 1: dFragmentIonMass = dBion; break;
-        case 2: dFragmentIonMass = dBion + 17.026547; break;
-        case 3: dFragmentIonMass = dYion + 25.9792649; break;
-        case 4: dFragmentIonMass = dYion; break;
-        case 5: dFragmentIonMass = dYion - 16.0187224; break;
-        default: break;
+    for (n = 0; n<decoyIonSz; n++) { //iterate over each ion series
+      for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
+      
+        if (decoyIons[n].b) {
+          dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsN[j] + decoyIons[n].mass;
+          if (j >= xlSite) dFragmentIonMass+=diffMass;
+        } else {
+          dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsC[j] + decoyIons[n].mass;
+          if (j >= xlLen - xlSite) dFragmentIonMass += diffMass;
         }
-        if (dFragmentIonMass>preMass) continue;
+        if (dFragmentIonMass>preMass) break;
 
         for (z = 1; z<maxZ; z++) {
           mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
@@ -1008,25 +960,13 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   //Do linear regression and compute e-value
   double dSlope,dIntercept,dRSquare;
   int iMaxCorr,iStartCorr,iNextCorr;
-  linearRegression4(tempHistogram, dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr, dRSquare);
+  linearRegression4(tempHistogram, decoys.decoySize, dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr, dRSquare);
   double eVal = pow(10.0, dSlope * 10 * (xcorr+score2) + dIntercept);
   if(eVal>999.0) eVal=999.0;
 
-  /*
-  if(scanNumber==16660){
-    cout <<"\n16660" << endl;
-    cout << dSlope << "\t" << dIntercept << "\t" << dRSquare << endl;
-    for(i=0;i<HISTOSZ;i++){
-      cout << i << "\t" << tempHistogram[i] << endl;
-    }
-    cout << xcorr << "\t" << xcorr+score2 << "\t" << eVal << endl;
-  }
-  if(scanNumber>17000) exit(1);
-  */
-
   return eVal;
 }
-
+/*
 bool KSpectrum::generateXLDecoys(kParams* params, KDecoys& decoys) {
   int i;
   int n;
@@ -1136,6 +1076,7 @@ bool KSpectrum::generateXLDecoys(kParams* params, KDecoys& decoys) {
 
   return true;
 }
+*/
 
 //from Comet
 // Make synthetic decoy spectra to fill out correlation histogram by going
@@ -1161,51 +1102,31 @@ bool KSpectrum::generateXcorrDecoys(kParams* params, KDecoys& decoys) {
 
   // DECOY_SIZE is the minimum # of decoys required or else this function isn't
   // called.  So need to generate iLoopMax more xcorr scores for the histogram.
-  int iLoopMax = DECOY_SIZE - histogramCount;
-  //int seed = rand() % DECOY_SIZE;
+  int iLoopMax = decoys.decoySize - histogramCount;
   int seed = (scanNumber*histogramCount);
   if(seed<0) seed=-seed;
-  seed = seed % DECOY_SIZE; //don't always start at the top, but not random either; remains reproducible across threads
-  //if(scanNumber==12896) cout << "SEED: " << seed << endl;
+  seed = seed % decoys.decoySize; //don't always start at the top, but not random either; remains reproducible across threads
   int decoyIndex;
 
   size_t maxPre = precursor->size();
   r=0;
+
   for (i = 0; i<iLoopMax; i++) { // iterate through required # decoys
     dXcorr = 0.0;
-    decoyIndex = (seed + i) % DECOY_SIZE;
+    decoyIndex = (seed + i) % decoys.decoySize;
 
-    //grab precursor at random
-    //r = rand() % precursor->size();
     //iterate over precursors
     r++;
     if(r>=(int)precursor->size()) r=0;
     maxZ = precursor->at(r).charge;
     if (maxZ>4) maxZ = 4;
 
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
-      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
-      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
-      if (dBion>precursor->at(r).monoMass && dYion>precursor->at(r).monoMass) break; //stop when fragment ion masses exceed precursor mass
-
-      for (n = 0; n<6; n++) {
-        if (!params->ionSeries[n]) continue;
-        switch (n) {
-        case 0: dFragmentIonMass = dBion - 27.9949141; break;
-        case 1: dFragmentIonMass = dBion; break;
-        case 2: dFragmentIonMass = dBion + 17.026547; break;
-        case 3: dFragmentIonMass = dYion + 25.9792649; break;
-        case 4: dFragmentIonMass = dYion; break;
-        case 5: dFragmentIonMass = dYion - 16.0187224; break;
-        default: break;
-        }
-        if(dFragmentIonMass<0) {
-          cout << "\ndFragIonMass = " << dFragmentIonMass << endl;
-          cout << "j = " << j << endl;
-          cout << "decoyIndex = " << decoyIndex << endl;
-          cout << "dBion = " << dBion << endl;
-        }
-        if (dFragmentIonMass>precursor->at(r).monoMass) continue;
+    for (n = 0; n<decoyIonSz; n++) { //iterate over each ion series
+      for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
+      
+        if (decoyIons[n].b) dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsN[j] + decoyIons[n].mass;
+        else dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsC[j] + decoyIons[n].mass;
+        if (dFragmentIonMass>precursor->at(r).monoMass) break;
 
         for (z = 1; z<maxZ; z++) {
           mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
@@ -1218,7 +1139,7 @@ bool KSpectrum::generateXcorrDecoys(kParams* params, KDecoys& decoys) {
         }
       }
     }
-
+    
     if (dXcorr <= 0.0) dXcorr = 0.0;
     k = (int)(dXcorr*0.05 + 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
     if (k < 0) k = 0;
@@ -1226,11 +1147,12 @@ bool KSpectrum::generateXcorrDecoys(kParams* params, KDecoys& decoys) {
     histogram[k]++;
     histogramCount++;
     myCount++;
-    //if (scanNumber == 12896) cout << "myCount: " << myCount-1 << "\t" << k << "\t" << dXcorr*0.05 << endl;
+    
   }
   return true;
 }
 
+/*
 bool KSpectrum::generateXcorrDecoysXL(kParams* params, KDecoys& decoys) {
   int i;
   int n;
@@ -1385,6 +1307,7 @@ bool KSpectrum::generateXcorrDecoysXL(kParams* params, KDecoys& decoys) {
   }
   return true;
 }
+*/
 
 //from Comet
 void KSpectrum::linearRegression(double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
@@ -1730,6 +1653,7 @@ void KSpectrum::linearRegression2(double& slope, double& intercept, int&  iMaxXc
   iStartXcorr = bestStart;
   iNextXcorr = bestNC;
   rSquared = bestRSQ;
+
 }
 
 //from Comet. THIS IS TEMPORARY! for testing singlets only...
@@ -1871,7 +1795,7 @@ void KSpectrum::linearRegression3(double& slope, double& intercept, int&  iMaxXc
 }
 
 //from Comet. THIS IS TEMPORARY! for testing singlets only...
-void KSpectrum::linearRegression4(int* histo, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
+void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
   double Sx, Sxy;      // Sum of square distances.
   double Mx, My;       // means
   double dx, dy;
@@ -1918,7 +1842,7 @@ void KSpectrum::linearRegression4(int* histo, double& slope, double& intercept, 
 
   //get middle-ish datapoint as seed. Using count/10.
   for (i = 0; i<iMaxCorr; i++){
-    if (dCummulative[i] < DECOY_SIZE / 10) break;
+    if (dCummulative[i] < decoySz / 10) break;
   }
   if (i >= (iMaxCorr - 1)) iNextCorr = iMaxCorr - 2;
   else iNextCorr = i;

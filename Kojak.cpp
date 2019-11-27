@@ -51,6 +51,5 @@ int main(int argc, char* argv[]){
   time(&timeNow);
   cout << " Time at finish: " << ctime(&timeNow) << endl;
   cout << "\n****** Finished Kojak Analysis ******" << endl;
-
   return 0;
 }

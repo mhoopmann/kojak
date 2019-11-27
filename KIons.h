@@ -53,6 +53,7 @@ public:
   void      buildSingletIons  (int link);
   double    getAAMass         (char aa, bool n15=false);
   double    getFixedModMass   (char aa);
+  void      makeIonIndex      (double binSize, double binOffset);
   void      modIonsRec        (int start, int link, int index, int depth, bool xl);
   void      modIonsRec2       (int start, int link, int index, int depth, bool xl);
   void      modLoopIonsRec    (int start, int link, int link2, int index, int depth, bool xl);
@@ -76,7 +77,7 @@ public:
   void  setMaxModCount  (int i);
   void  setModFlags     (bool monoMods, bool difMods);
   void  setPeptide      (bool bPepOne, char* seq, int len, double mass, bool nTerm, bool cTerm, bool n15);
-
+  void  setSeries       (bool a, bool b, bool c, bool x, bool y, bool z);
   //Data Members
   double* modList;
   bool site[128]; //possible sites of linkage based on parameters
@@ -124,6 +125,15 @@ private:
   std::vector<kModPos> modQueue;
   std::vector<double>  modMassArray;
   std::vector<KIonSet> sets;
+
+  KIonSet ionBlank;
+
+  bool seriesA;
+  bool seriesB;
+  bool seriesC;
+  bool seriesX;
+  bool seriesY;
+  bool seriesZ;
 
   //Utilities
   static int compareD(const void *p1,const void *p2);

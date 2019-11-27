@@ -119,9 +119,9 @@ int KojakManager::run(){
     //if(params.intermediate>0) spec.outputIntermediate(db);
 
     char ts[16];
-    sprintf(ts,"%d",DECOY_SIZE);
+    sprintf(ts,"%d",params.decoySize);
     log.addMessage("Calculating e-values (" + string(ts) + ")",true);
-    cout << "  Calculating e-values (" << DECOY_SIZE << ")... ";
+    cout << "  Calculating e-values (" << params.decoySize << ")... ";
     anal.doEValueAnalysis();
 
     log.addMessage("Finish spectral search.",true);

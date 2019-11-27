@@ -284,6 +284,12 @@ void KParams::parse(const char* cmd) {
     }
     logParam(xml);
 
+  } else if (strcmp(param, "e_value_depth") == 0){
+    params->decoySize = atoi(&values[0][0]);
+    xml.name = "e_value_depth";
+    xml.value = values[0];
+    logParam(xml);
+
   } else if (strcmp(param, "export_mzID") == 0 || strcmp(param, "export_mzid") == 0){
     if (atoi(&values[0][0]) != 0) params->exportMzID = true;
     else params->exportMzID = false;

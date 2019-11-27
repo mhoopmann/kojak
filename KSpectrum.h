@@ -26,6 +26,12 @@ limitations under the License.
 
 #define HISTOSZ 152
 
+//a small structure for defining which ions (a,b,c,x,y,z) to compute for decoys
+typedef struct sDecoyIons{
+  bool b;
+  double mass;
+} sDecoyIons;
+
 class KSpectrum {
 
 public:
@@ -115,15 +121,15 @@ public:
   void  clearPrecursors     ();
   void  checkScore          (kScoreCard& s);
   void  checkSingletScore   (kSingletScoreCard& s);
-  bool  generateSingletDecoys(kParams* params, KDecoys& decoys);
+  //bool  generateSingletDecoys(kParams* params, KDecoys& decoys);
   double  generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex,double score2);
-  bool generateXLDecoys      (kParams* params, KDecoys& decoys);
+  //bool generateXLDecoys      (kParams* params, KDecoys& decoys);
   bool  generateXcorrDecoys (kParams* params, KDecoys& decoys);
-  bool  generateXcorrDecoysXL(kParams* params, KDecoys& decoys);
+  //bool  generateXcorrDecoysXL(kParams* params, KDecoys& decoys);
   void  linearRegression    (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression3   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
-  void  linearRegression4   (int* histo, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
+  void  linearRegression4   (int* histo, int decoySz, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  resetSingletList    ();
   void  sortMZ              ();
   void  xCorrScore          (bool b);
@@ -142,7 +148,9 @@ private:
   float                 rTime;
   int                   scanNumber;
   int                   singletCount;
-  
+
+  int decoyIonSz;
+  sDecoyIons decoyIons[6];
   
   std::vector<KTopPeps>*     singlets;
   std::vector<kSpecPoint>*   spec;

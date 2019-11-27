@@ -102,6 +102,8 @@ KAnalysis::KAnalysis(kParams& p, KDatabase* d, KData* dat){
     }
   }
 
+  decoys.decoySize=params.decoySize;
+
   makePepLists();
   skipCount=0;
   nonSkipCount=0;
@@ -141,7 +143,6 @@ KAnalysis::~KAnalysis(){
   spec=NULL;
   xlTable=NULL;
   klog=NULL;
-  
 }
 
 //============================
@@ -250,7 +251,6 @@ bool KAnalysis::doPeptideAnalysis(){
   delete threadPool;
   threadPool=NULL;
   p=NULL;
-
   return true;
 }
 
@@ -339,7 +339,6 @@ void KAnalysis::analyzeEValueProc(KSpectrum* s){
 //Analyzes all single peptides. Also analyzes cross-linked peptides when in full search mode, 
 //or stage 1 of relaxed mode analysis
 bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
-
   int j;
   size_t k,k2,k3;
   bool bt;
@@ -373,7 +372,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
       return true;
     }
   } else {
-    if (p->xlSites == 0) return true;
+    if (p->xlSites == 0)  return true;
   }
 
   //Crosslinked peptides must also search singlets with reciprocol mass on each lysine
@@ -486,19 +485,22 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
 }
 
 bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, double highLinkMass, int iIndex){
-
   int i;
   size_t j;
   int k;
   int len;
   char mot[10];
   char site[10];
-  int m,n,x;
+  int m,n;
   double minMass;
   double maxMass;
   vector<int> scanIndex;
   string pepSeq;
   bool bSearch;
+
+  int counterMotif;
+  int xlIndex;
+  double xlMass;
 
   //get the peptide sequence
   db->getPeptideSeq(pep,pepSeq);
@@ -568,6 +570,7 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
     ions[iIndex].reset();
     ions[iIndex].buildSingletIons(k);
     ions[iIndex].modIonsRec2(0,k,0,0,true);
+    //ions[iIndex].makeIonIndex(params.binSize, params.binOffset);
 
     //iterate through all ion sets
     for(i=0;i<ions[iIndex].size();i++){
@@ -578,24 +581,23 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
       //Iterate all spectra from (peptide mass + low linker + minimum mass) to (peptide mass + high linker + maximum mass)
       if (!spec->getBoundaries(minMass + ions[iIndex][i].difMass, maxMass + ions[iIndex][i].difMass, scanIndex, scanBuffer[iIndex])) continue;
 
-      for(j=0;j<scanIndex.size();j++){ //iterate over all potential spectra
-        for (n = 0; n < m; n++){ //iterate over sites
-          x=0;
-          while (spec->getCounterMotif(mot[n], x)>-1){ //only check peptide if it has a counterpart at this link site.
-            bSearch = scoreSingletSpectra2(scanIndex[j], i, ions[iIndex][i].mass, spec->getLink(spec->getXLIndex((int)mot[n], x)).mass, spec->getCounterMotif((int)mot[n], x), len, index, (char)k, minMass, iIndex, site[n], spec->getXLIndex((int)mot[n], x));
-            if (bSearch) break;
-            x++;
+      //This set of iterations is slow because of the amount of iterating.
+      for (n = 0; n < m; n++){ //iterate over sites
+        counterMotif = spec->getCounterMotif(mot[n], 0);
+        if (counterMotif>-1){ //only check peptide if it has a counterpart at this link site.
+          xlIndex = spec->getXLIndex((int)mot[n], 0);
+          xlMass = spec->getLink(xlIndex).mass;
+          for (j = 0; j<scanIndex.size(); j++){ //iterate over all potential spectra
+            bSearch = scoreSingletSpectra2(scanIndex[j], i, ions[iIndex][i].mass, xlMass, counterMotif, len, index, (char)k, minMass, iIndex, site[n], xlIndex);
           }
-          if (bSearch) break;
         }
       }
     }
-
   }
-
   return true;
 }
 
+/* Deprecating
 bool KAnalysis::analyzeSingletsNC(kPeptide& pep, int index, int iIndex){
   int len;
   int i;
@@ -618,6 +620,7 @@ bool KAnalysis::analyzeSingletsNC(kPeptide& pep, int index, int iIndex){
   ions[iIndex].reset();
   ions[iIndex].buildIons();
   ions[iIndex].modIonsRec2(0, -1, 0, 0, false);
+  //ions[iIndex].makeIonIndex(params.binSize, params.binOffset);
 
   //iterate through all ion sets
   for (i = 0; i<ions[iIndex].size(); i++){
@@ -631,6 +634,7 @@ bool KAnalysis::analyzeSingletsNC(kPeptide& pep, int index, int iIndex){
   return true;
 
 }
+*/
 
 /*============================
   Private Functions
@@ -643,6 +647,7 @@ bool KAnalysis::allocateMemory(int threads){
   for(int i=0;i<threads;i++) {
     bKIonsManager[i]=false;
     ions[i].setModFlags(params.monoLinksOnXL,params.diffModsOnXL);
+    ions[i].setSeries(params.ionSeries[0],params.ionSeries[1],params.ionSeries[2],params.ionSeries[3],params.ionSeries[4], params.ionSeries[5]);
     scanBuffer[i] = new bool[spec->size()];
     for(j=0;j<params.xLink->size();j++){
       for(k=0;k<params.xLink->at(j).motifA.size();k++){
@@ -705,102 +710,6 @@ int KAnalysis::findMass(kSingletScoreCardPlus* s, int sz, double mass){
   return mid;
 }
 
-
-//This function is way out of date. Particularly the mutexes and how to deal with multiple precursors.
-void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len, int pep, char k, double minMass, int iIndex){
-  kSingletScoreCard sc;
-  KIonSet* iset;
-  kPepMod mod;
-  float score=0;
-  int matches;
-  int conFrag;
-  int i,j;
-  vector<kPepMod> v;
-
-  cout << "In deprecated scoreSingletSpectra" << endl;
-  exit(-107);
-
-  //need to intercept for second pass analysis.
-  //need to mark peptides in top list as noncovalent? (probably yes)
-  //only match against other noncovalent peptides
-  //cout << "singlet" << endl;
-  KSpectrum* s=spec->getSpectrum(index);
-  kPrecursor* p;
-  KTopPeps* tp;
-  int sz=s->sizePrecursor();
-  for(i=0;i<sz;i++){
-    p=s->getPrecursor2(i);
-    if(p->monoMass<minMass) continue;
-    score=kojakScoring(index,p->monoMass-mass,sIndex,iIndex,matches,conFrag,p->charge);
-    if(score==0) continue;
-    tp = s->getTopPeps(i);
-    //cout << tp->singletCount << "\t" << tp->singletMax << endl;
-
-    Threading::LockMutex(mutexSingletScore[index][i]); //does this need to be locked? Is locking more overhead than savings?
-    if (tp->singletCount == tp->singletMax && score<tp->singletLast->simpleScore) {
-      Threading::UnlockMutex(mutexSingletScore[index][i]);
-      continue; //don't bother with the singlet overhead if it won't make the list
-    }
-    Threading::UnlockMutex(mutexSingletScore[index][i]);
-
-    sc.len = len;
-    sc.simpleScore = score;
-    sc.k1 = k;
-    sc.linkable = false;
-    sc.pep1 = pep;
-    sc.mass = mass;
-    sc.pre = i;
-    sc.matches=matches;
-    sc.conFrag=conFrag;
-    v.clear();
-    if (sc.mods != NULL) {
-      sc.modLen = 0;
-      delete[] sc.mods;
-      sc.mods = NULL;
-    }
-    iset = ions[iIndex].at(sIndex);
-    if (iset->difMass != 0){
-      for (j = 0; j<ions[iIndex].getIonCount(); j++) {
-        if (iset->mods[j] != 0){
-          if (j == 0){
-            if (iset->nTermMass != 0){
-              mod.pos = -1;
-              mod.mass = iset->nTermMass;
-              v.push_back(mod);
-            }
-            if (fabs(iset->mods[j] - iset->nTermMass)<0.0001) continue;
-          }
-          if (j == ions[iIndex].getIonCount() - 1){
-            if (iset->cTermMass != 0){
-              mod.pos = -2;
-              mod.mass = iset->cTermMass;
-              v.push_back(mod);
-            }
-            if (fabs(iset->mods[j] - iset->cTermMass)<0.0001) continue;
-          }
-          //if (j == 0 && iset->modNTerm) mod.term = true;
-          //else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
-          //else mod.term = false;
-          mod.pos = (char)j;
-          mod.mass = iset->mods[j];
-          v.push_back(mod);
-        }
-      }
-      sc.modLen = (char)v.size();
-      sc.mods = new kPepMod[sc.modLen];
-      for (j = 0; j<(int)sc.modLen; j++) sc.mods[j] = v[j];
-    }
-
-    //cout << "Before scoring : " << i << endl;
-    Threading::LockMutex(mutexSingletScore[index][i]);
-    tp->checkSingletScore(sc);
-    Threading::UnlockMutex(mutexSingletScore[index][i]);
-    //cout << "After scoring : " << i << endl;
-  }
-  //cout << "end singlet" << endl;
-
-}
-
 //Breakdown of the many parameters:
 // index   = spectrum index in data spectra object
 // sIndex  = ion set index
@@ -814,7 +723,7 @@ void KAnalysis::scoreSingletSpectra(int index, int sIndex, double mass, int len,
 // iIndex  = thread index
 // linkSite  = amino acid being linked (or 'n' or 'c')
 // linkIndex = motif index of linked amino acid or terminus
-bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex){
+bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex){ 
   kSingletScoreCard sc;
   kSingletScoreCard* tsc;
   KIonSet* iset;
@@ -1081,7 +990,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       //bScored=true;
     }
   }
-
   return bScored;
 }
 
@@ -1116,6 +1024,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     Threading::UnlockMutex(mutexSpecScore[index[a]]);
     if(sc.simpleScore<0.1)  continue;
 
+    //maybe do all this only if the score is going to make the list? see singlets above
     sc.mods1->clear();
     sc.mods2->clear();
     sc.score1=sc.simpleScore;
@@ -1163,7 +1072,6 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     spec->at(index[a]).checkScore(sc);
     Threading::UnlockMutex(mutexSpecScore[index[a]]);
   }
-
 }
 
 //An alternative score uses the XCorr metric from the Comet algorithm
@@ -1172,6 +1080,9 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
   KSpectrum* s=spec->getSpectrum(specIndex);
   KIonSet* ki=ions[iIndex].at(sIndex);
+  if (!ki->index) {
+    ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
+  }
 
   double dXcorr=0.0;
   double invBinSize=s->getInvBinSize();
@@ -1191,8 +1102,8 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   conFrag=0;
 
   //Assign ion series
-  double***  ionSeries;
-  ionSeries=new double**[numIonSeries];
+  kISValue***  ionSeries;
+  ionSeries=new kISValue**[numIonSeries];
   k=0;
   if(params.ionSeries[0]) ionSeries[k++]=ki->aIons;
   if(params.ionSeries[1]) ionSeries[k++]=ki->bIons;
@@ -1216,28 +1127,50 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
       for(i=0;i<ionCount;i++){
 
-        //get key
-        if(ionSeries[j][k][i]<0) mz = params.binSize * (int)((dif-ionSeries[j][k][i])*invBinSize+binOffset);
-        else mz = params.binSize * (int)(ionSeries[j][k][i]*invBinSize+binOffset);
-        key = (int)mz;
-        if(key>=s->kojakBins) {
-          if (con>conFrag) conFrag = con;
-          con = 0;
-          break;
-        }
-        if(s->kojakSparseArray[key]==NULL) {
-          if (con>conFrag) conFrag = con;
-          con = 0;
-          continue;
-        }
-        pos = (int)((mz-key)*invBinSize);
-        dXcorr += s->kojakSparseArray[key][pos];
-        if (s->kojakSparseArray[key][pos]>5) {
-          match++;
-          con++;
+        //get key -- see if this can be precomputed for the half that doesn't contain the linked peptide
+        if(ionSeries[j][k][i].mz<0) {
+          mz = params.binSize * (int)((dif-ionSeries[j][k][i].mz)*invBinSize+binOffset);
+          key = (int)mz;
+          if(key>=s->kojakBins) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            break;
+          }
+          if(s->kojakSparseArray[key]==NULL) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            continue;
+          }
+          pos = (int)((mz-key)*invBinSize);
+          dXcorr += s->kojakSparseArray[key][pos];
+          if (s->kojakSparseArray[key][pos]>5) {
+            match++;
+            con++;
+          } else {
+            if(con>conFrag) conFrag=con;
+            con=0;
+          }
         } else {
-          if(con>conFrag) conFrag=con;
-          con=0;
+          key=ionSeries[j][k][i].key;
+          if (key >= s->kojakBins) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            break;
+          }
+          if (s->kojakSparseArray[key] == NULL) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            continue;
+          }
+          pos = ionSeries[j][k][i].pos;
+          dXcorr += s->kojakSparseArray[key][pos];
+          if (s->kojakSparseArray[key][pos]>5) {
+            match++;
+            con++;
+          } else {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+          }
         }
       }
     }
@@ -1258,10 +1191,10 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   if (params.ionSeries[5]) ionSeries[k++] = NULL;
 
   delete[] ionSeries;
-
   return float(dXcorr);
 }
 
+/* kruft?
 void KAnalysis::setBinList(kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen){
 
   KIonSet* ki=ions[iIndex].at(0);
@@ -1377,6 +1310,7 @@ void KAnalysis::setBinList(kMatchSet* m, int iIndex, int charge, double preMass,
   delete [] modRev;
 
 }
+*/
 
 void KAnalysis::setLog(KLog* c){
   klog=c;
@@ -1457,7 +1391,7 @@ void KAnalysis::makePepLists(){
       //These should be modified for quick mass calculations without ion series expansion
       ions[0].setPeptide(true, &db->at(p->at(i).map->at(0).index).sequence[p->at(i).map->at(0).start], p->at(i).map->at(0).stop - p->at(i).map->at(0).start + 1, p->at(i).mass, p->at(i).nTerm, p->at(i).cTerm,p->at(i).n15);
       ions[0].buildIons();
-      ions[0].modIonsRec(0, -1, 0, 0, false);
+      ions[0].modIonsRec(0, -1, 0, 0, false); //does this need to be modIonsRec2???
       for (m = 1; m<ions[0].size(); m++) v.push_back(ions[0][m].mass);
     } //i
 

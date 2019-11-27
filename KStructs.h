@@ -128,6 +128,7 @@ typedef struct kEnzymeRules{
 } kEnzymeRules;
 
 typedef struct kParams {
+  int     decoySize;
   int     instrument;     //0=Orbi, 1=FTICR
   int     intermediate;
   int     isotopeError;
@@ -180,6 +181,7 @@ typedef struct kParams {
   std::vector<kMass>*    mods;
   std::vector<kMass>*    fMods;
   kParams(){
+    decoySize=5000;
     instrument=1;
     intermediate=0;
     isotopeError=1;
@@ -238,6 +240,7 @@ typedef struct kParams {
     fMods = new std::vector<kMass>;
   }
   kParams(const kParams& p){
+    decoySize=p.decoySize;
     instrument=p.instrument;
     intermediate=p.intermediate;
     isotopeError=p.isotopeError;
@@ -300,6 +303,7 @@ typedef struct kParams {
   }
   kParams& operator=(const kParams& p){
     if(this!=&p){
+      decoySize=p.decoySize;
       instrument=p.instrument;
       intermediate=p.intermediate;
       isotopeError = p.isotopeError;
