@@ -782,6 +782,10 @@ bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
   size_t i;
 
   char str[256];
+  char pre;
+  char post;
+
+  bool isDecoy;
 
   kPeptide pep;
 
@@ -986,7 +990,14 @@ bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
     protein = db[pep.map->at(i).index].name;
     proteinDesc = "";
     dbSequence_ref = m.addDBSequence(protein, searchDatabase_ref, proteinDesc);
-    pepRef.push_back(m.addPeptideEvidence(dbSequence_ref, peptide_ref));
+
+    if (pep.map->at(i).start<1) pre = '-';
+    else pre = db[pep.map->at(i).index].sequence[pep.map->at(i).start - 1];
+    if ((size_t)pep.map->at(i).stop + 1 == db[pep.map->at(i).index].sequence.size()) post = '-';
+    else post = db[pep.map->at(i).index].sequence[(size_t)pep.map->at(i).stop + 1];
+    isDecoy = db[pep.map->at(i).index].decoy;
+
+    pepRef.push_back(m.addPeptideEvidence(dbSequence_ref, peptide_ref,(int)pep.map->at(i).start+1,(int)pep.map->at(i).stop+1,pre,post,isDecoy));
   }
 
   //Add PSM
@@ -1020,18 +1031,25 @@ bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
   if (peptide_ref2.compare("null") != 0){
     //Add all proteins mapped by this peptide
     pepRef.clear();
-    pep = db.getPeptide(r.pep1);
+    pep = db.getPeptide(r.pep2);
     for (i = 0; i<pep.map->size(); i++){
       if (pep.n15 && db[pep.map->at(i).index].name.find(params->n15Label) == string::npos) continue;
       if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(i).index].name.find(params->n15Label) != string::npos) continue;
       protein = db[pep.map->at(i).index].name;
       proteinDesc = "";
       dbSequence_ref = m.addDBSequence(protein, searchDatabase_ref, proteinDesc);
-      pepRef.push_back(m.addPeptideEvidence(dbSequence_ref, peptide_ref2));
+
+      if (pep.map->at(i).start<1) pre = '-';
+      else pre = db[pep.map->at(i).index].sequence[pep.map->at(i).start - 1];
+      if ((size_t)pep.map->at(i).stop + 1 == db[pep.map->at(i).index].sequence.size()) post = '-';
+      else post = db[pep.map->at(i).index].sequence[(size_t)pep.map->at(i).stop + 1];
+      isDecoy = db[pep.map->at(i).index].decoy;
+
+      pepRef.push_back(m.addPeptideEvidence(dbSequence_ref, peptide_ref2, pep.map->at(i).start + 1, pep.map->at(i).stop + 1, pre, post, isDecoy));
     }
 
     //Add PSM
-    sii = sir->addSpectrumIdentificationItem(r.charge, (r.obsMass + 1.007276466*r.charge) / r.charge, 1, pepRef, true, peptide_ref);
+    sii = sir->addSpectrumIdentificationItem(r.charge, (r.obsMass + 1.007276466*r.charge) / r.charge, 1, pepRef, true, peptide_ref2);
     sii->calculatedMassToCharge = (r.psmMass + 1.007276466*r.charge) / r.charge;
     sii->addCvParam("MS:1002511", "PSI-MS", "cross-link spectrum identification item", "", "", "", value);
 
@@ -1211,9 +1229,9 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     siteA = pep.map->at(j).start+r.link1;
     if(r.type==1){
       siteB = pep.map->at(j).start+r.link2;
-      sh.addProtein(protein, c, n,siteA,siteB);
+      sh.addProtein(protein, c, n, (int)pep.map->at(j).start + 1,siteA, siteB);
     } else {
-      sh.addProtein(protein,c,n,siteA);
+      sh.addProtein(protein, c, n, (int)pep.map->at(j).start + 1, siteA);
     }
   }
 
@@ -1239,7 +1257,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
       if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
       else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
       siteA = pep.map->at(j).start + r.link2;
-      shB.addProtein(protein,c,n,siteA);
+      shB.addProtein(protein, c, n, (int)pep.map->at(j).start+1,siteA);
     }
   }
 

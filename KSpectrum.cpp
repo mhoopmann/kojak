@@ -500,6 +500,7 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
   double dRSquare,dRSquareS;
   bool bSkipXL=false;
   bool bSingletFail=false;
+  dSlopeS = 0;
 
   tmpSingCount = histogramSingletCount;
   tmpHistCount = histogramCount;

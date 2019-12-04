@@ -74,7 +74,8 @@ int KojakManager::run(){
   if (!db.setEnzyme(params.enzyme)) exit(-3);
   db.setXLTable(spec.getXLTable(), 128, 20);
   cout << "\n Reading FASTA database: " << params.dbFile << endl;
-  if (!db.buildDB(params.dbFile)){
+  string str=params.decoy;
+  if (!db.buildDB(params.dbFile,str)){
     cout << "  Error opening database file: " << params.dbFile << endl;
     return -1;
   }

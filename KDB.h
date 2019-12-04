@@ -36,7 +36,7 @@ public:
   kDB& operator[ ](const int& i);
 
   //User Functions
-  bool  buildDB       (char* fname);                     //Reads FASTA file and populates vDB
+  bool  buildDB       (const char* fname, std::string decoyStr="");                     //Reads FASTA file and populates vDB
   bool  buildPeptides (double min, double max, int mis); //Make peptide list within mass boundaries and miscleavages.
 
   //Accessors & Modifiers

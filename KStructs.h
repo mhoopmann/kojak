@@ -28,6 +28,7 @@ limitations under the License.
 
 //FASTA database structure
 typedef struct kDB{
+  bool decoy;
   std::string name;      //FASTA header
   std::string sequence;  //FASTA sequence
 } kDB;

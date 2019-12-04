@@ -104,7 +104,7 @@ kDB& KDatabase::operator[ ](const int& i){
 //==============================
 
 //buildDB reads in a FASTA file and stores it in memory.
-bool  KDatabase::buildDB(char* fname) {
+bool  KDatabase::buildDB(const char* fname, string decoyStr) {
   char    str[10240];
   char*   tok;
   FILE*   f;
@@ -129,6 +129,8 @@ bool  KDatabase::buildDB(char* fname) {
           if (klog != NULL) klog->addDBWarning(d.name + " has a sequence that is too long. It will be skipped.");
           else cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
         } else {
+          if(d.name.find(decoyStr)!=string::npos) d.decoy=true;
+          else d.decoy=false;
           vDB.push_back(d);
         }
       }
@@ -157,6 +159,8 @@ bool  KDatabase::buildDB(char* fname) {
     if (klog != NULL) klog->addDBWarning(d.name + " has a sequence that is too long. It will be skipped.");
     else cout << "  WARNING: " << &d.name[0] << " has a sequence that is too long. It will be skipped." << endl;
    } else {
+    if (d.name.find(decoyStr) != string::npos) d.decoy = true;
+    else d.decoy = false;
     vDB.push_back(d);
   }
 
