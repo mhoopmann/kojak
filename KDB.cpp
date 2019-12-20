@@ -165,9 +165,77 @@ bool  KDatabase::buildDB(const char* fname, string decoyStr) {
   }
 
   cout << "  Total Proteins: " << vDB.size() << endl;
+
   return true;
 }
 
+void KDatabase::buildDecoy(string decoy_label) {
+
+  typedef struct clips {
+    int start;
+    int stop;
+  } clips;
+
+  size_t i, j,sz;
+  vector<clips> cut;
+  clips c;
+
+  sz = vDB.size();
+  for (i = 0; i < sz; i++) {
+
+    cut.clear();
+    c.start = -1;
+    //if (vDB[i].sequence[0] == 'M')j = 1; //leave leading methionines in place
+    //else j = 0;
+    for (j = 1; j < vDB[i].sequence.size(); j++) {
+      if (enzyme.cutN[vDB[i].sequence[j]] || enzyme.cutC[vDB[i].sequence[j]]) {
+        if (c.start > -1) { //mark the space in between
+          c.stop = (int)j - 1;
+          cut.push_back(c);
+          c.start = -1; //reset
+        }
+      } else {
+        if (c.start < 0) c.start = (int)j;
+      }
+    }
+    if (!enzyme.cutN[vDB[i].sequence[j - 1]] && !enzyme.cutC[vDB[i].sequence[j - 1]]) { //check last amino acid
+      c.stop = (int)j - 1;
+      cut.push_back(c);
+    }
+
+    //reverse the sequences
+    string rev;
+    kDB decoy = vDB[i];
+    decoy.name = decoy_label + "_" + decoy.name;
+    for (j = 0; j < cut.size(); j++) {
+      rev.clear();
+
+      //adjust ends for restrictive sites
+      while (enzyme.exceptN[decoy.sequence[cut[j].start]] || enzyme.exceptC[decoy.sequence[cut[j].start]]) {
+        cut[j].start++;
+        if (cut[j].start == decoy.sequence.size()) break;
+      }
+      while (enzyme.exceptN[decoy.sequence[cut[j].stop]] || enzyme.exceptC[decoy.sequence[cut[j].stop]]) {
+        cut[j].stop--;
+        if (cut[j].stop == -1) break;
+      }
+      if (cut[j].start == decoy.sequence.size()) continue; //skip when out of bounds
+      if (cut[j].stop == -1) continue; //skip when out of bounds
+      if (cut[j].stop <= cut[j].start) continue; //skip if nothing will happen
+
+
+      for (size_t k = cut[j].stop; k >= cut[j].start; k--) {
+        rev += decoy.sequence[k];
+        if (k == 0) break;
+      }
+      decoy.sequence.replace(cut[j].start, (size_t)cut[j].stop - (size_t)cut[j].start + 1, rev);
+    }
+
+    vDB.push_back(decoy);
+  }
+
+  cout << "  Adding Kojak-generated decoys. New Total Proteins: " << vDB.size() << endl;
+}
 
 //buildPeptides creates lists of peptides to search based on the user-defined enzyme rules
 bool KDatabase::buildPeptides(double min, double max, int mis){
@@ -313,6 +381,15 @@ bool KDatabase::buildPeptides(double min, double max, int mis){
 
   }
 
+  /* Diagnostic block - probably safe to give the boot
+  cout << vPep.size() << endl;
+  kPepSort ps2;
+  for (i = 0; i < vPep.size(); i++) {
+    getPeptideSeq(vPep[i].map->at(0).index, vPep[i].map->at(0).start, vPep[i].map->at(0).stop, ps2.sequence);
+    cout << ps2.sequence << "\t" << vPep[i].map->at(0).start << endl;
+  }
+  */
+
   //merge duplicates
   kPepSort ps;
   ps.index=0;
@@ -375,6 +452,16 @@ bool KDatabase::buildPeptides(double min, double max, int mis){
   */
   return true;
 
+}
+
+void KDatabase::exportDB(string fName) {
+  size_t i;
+  FILE* f = fopen(fName.c_str(), "wt");
+  for (i = 0; i < vDB.size(); i++) {
+    fprintf(f,">%s\n",vDB[i].name.c_str());
+    fprintf(f,"%s\n",vDB[i].sequence.c_str());
+  }
+  fclose(f);
 }
 
 //==============================

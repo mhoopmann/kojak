@@ -101,6 +101,7 @@ bool KParams::buildOutput(char* in, char* base, char* ext){
     } else {
       tmp = params->resPath;
     }
+    params->fullPath=tmp;
     outFile = base;
     i = outFile.find_last_of("/\\");
     if (i != string::npos) outFile = outFile.substr(i + 1);
@@ -264,8 +265,14 @@ void KParams::parse(const char* cmd) {
     logParam("diff_mods_on_xl",values[0]);
 
 	} else if(strcmp(param,"decoy_filter")==0){
-    strcpy(params->decoy,&values[0][0]);
-    logParam("decoy_filter",values[0]);
+    if (values.size()!=2) {
+      warn("ERROR: bad decoy_filter parameter. Suspected use of deprecated format.", 3);
+      exit(-5);
+    }
+    strcpy(params->decoy,values[0].c_str());
+    if (atoi(values[1].c_str()) == 0) params->buildDecoy = false;
+    else params->buildDecoy = true;
+    logParam("decoy_filter",values[0] + " " + values[1]);
  
   } else if(strcmp(param,"enrichment")==0){
     params->enrichment=atof(&values[0][0]);
@@ -442,6 +449,12 @@ void KParams::parse(const char* cmd) {
 	} else if(strcmp(param,"min_peptide_mass")==0){
     params->minPepMass=atof(&values[0][0]);
     xml.name = "min_peptide_mass";
+    xml.value = values[0];
+    logParam(xml);
+
+  } else if (strcmp(param, "min_spectrum_peaks") == 0) {
+    params->minPeaks = atoi(&values[0][0]);
+    xml.name = "min_spectrum_peaks";
     xml.value = values[0];
     logParam(xml);
 

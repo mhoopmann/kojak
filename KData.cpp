@@ -1411,6 +1411,17 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   FILE* fDimer  = NULL;
   FILE* fDiag   = NULL;
 
+  //Export FASTA database if Kojak generated the decoys.
+  if (params->buildDecoy) {
+    outFile = params->dbFile;
+    i = outFile.find_last_of("/\\");
+    if (i != string::npos) outFile = outFile.substr(i + 1);
+    outFile = params->fullPath + slashdir + outFile;
+    outFile+=".kojak.fasta";
+    db.exportDB(outFile);
+    strcpy(params->dbFile, outFile.c_str());
+  }
+
   //Open all the required output files.
   bBadFiles=false;
   sprintf(fName,"%s.kojak.txt",params->outFile);
@@ -2054,7 +2065,7 @@ bool KData::readSpectra(){
     }
 
     //Add spectrum (if it has enough data points) to data object and read next file
-    if(pls.size()>12) spec.push_back(pls);
+    if(pls.size()>params->minPeaks) spec.push_back(pls);
 
     /*
     for(unsigned int d=0;d<params->diag->size();d++){
@@ -2085,7 +2096,7 @@ bool KData::readSpectra(){
   if(iPercent<100) printf("\b\b\b100%%");
   cout << endl;
 
-  cout << "  " << spec.size() << " total spectra have enough data points for searching." << endl;
+  cout << "  " << spec.size() << " total spectra have enough data points (" << params->minPeaks << " peaks) for searching." << endl;
   //cout << totalScans << " total scans were loaded." <<  endl;
   //cout << totalPeaks << " total peaks in original data." << endl;
   //cout << collapsedPeaks << " peaks after collapsing." << endl;

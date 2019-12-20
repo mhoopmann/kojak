@@ -37,7 +37,9 @@ public:
 
   //User Functions
   bool  buildDB       (const char* fname, std::string decoyStr="");                     //Reads FASTA file and populates vDB
+  void  buildDecoy    (std::string decoy_label);
   bool  buildPeptides (double min, double max, int mis); //Make peptide list within mass boundaries and miscleavages.
+  void  exportDB      (std::string fName);
 
   //Accessors & Modifiers
   void                addFixedMod         (char mod, double mass);

@@ -9,7 +9,7 @@
 #include "KParams.h"
 
 #define VERSION "2.0.0 alpha 2"
-#define BDATE "December 2 2019"
+#define BDATE "December 20 2019"
 
 class KojakManager {
 public:

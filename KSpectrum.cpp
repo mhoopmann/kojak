@@ -495,12 +495,11 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
   int iMaxCorr;
   int iStartCorr;
   int iNextCorr;
-  double dSlope,dSlopeS;
-  double dIntercept,dInterceptS;
-  double dRSquare,dRSquareS;
+  double dSlope;
+  double dIntercept;
+  double dRSquare;
   bool bSkipXL=false;
   bool bSingletFail=false;
-  dSlopeS = 0;
 
   tmpSingCount = histogramSingletCount;
   tmpHistCount = histogramCount;
@@ -541,7 +540,6 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
   tmpRSquare = dRSquare;
 
   dSlope *= 10.0;
-  dSlopeS *=10.0;
 
   iLoopCount = 20; //score all e-values among top hits?
   double topScore=topHit[0].simpleScore;
@@ -888,8 +886,6 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   int pos;
   int xlSite;
   int xlLen;
-  double dBion;
-  double dYion;
   double dXcorr;
   double dFragmentIonMass = 0.0;
   double diffMass;
@@ -1092,8 +1088,6 @@ bool KSpectrum::generateXcorrDecoys(kParams* params, KDecoys& decoys) {
   int r;
   int key;
   int pos;
-  double dBion;
-  double dYion;
   double dXcorr;
   double dFragmentIonMass = 0.0;
   int myCount=0;

@@ -135,6 +135,7 @@ typedef struct kParams {
   int     isotopeError;
   int     maxMods;
   int     maxPeaks;
+  int     minPeaks;
   int     miscleave;
   int     ms1Centroid;
   int     ms2Centroid;
@@ -147,6 +148,7 @@ typedef struct kParams {
   int     threads;
   int     topCount;
   int     truncate;
+  bool    buildDecoy;
   bool    diffModsOnXL;
   bool    dimers;
   bool    dimersXL;
@@ -175,6 +177,7 @@ typedef struct kParams {
   char    n15Label[256];
   char    outFile[1024];  //true output file with full path
   char    resPath[1024];
+  std::string fullPath;
   std::vector<kMass>*    aaMass;
   std::vector<int>*      diag;
   std::vector<kLinker>*  xLink;
@@ -188,6 +191,7 @@ typedef struct kParams {
     isotopeError=1;
     maxMods=0;
     maxPeaks=0;
+    minPeaks = 12;
     miscleave=2;
     ms1Centroid=0;
     ms2Centroid=0;
@@ -200,6 +204,7 @@ typedef struct kParams {
     threads=1;
     topCount=250;
     truncate=0;
+    buildDecoy = false;
     diffModsOnXL=false;
     dimers=false;
     dimersXL=true;
@@ -233,6 +238,7 @@ typedef struct kParams {
     n15Label[0]='\0';
     outFile[0]='\0';
     resPath[0]='\0';
+    fullPath = "";
     aaMass = new std::vector<kMass>;
     diag = new std::vector<int>;
     xLink = new std::vector<kLinker>;
@@ -247,6 +253,7 @@ typedef struct kParams {
     isotopeError=p.isotopeError;
     maxMods=p.maxMods;
     maxPeaks=p.maxPeaks;
+    minPeaks = p.minPeaks;
     miscleave=p.miscleave;
     ms1Centroid=p.ms1Centroid;
     ms2Centroid=p.ms2Centroid;
@@ -259,6 +266,7 @@ typedef struct kParams {
     threads=p.threads;
     topCount=p.topCount;
     truncate=p.truncate;
+    buildDecoy = p.buildDecoy;
     diffModsOnXL=p.diffModsOnXL;
     dimers=p.dimers;
     dimersXL=p.dimersXL;
@@ -286,6 +294,7 @@ typedef struct kParams {
     strcpy(n15Label, p.n15Label);
     strcpy(outFile,p.outFile);
     strcpy(resPath, p.resPath);
+    fullPath = p.fullPath;
     aaMass = new std::vector<kMass>(*p.aaMass);
     diag = new std::vector<int>(*p.diag);
     xLink = new std::vector<kLinker>(*p.xLink);
@@ -310,6 +319,7 @@ typedef struct kParams {
       isotopeError = p.isotopeError;
       maxMods=p.maxMods;
       maxPeaks=p.maxPeaks;
+      minPeaks = p.minPeaks;
       miscleave=p.miscleave;
       ms1Centroid=p.ms1Centroid;
       ms2Centroid=p.ms2Centroid;
@@ -322,6 +332,7 @@ typedef struct kParams {
       threads=p.threads;
       topCount=p.topCount;
       truncate=p.truncate;
+      buildDecoy = p.buildDecoy;
       diffModsOnXL=p.diffModsOnXL;
       dimers=p.dimers;
       dimersXL=p.dimersXL;
@@ -349,6 +360,7 @@ typedef struct kParams {
       strcpy(n15Label, p.n15Label);
       strcpy(outFile,p.outFile);
       strcpy(resPath, p.resPath);
+      fullPath = p.fullPath;
       delete aaMass;
       delete diag;
       delete xLink;
