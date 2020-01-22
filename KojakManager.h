@@ -1,10 +1,6 @@
 #ifndef _KOJAKMANAGER_H
 #define _KOJAKMANAGER_H
 
-#include "KAnalysis.h"
-#include "KData.h"
-#include "KDB.h"
-#include "KIons.h"
 #include "KLog.h"
 #include "KParams.h"
 
@@ -34,7 +30,7 @@ private:
   std::string paramFile;
   KParams param_obj;
   kParams params;
-  
+
 };
 
 #endif

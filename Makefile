@@ -21,6 +21,9 @@ KOJAK = KojakManager.o KParams.o KAnalysis.o KData.o KDB.o KPrecursor.o KSpectru
 kojak : Kojak.cpp $(KOJAK)
 	$(CC) $(FLAGS) $(INCLUDE) $(KOJAK) Kojak.cpp $(LIBPATH) $(LIBS) -o kojak
 
+libkojaksearch.a : $(KOJAK)
+	ar rcs libkojaksearch.a $(KOJAK)
+
 clean:
 	rm *.o kojak
 
@@ -28,7 +31,7 @@ clean:
 #Kojak objects
 KojakManager.o : KojakManager.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KojakManager.cpp -c
-	
+
 KParams.o : KParams.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KParams.cpp -c
 
@@ -49,19 +52,19 @@ KSpectrum.o : KSpectrum.cpp
 
 KIons.o : KIons.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KIons.cpp -c
-		
+
 KIonSet.o : KIonSet.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KIonSet.cpp -c
-	
+
 KLog.o : KLog.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KLog.cpp -c
-	
+
 KTopPeps.o : KTopPeps.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KTopPeps.cpp -c
-		
+
 Threading.o : Threading.cpp
 	$(CC) $(FLAGS) $(INCLUDE) Threading.cpp -c
-	
+
 CometDecoys.o : CometDecoys.cpp
 	$(CC) $(FLAGS) $(INCLUDE) CometDecoys.cpp -c
 

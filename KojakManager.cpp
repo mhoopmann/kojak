@@ -1,4 +1,8 @@
 #include "KojakManager.h"
+#include "KAnalysis.h"
+#include "KData.h"
+#include "KDB.h"
+#include "KIons.h"
 
 using namespace std;
 
