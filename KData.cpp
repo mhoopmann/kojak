@@ -1420,6 +1420,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     outFile+=".kojak.fasta";
     db.exportDB(outFile);
     strcpy(params->dbFile, outFile.c_str());
+    params->buildDecoy=false; //only build the decoy library once if in batch mode
   }
 
   //Open all the required output files.

@@ -546,10 +546,10 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
   for (i = 0; i<iLoopCount; i++) {
     if (topHit[i].simpleScore == 0) break; //score all e-values among top hits?
     if (dSlope >= 0.0) {
-      topHit[i].eVal = 999.0;
+      topHit[i].eVal = 1e12;
     } else {
       topHit[i].eVal = pow(10.0, dSlope * topHit[i].simpleScore + dIntercept);
-      if (topHit[i].eVal>999.0) topHit[i].eVal = 999.0;
+      if (topHit[i].eVal>1e12) topHit[i].eVal = 1e12;
     }
     //score individual peptides
     if(topHit[i].score2>0){
@@ -567,12 +567,12 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
       }
     } else {
       if (dSlope >= 0.0) {
-        topHit[i].eVal1 = 999.0;
+        topHit[i].eVal1 = 1e12;
       } else {
         topHit[i].eVal1 = pow(10.0, dSlope * topHit[i].score1 + dIntercept);
-        if (topHit[i].eVal1>999.0) topHit[i].eVal1 = 999.0;
+        if (topHit[i].eVal1>1e12) topHit[i].eVal1 = 1e12;
       }
-      topHit[i].eVal2 = 999.0;
+      topHit[i].eVal2 = 1e12;
     }
   }
   return true;
@@ -912,7 +912,7 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
     for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
       if (decoys.decoyIons[decoyIndex].pdIonsN[j]>mass) break;
     }
-    if(j<1) return 999.0;
+    if(j<1) return 1e12;
     else if(j==1) xlSite=0;
     else xlSite = rand() % (j - 1);
     xlLen = j - 1;
@@ -959,7 +959,7 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   int iMaxCorr,iStartCorr,iNextCorr;
   linearRegression4(tempHistogram, decoys.decoySize, dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr, dRSquare);
   double eVal = pow(10.0, dSlope * 10 * (xcorr+score2) + dIntercept);
-  if(eVal>999.0) eVal=999.0;
+  if(eVal>1e12) eVal=1e12;
 
   return eVal;
 }
