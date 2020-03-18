@@ -20,6 +20,7 @@ limitations under the License.
 #include <cmath>
 #include <list>
 #include <vector>
+#include "KDB.h"
 #include "KStructs.h"
 #include "KTopPeps.h"
 #include "CometDecoys.h"
@@ -130,6 +131,7 @@ public:
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression3   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression4   (int* histo, int decoySz, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
+  void  refreshScore        (KDatabase& db, std::string dStr);  //To be run AFTER analysis completes. Looks at top scores, if a tie, make sure decoys are listed second (to help TPP analysis)
   void  resetSingletList    ();
   void  sortMZ              ();
   void  xCorrScore          (bool b);

@@ -554,7 +554,7 @@ bool KData::mapPrecursors(){
   //precursor mass
   massList.clear();
   for(i=0;i<spec.size();i++){
-    m.index=i;
+    m.index=(int)i;
     for(j=0;j<spec[i].sizePrecursor();j++){
       m.mass=spec[i].getPrecursor(j).monoMass;
       massList.push_back(m);
@@ -1297,10 +1297,10 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   if(params->percVersion>2.04) fprintf(f,"\t%d",r.scanNumber);
   fprintf(f,"\t%.4lf",r.score);
   fprintf(f,"\t%.4lf",r.scoreDelta);
-  fprintf(f,"\t%.3e",r.eVal);
+  fprintf(f,"\t%.6lf",-log10(r.eVal));
   if(r.type==2 || r.type==3) {
-    if (r.scoreA>r.scoreB) fprintf(f,"\t%.3e\t%.3e\t%d\t%d\t%d\t%d\t%d\t%d",r.eVal1,r.eVal2,r.matches1+r.matches2,(r.conFrag1+r.conFrag2)/2,r.matches1,r.conFrag1,r.matches2,r.conFrag2);
-    else fprintf(f, "\t%.3e\t%.3e\t%d\t%d\t%d\t%d\t%d\t%d", r.eVal2, r.eVal1, r.matches1 + r.matches2, (r.conFrag1 + r.conFrag2) / 2, r.matches2, r.conFrag2, r.matches1, r.conFrag1);
+    if (r.scoreA>r.scoreB) fprintf(f,"\t%.6lf\t%.6lf\t%d\t%d\t%d\t%d\t%d\t%d",-log10(r.eVal1),-log10(r.eVal2),r.matches1+r.matches2,(r.conFrag1+r.conFrag2)/2,r.matches1,r.conFrag1,r.matches2,r.conFrag2);
+    else fprintf(f, "\t%.6lf\t%.6lf\t%d\t%d\t%d\t%d\t%d\t%d", -log10(r.eVal2), -log10(r.eVal1), r.matches1 + r.matches2, (r.conFrag1 + r.conFrag2) / 2, r.matches2, r.conFrag2, r.matches1, r.conFrag1);
     fprintf(f,"\t%d\t%.4lf",r.rank,r.scorePepDif);
   } else {
     fprintf(f,"\t%d\t%d",r.matches1,r.conFrag1);
@@ -1309,7 +1309,12 @@ bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
   //else if(r.type==2) fprintf(f,"\t0\t1");
   //else if(r.type==3) fprintf(f,"\t0\t0");
   //else fprintf(f,"\t0\t0");
-  fprintf(f,"\t%d",r.charge);
+  for(int z=1;z<8;z++){
+    if(r.charge==(int)z) fprintf(f,"\t1");
+    else fprintf(f,"\t0");
+  }
+  if(r.charge>7) fprintf(f,"\t1");
+  else fprintf(f,"\t0");
   fprintf(f,"\t%.4lf",r.psmMass);
   fprintf(f,"\t%.4lf",r.ppm);
   p1=r.modPeptide1;
@@ -1402,6 +1407,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   string tmpPep1;
   string tmpPep2;
   string outFile;
+  string dStr;
 
   FILE* fOut    = NULL;
   FILE* fIntra  = NULL;
@@ -1567,23 +1573,23 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   fprintf(fOut,"Scan Number\tRet Time\tObs Mass\tCharge\tPSM Mass\tPPM Error\tScore\tdScore\tE-value\tPeptide #1 Score\tPeptide #1 E-value\tPeptide #1\tLinked AA #1\tProtein #1\tProtein #1 Site\tPeptide #2 Score\tPeptide #2 E-value\tPeptide #2\tLinked AA #2\tProtein #2\tProtein #2 Site\tLinker Mass\n");
   if(params->exportPercolator){
     if(params->percVersion>2.04) {
-      fprintf(fIntra,"SpecId\tLabel\tscannr\tScore\tdScore\teVal\teValA\teValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
-      fprintf(fInter,"SpecId\tLabel\tscannr\tScore\tdScore\teVal\teValA\teValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
-      fprintf(fLoop,"SpecId\tLabel\tscannr\tScore\tdScore\teVal\tIonMatch\tConIonMatch\t");
-      fprintf(fSingle,"SpecId\tLabel\tscannr\tScore\tdScore\teVal\tIonMatch\tConIonMatch\t");
-      if (params->dimers) fprintf(fDimer, "SpecId\tLabel\tscannr\tScore\tdScore\teVal\t");
+      fprintf(fIntra,"SpecId\tLabel\tscannr\tScore\tdScore\tnegLog10eVal\tnegLog10eValA\tnegLog10eValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
+      fprintf(fInter,"SpecId\tLabel\tscannr\tScore\tdScore\tnegLog10eVal\tnegLog10eValA\tnegLog10eValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
+      fprintf(fLoop,"SpecId\tLabel\tscannr\tScore\tdScore\tnegLog10eVal\tIonMatch\tConIonMatch\t");
+      fprintf(fSingle,"SpecId\tLabel\tscannr\tScore\tdScore\tnegLog10eVal\tIonMatch\tConIonMatch\t");
+      if (params->dimers) fprintf(fDimer, "SpecId\tLabel\tscannr\tScore\tdScore\tnegLog10eVal\t");
     } else {
-      fprintf(fIntra,"SpecId\tLabel\tScore\tdScore\teVal\teValA\teValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
-      fprintf(fInter,"SpecId\tLabel\tScore\tdScore\teVal\teValA\teValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
-      fprintf(fLoop,"SpecId\tLabel\tScore\tdScore\teVal\tIonMatch\tConIonMatch\t");
-      fprintf(fSingle,"SpecId\tLabel\tScore\tdScore\teVal\tIonMatch\tConIonMatch\t");
-      if (params->dimers) fprintf(fDimer, "SpecId\tLabel\tScore\tdScore\teVal\t");
+      fprintf(fIntra,"SpecId\tLabel\tScore\tdScore\tnegLog10eVal\tnegLog10eValA\tnegLog10eValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
+      fprintf(fInter,"SpecId\tLabel\tScore\tdScore\tnegLog10eVal\tnegLog10eValA\tnegLog10eValB\tIonMatch\tConIonMatch\tIonMatchA\tConIonMatchA\tIonMatchB\tConIonMatchB\t");
+      fprintf(fLoop,"SpecId\tLabel\tScore\tdScore\tnegLog10eVal\tIonMatch\tConIonMatch\t");
+      fprintf(fSingle,"SpecId\tLabel\tScore\tdScore\tnegLog10eVal\tIonMatch\tConIonMatch\t");
+      if (params->dimers) fprintf(fDimer, "SpecId\tLabel\tScore\tdScore\tnegLog10eVal\t");
     }
-    fprintf(fIntra,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
-    fprintf(fInter,"NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
-    fprintf(fLoop,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
-    fprintf(fSingle,"Charge\tMass\tPPM\tLen\tPeptide\tProteins\n");
-    if (params->dimers) fprintf(fDimer, "NormRank\tPPScoreDiff\tCharge\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
+    fprintf(fIntra,"NormRank\tPPScoreDiff\tCharge1\tCharge2\tCharge3\tCharge4\tCharge5\tCharge6\tCharge7\tCharge8Plus\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
+    fprintf(fInter,"NormRank\tPPScoreDiff\tCharge1\tCharge2\tCharge3\tCharge4\tCharge5\tCharge6\tCharge7\tCharge8Plus\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
+    fprintf(fLoop,"Charge1\tCharge2\tCharge3\tCharge4\tCharge5\tCharge6\tCharge7\tCharge8Plus\tMass\tPPM\tLen\tPeptide\tProteins\n");
+    fprintf(fSingle,"Charge1\tCharge2\tCharge3\tCharge4\tCharge5\tCharge6\tCharge7\tCharge8Plus\tMass\tPPM\tLen\tPeptide\tProteins\n");
+    if (params->dimers) fprintf(fDimer, "NormRank\tPPScoreDiff\\tCharge1\tCharge2\tCharge3\tCharge4\tCharge5\tCharge6\tCharge7\tCharge8Plus\tMass\tPPM\tLenShort\tLenLong\tLenSum\tPeptide\tProteins\n");
   }
   if(fDiag!=NULL){
     fprintf(fDiag,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -1599,7 +1605,11 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
   //Output top score for each spectrum
   //Must iterate through all possible precursors for that spectrum
+  dStr=params->decoy;
   for(i=0;i<spec.size();i++) {
+
+    //update top hits so that a target result is always first among ties between targets and decoys
+    spec[i].refreshScore(db,dStr);
 
     //Check if we need to output diagnostic information
     bDiag=false;

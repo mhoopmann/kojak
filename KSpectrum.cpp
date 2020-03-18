@@ -1927,6 +1927,55 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
   rSquared = bestRSQ;
 }
 
+void KSpectrum::refreshScore(KDatabase& db, string dStr){
+
+  //skip any lists that are empty
+  if(topHit[0].simpleScore==0) return;
+
+  //if not a tie, we're done now.
+  if(topHit[0].simpleScore>topHit[1].simpleScore) return;
+
+  //if we have a tie, but top hit has only targets, we're done now.
+  bool bDecoy=false;
+  size_t i;
+  kPeptide pep;
+  pep=db.getPeptide(topHit[0].pep1);
+  for(i=0;i<pep.map->size();i++){
+    if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  }
+  if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
+    pep=db.getPeptide(topHit[0].pep2);
+    for (i = 0; i<pep.map->size(); i++){
+      if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+    }
+  }
+  if(!bDecoy) return;
+
+  //Now check each tie until we find one that is only targets
+  int j;
+  for(j=1;j<20;j++){
+    if(topHit[j].simpleScore<topHit[0].simpleScore) return; //stop when we are past ties
+    bDecoy=false;
+    pep = db.getPeptide(topHit[j].pep1);
+    for (i = 0; i<pep.map->size(); i++){
+      if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+    }
+    if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
+      pep = db.getPeptide(topHit[j].pep2);
+      for (i = 0; i<pep.map->size(); i++){
+        if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+      }
+    }
+    if(bDecoy) continue; //if a decoy, onward to next peptide
+
+    //otherwise, swap top listing and this one, and we're done
+    kScoreCard tmp=topHit[0];
+    topHit[0]=topHit[j];
+    topHit[j]=tmp;
+    return;
+  }
+}
+
 void KSpectrum::resetSingletList(){
   size_t j;
   double max;
