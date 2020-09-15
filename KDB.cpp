@@ -430,6 +430,77 @@ bool KDatabase::buildPeptides(double min, double max, int mis){
   qsort(&vPep[0],vPep.size(),sizeof(kPeptide),compareMass);
   linkablePepCount=(int)n;
 
+  //Diagnostics for David
+  /*
+  int targ=0;
+  int dec0=0;
+  int dec1=0;
+  int multi=0;
+  int rev=0;
+  int lenT[100];
+  int lenD0[100];
+  int lenD1[100];
+  int lenR[100];
+  for(i=0;i<100;i++){
+    lenT[i]=lenD0[i]=lenD1[i]=lenR[i]=0;
+  }
+  bool bTarg;
+  bool bDec0;
+  bool bDec1;
+  bool bRev;
+  for(i=0;i<vPep.size();i++){
+    if(vPep[i].xlSites==0) continue;
+    bTarg=false;
+    bDec0=false;
+    bDec1=false;
+    bRev=false;
+    for(size_t j=0;j<vPep[i].map->size();j++){
+
+      //if(vDB[vPep[i].map->at(j).index].name.find("DEBRUIJN0")!=string::npos) bDec0=true;
+      //else if (vDB[vPep[i].map->at(j).index].name.find("DEBRUIJN1") != string::npos) bDec1=true;
+      //else bTarg = true;
+
+      if (vDB[vPep[i].map->at(j).index].name.find("REV") != string::npos) bRev = true;
+      else bTarg = true;
+
+    }
+
+    if(bTarg && !bDec0 && !bDec1) {
+      targ++;
+      lenT[(vPep[i].map->at(0).stop - vPep[i].map->at(0).start+1)]++;
+    } else if(!bTarg && bDec0 && !bDec1){
+      dec0++;
+      lenD0[(vPep[i].map->at(0).stop - vPep[i].map->at(0).start + 1)]++;
+    } else if(!bTarg && !bDec0 && bDec1){
+      dec1++;
+      lenD1[(vPep[i].map->at(0).stop - vPep[i].map->at(0).start + 1)]++;
+    } else {
+      multi++;
+    }
+
+    if (bTarg && !bRev) {
+      targ++;
+      lenT[(vPep[i].map->at(0).stop - vPep[i].map->at(0).start + 1)]++;
+    } else if (!bTarg && bRev){
+      rev++;
+      lenR[(vPep[i].map->at(0).stop - vPep[i].map->at(0).start + 1)]++;
+    } else {
+      multi++;
+    }
+    
+  }
+  for(i=2;i<50;i++){
+    //cout << i << "\t" << lenT[i] <<"\t" <<lenD0[i] << "\t" << lenD1[i] << "\t" << (double)lenT[i]/(lenD0[i]+lenD1[i]) << endl;
+    cout << i << "\t" << lenT[i] << "\t" << lenR[i] << "\t" << (double)lenT[i] / (lenR[i]) << endl;
+  }
+  cout << "Targets: " << targ << endl;
+  //cout << "DEBRUIJN0: " << dec0 << endl;
+  //cout << "DEBRUIJN1: " << dec1 << endl;
+  cout << "REV: " << rev << endl;
+  cout << "Multi-mappers: " << multi << endl;
+  exit(0);
+  */
+
   //Reporting list
   /*
   char str[256];

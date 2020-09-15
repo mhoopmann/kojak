@@ -4,8 +4,8 @@
 #include "KLog.h"
 #include "KParams.h"
 
-#define VERSION "2.0.0 alpha 4"
-#define BDATE "March 18 2020"
+#define VERSION "2.0.0 alpha 6"
+#define BDATE "September 15 2020"
 
 class KojakManager {
 public:

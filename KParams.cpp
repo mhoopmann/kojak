@@ -452,6 +452,12 @@ void KParams::parse(const char* cmd) {
     xml.value = values[0];
     logParam(xml);
 
+  } else if (strcmp(param, "min_peptide_score") == 0){
+    params->minPepScore = atof(&values[0][0]);
+    xml.name = "min_peptide_score";
+    xml.value = values[0];
+    logParam(xml);
+
   } else if (strcmp(param, "min_spectrum_peaks") == 0) {
     params->minPeaks = atoi(&values[0][0]);
     xml.name = "min_spectrum_peaks";
@@ -583,6 +589,12 @@ void KParams::parse(const char* cmd) {
   } else if(strcmp(param,"prefer_precursor_pred")==0){
     params->preferPrecursor=atoi(&values[0][0]);
     xml.name = "prefer_precursor_pred";
+    xml.value = values[0];
+    logParam(xml);
+
+  } else if (strcmp(param, "remove_precursor") == 0){
+    params->removePrecursor = atof(&values[0][0]);
+    xml.name = "remove_precursor";
     xml.value = values[0];
     logParam(xml);
 

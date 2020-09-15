@@ -104,6 +104,10 @@ private:
   bool        processPath       (const char* in_path, char* out_path);
   std::string processPeptide    (kPeptide& pep, std::vector<kPepMod>* mod, KDatabase& db);
   void        processProtein    (int pepIndex, int site, char linkSite, std::string& prot, std::string& sites, bool& decoy, KDatabase& db);
+  void        writeMzIDDatabase (CMzIdentML& m, KDatabase& db);
+  bool        writeMzIDEnzyme   (pxwBasicXMLTag t, CEnzymes& e);
+  void        writeMzIDPE       (CMzIdentML& m, CSpectrumIdentificationItem& m_sii, int pepID, KDatabase& db);
+  std::string writeMzIDSIP      (CMzIdentML& m, std::string& sRef, KParams& par);
 
 };
 

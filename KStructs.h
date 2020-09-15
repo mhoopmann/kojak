@@ -165,8 +165,10 @@ typedef struct kParams {
   double  enrichment;
   double  maxPepMass;
   double  minPepMass;
+  double  minPepScore;
   double  percVersion;
   double  ppmPrecursor;
+  double  removePrecursor;
   char    dbFile[256];
   char    decoy[256];
   char    enzyme[32];
@@ -226,8 +228,10 @@ typedef struct kParams {
     enrichment=0;
     maxPepMass=4000.0;
     minPepMass=500.0;
+    minPepScore=0.1;
     percVersion=2.04;
     ppmPrecursor=25.0;
+    removePrecursor=0;
     strcpy(decoy,"random");
     dbFile[0]='\0';
     strcpy(enzyme,"[KR]|{P}");
@@ -260,6 +264,7 @@ typedef struct kParams {
     ms1Resolution=p.ms1Resolution;
     ms2Resolution=p.ms2Resolution;
     preferPrecursor=p.preferPrecursor;
+    removePrecursor=p.removePrecursor;
     setA=p.setA;
     setB=p.setB;
     specProcess=p.specProcess;
@@ -282,6 +287,7 @@ typedef struct kParams {
     enrichment=p.enrichment;
     maxPepMass=p.maxPepMass;
     minPepMass=p.minPepMass;
+    minPepScore=p.minPepScore;
     percVersion=p.percVersion;
     ppmPrecursor=p.ppmPrecursor;
     strcpy(decoy,p.decoy);
@@ -326,6 +332,7 @@ typedef struct kParams {
       ms1Resolution=p.ms1Resolution;
       ms2Resolution=p.ms2Resolution;
       preferPrecursor=p.preferPrecursor;
+      removePrecursor=p.removePrecursor;
       setA=p.setA;
       setB=p.setB;
       specProcess=p.specProcess;
@@ -348,6 +355,7 @@ typedef struct kParams {
       enrichment=p.enrichment;
       maxPepMass=p.maxPepMass;
       minPepMass=p.minPepMass;
+      minPepScore=p.minPepScore;
       percVersion=p.percVersion;
       ppmPrecursor=p.ppmPrecursor;
       strcpy(decoy,p.decoy);
@@ -675,6 +683,7 @@ typedef struct kResults{
   std::string  protein2;
   std::string  protPos1;
   std::string  protPos2;
+  std::string  scanID;
   std::string  xlLabel;
   std::vector<kPepMod> mods1;
   std::vector<kPepMod> mods2;

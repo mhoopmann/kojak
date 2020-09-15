@@ -83,6 +83,7 @@ public:
   double              getInvBinSize         ();
   float               getMaxIntensity       ();
   double              getMZ                 ();
+  std::string         getNativeID           ();
   kPrecursor&         getPrecursor          (int i);
   kPrecursor*         getPrecursor2         (int i);
   float               getRTime              ();
@@ -104,6 +105,9 @@ public:
   int histogramSinglet[HISTOSZ];
   int histogramSingletCount;
 
+  //For diagnostics only
+  int histogramO[HISTOSZ];
+
   //Modifiers
   void addPoint               (kSpecPoint& s);
   void addPrecursor           (kPrecursor& p, int sz);
@@ -113,6 +117,7 @@ public:
   void setInstrumentPrecursor (bool b);
   void setMaxIntensity        (float f);
   void setMZ                  (double d);
+  void setNativeID            (std::string s);
   void setPrecursor           (double d, int i);
   void setRTime               (float f);
   void setScanNumber          (int i);
@@ -146,6 +151,7 @@ private:
   double                invBinSize;
   float                 maxIntensity;
   double                mz;
+  std::string           nativeID;
   std::vector<kPrecursor>*   precursor;
   float                 rTime;
   int                   scanNumber;

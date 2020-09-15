@@ -52,6 +52,8 @@ KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
 
   lowScore=0;
 
+  nativeID.clear();
+
   int j;
   for (j = 0; j<HISTOSZ; j++) histogram[j] = 0;
   histogramCount = 0;
@@ -103,6 +105,7 @@ KSpectrum::KSpectrum(const KSpectrum& p){
   xCorrArraySize = p.xCorrArraySize;
   xCorrSparseArraySize = p.xCorrSparseArraySize;
   lowScore=p.lowScore;
+  nativeID=p.nativeID;
 
   for (i = 0; i<HISTOSZ; i++) histogram[i] = p.histogram[i];
   histogramCount = p.histogramCount;
@@ -250,6 +253,7 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
     xCorrArraySize = p.xCorrArraySize;
     xCorrSparseArraySize = p.xCorrSparseArraySize;
     lowScore = p.lowScore;
+    nativeID = p.nativeID;
 
     for (i = 0; i<HISTOSZ; i++) histogram[i] = p.histogram[i];
     histogramCount = p.histogramCount;
@@ -382,6 +386,10 @@ double KSpectrum::getMZ(){
   return mz;
 }
 
+string KSpectrum::getNativeID(){
+  return nativeID;
+}
+
 kPrecursor& KSpectrum::getPrecursor(int i){
   return precursor->at(i);
 }
@@ -476,6 +484,10 @@ void KSpectrum::setMaxIntensity(float f){
 
 void KSpectrum::setMZ(double d){
   mz=d;
+}
+
+void KSpectrum::setNativeID(string s){
+  nativeID=s;
 }
 
 void KSpectrum::setRTime(float f){
@@ -904,7 +916,7 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   diffMass=preMass-mass;
 
   //Does this function need as many DECOY_SIZE as the other? Can this be shortened?
-  for (i = 0; i<decoys.decoySize / 2 - 1; i++) { // iterate through required # decoys
+  for (i = 0; i<decoys.decoySize - 1; i++) { // iterate through required # decoys
     dXcorr = 0.0;
     decoyIndex = (seed + i) % decoys.decoySize;
  
@@ -1534,6 +1546,9 @@ void KSpectrum::linearRegression2(double& slope, double& intercept, int&  iMaxXc
   int iMaxCorr = 0;   // max xcorr index
   int iStartCorr;
   int iNumPoints;
+
+  //for diagnostics
+  for(i=0;i<HISTOSZ;i++) histogramO[i]=histogram[i];
 
   // Find maximum correlation score index.
   for (i = HISTOSZ - 2; i >= 0; i--) {

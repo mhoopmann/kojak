@@ -347,7 +347,7 @@ bool KAnalysis::analyzePeptide(kPeptide* p, int pepIndex, int iIndex){
 
   //char str[256];
   //db->getPeptideSeq(p->map->at(0).index,p->map->at(0).start,p->map->at(0).stop,str);
-  //cout << str << "\t" << p->mass << endl;
+  //if(strcmp(str,"VPSKK")==0) cout << str << "\t" << p->mass << endl;
   //Set the peptide, calc the ions, and score it against the spectra
   ions[iIndex].setPeptide(true,&db->at(p->map->at(0).index).sequence[p->map->at(0).start],p->map->at(0).stop-p->map->at(0).start+1,p->mass,p->nTerm,p->cTerm,p->n15);
   
@@ -753,7 +753,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   for (i = 0; i<sz; i++){
     p = s->getPrecursor2(i);
 
-    if(!firstPass && (p->monoMass-spec->getLink(linkIndex).mass)/2>mass){
+    if(!firstPass && (p->monoMass-spec->getLink(linkIndex).mass+0.2)/2>mass){
 
       //Threading::LockMutex(mutexSingletScore[index][i]);
       tp = s->getTopPeps(i);
@@ -763,6 +763,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         continue;
       }
 
+      //TODO: this could be made faster by checking the peptide only once for every partner of the same mass!!!
       list<kSingletScoreCard*>::iterator it = tp->singletList[ind]->begin();
       while(it!=tp->singletList[ind]->end()){
         tsc=*it;
@@ -781,7 +782,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
         s->histogram[y]++;
         s->histogramCount++;
-        if (score<0.1 || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
+        if (score<params.minPepScore || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
           Threading::UnlockMutex(mutexSpecScore[index]);
           it++;
           continue;
@@ -845,13 +846,13 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         protSC.precursor = (char)i;
 
         //special case for identical peptides
-        if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){ 
-          protSC.score1/=2;
-          protSC.score2/=2;
-          protSC.simpleScore/=2;
-          it++;
-          continue; //WARNING...JUST SKIPPING THESE...
-        }
+        //if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){ 
+        //  protSC.score1/=2;
+        //  protSC.score2/=2;
+        //  protSC.simpleScore/=2;
+        //  it++;
+        //  continue; //WARNING...JUST SKIPPING THESE...
+        //}
 
         //index the mods for pep2
         iset = ions[iIndex].at(sIndex);
@@ -894,7 +895,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
     //Threading::UnlockMutex(mutexSingletScore[index][i]);
     }
 
-    if (firstPass && mass>(p->monoMass - spec->getLink(linkIndex).mass) / 2-0.25){
+    if (firstPass && mass>(p->monoMass - spec->getLink(linkIndex).mass) / 2-0.2){
       low = p->monoMass;
       high = low;
       m = low / 1000000 * params.ppmPrecursor;
@@ -923,7 +924,13 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       s->histogramSinglet[y]++;
       s->histogramSingletCount++;
       Threading::UnlockMutex(mutexSpecScore[index]);
-      if(score<0.1) continue;
+      if(score<params.minPepScore || score<=0) continue;
+      //if(conFrag<2) continue; //FOR TESTING ONLY
+
+      //boost score...FOR TESTING ONLY
+      //if(conFrag>2){
+      //  score*=(1.0+(double)conFrag/10);
+      //}
 
       Threading::LockMutex(mutexSingletScore[index][i]);
       tp = s->getTopPeps(i);
@@ -990,6 +997,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       //bScored=true;
     }
   }
+
   return bScored;
 }
 
