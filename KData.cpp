@@ -460,7 +460,10 @@ bool KData::mapPrecursors(){
   //if(!pre.setFile(&p)) return false;
 
   //Print progress
-  if(klog!=NULL) klog->addMessage("Mapping precursors to MS/MS spectra",true);
+  if(klog!=NULL) {
+    klog->addMessage("Mapping precursors to MS/MS spectra",true);
+    pre.setLog(klog);
+  }
   printf("  Mapping precursors ... %2d%%",iPercent);
   fflush(stdout);
 
@@ -498,17 +501,17 @@ bool KData::mapPrecursors(){
     }
 
     if(bAddEstimate){
-      kPrecursor pre;
-      pre.monoMass = spec[i].getMZ()*spec[i].getCharge() - 1.007276466*spec[i].getCharge();
-      pre.charge = spec[i].getCharge();
-      pre.corr = -5;
-      spec[i].setCharge(pre.charge);
-      spec[i].addPrecursor(pre, params->topCount);
+      kPrecursor pr;
+      pr.monoMass = spec[i].getMZ()*spec[i].getCharge() - 1.007276466*spec[i].getCharge();
+      pr.charge = spec[i].getCharge();
+      pr.corr = -5;
+      spec[i].setCharge(pr.charge);
+      spec[i].addPrecursor(pr, params->topCount);
       for (int px = 1; px <= params->isotopeError; px++){
         if (px == 4) break;
-        pre.monoMass -= 1.00335483;
-        pre.corr -= 0.1;
-        spec[i].addPrecursor(pre, params->topCount);
+        pr.monoMass -= 1.00335483;
+        pr.corr -= 0.1;
+        spec[i].addPrecursor(pr, params->topCount);
       }
     }
 

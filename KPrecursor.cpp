@@ -81,6 +81,8 @@ KPrecursor::KPrecursor(kParams* p){
 
   centBuf = new deque<Spectrum>;
 
+  klog = NULL;
+
   setFile();
 
 }
@@ -93,6 +95,7 @@ KPrecursor::~KPrecursor(){
   delete models;
   delete centBuf;
   params = NULL;
+  klog = NULL;
 }
 
 /*============================
@@ -213,11 +216,20 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     }
     if(spec.getScanNumber()>0) {
       if(!params->ms1Centroid){
-        centroid(spec,cent,params->ms1Resolution,params->instrument);
-        cent.setScanNumber(spec.getScanNumber());
-        cent.setRTime(spec.getRTime());
-        centBuf->push_back(cent);
+        if (spec.getCentroidStatus() == 1){
+          klog->addWarning(1, "MS1 spectrum is labeled as centroid, but Kojak parameter indicates data are profile. Ignoring Kojak parameter.");
+        } else {
+          centroid(spec,cent,params->ms1Resolution,params->instrument);
+          cent.setScanNumber(spec.getScanNumber());
+          cent.setRTime(spec.getRTime());
+          centBuf->push_back(cent);
+        }
       } else {
+        if (spec.getCentroidStatus() != 1){
+          char tmpStr[256];
+          sprintf(tmpStr, "Kojak parameter indicates MS data (MS1) are centroid, but spectrum %d labeled as profile or unknown.", spec.getScanNumber());
+          klog->addError(string(tmpStr));
+        }
         centBuf->push_back(spec);
       }
       lastScan=spec.getScanNumber();
@@ -240,11 +252,20 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     msr.readFile(NULL,spec);
     while(spec.getScanNumber()>0 && spec.getRTime()<rt+2.0){
       if(!params->ms1Centroid){
-        centroid(spec,cent,params->ms1Resolution,params->instrument);
-        cent.setScanNumber(spec.getScanNumber());
-        cent.setRTime(spec.getRTime());
-        centBuf->push_back(cent);
+        if (spec.getCentroidStatus()==1){
+          klog->addWarning(1, "MS1 spectrum is labeled as centroid, but Kojak parameter indicates data are profile. Ignoring Kojak parameter.");
+        } else {
+          centroid(spec,cent,params->ms1Resolution,params->instrument);
+          cent.setScanNumber(spec.getScanNumber());
+          cent.setRTime(spec.getRTime());
+          centBuf->push_back(cent);
+        }
       } else {
+        if (spec.getCentroidStatus()!=1){
+          char tmpStr[256];
+          sprintf(tmpStr, "Kojak parameter indicates MS data (MS1) are centroid, but spectrum %d labeled as profile or unknown.", spec.getScanNumber());
+          klog->addError(string(tmpStr));
+        }
         centBuf->push_back(spec);
       }
       lastScan=spec.getScanNumber();
@@ -645,6 +666,10 @@ bool KPrecursor::setFile() {
   }
 
   return true;
+}
+
+void KPrecursor::setLog(KLog* c){
+  klog = c;
 }
 
 /*============================

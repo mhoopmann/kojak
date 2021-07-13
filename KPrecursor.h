@@ -17,6 +17,7 @@ limitations under the License.
 #ifndef _KPRECURSOR_H
 #define _KPRECURSOR_H
 
+#include "KLog.h"
 #include "KStructs.h"
 #include "KSpectrum.h"
 
@@ -50,6 +51,7 @@ public:
   bool  estimatePrecursor (KSpectrum& s);
   int   getSpecRange      (KSpectrum& pls);
   bool  setFile           ();
+  void  setLog            (KLog* c);
 
   std::vector<int> preCharges;
 
@@ -85,6 +87,7 @@ private:
   std::deque<MSToolkit::Spectrum>*  centBuf;
 
   kParams*   params;
+  KLog*      klog;
 
   //Utilities
   static int    comparePLPScanNum (const void *p1, const void *p2);
