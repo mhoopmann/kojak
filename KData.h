@@ -26,6 +26,7 @@ limitations under the License.
 #include "MSReader.h"
 #include "mzIMLTools.h"
 #include "pepXMLWriter.h"
+#include "NeoPepXMLParser.h"
 #include <iostream>
 
 /*
@@ -49,6 +50,11 @@ public:
   KSpectrum& at(const int& i);
   KSpectrum* getSpectrum(const int& i);
 
+  void      addProteins       (void* sh, KDatabase& db, int pIndex, bool xl, int linkA, int linkB);
+  void      addSearchScore    (CnpxSearchHit& sh, std::string name, double value, std::string fmt);
+  void      addSearchScore    (CnpxSearchHit& sh, std::string name, int value);
+  void      addXlinkScore     (CnpxLinkedPeptide& lp, std::string name, double value, std::string fmt);
+  void      addXlinkScore     (CnpxLinkedPeptide& lp, std::string name, int value);
   void      buildXLTable      ();
   bool      checkLink         (char p1Site, char p2Site, int linkIndex);
   void      diagSinglet       ();
@@ -62,10 +68,12 @@ public:
   int       getMotifCount     ();
   int       getXLIndex        (int motifIndex, int xlIndex);
   char**    getXLTable        ();
+  CnpxModificationInfo  makeModificationInfo(std::vector<kPepMod>& mods, std::string peptide, bool n15, bool nTerm, bool cTerm);
   bool      mapPrecursors     ();
   void      outputDiagnostics (FILE* f, KSpectrum& s, KDatabase& db);
   bool      outputIntermediate(KDatabase& db);
   bool      outputMzID        (CMzIdentML& m, KDatabase& db, KParams& par, kResults& r);
+  bool      outputNeoPepXML   (CnpxSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db, KParams& par);
@@ -77,6 +85,7 @@ public:
   int       size              ();
   int       sizeLink          ();
   void      xCorr             (bool b);
+  
 
 private:
 

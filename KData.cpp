@@ -76,6 +76,104 @@ KSpectrum& KData::operator [](const int& i){
 /*============================
   Functions
 ============================*/
+void KData::addProteins(void* sh, KDatabase& db, int pIndex, bool xl, int linkA, int linkB) {
+  char c;
+  char n;
+
+  kPeptide pep = db.getPeptide(pIndex);
+  if(!xl) (*(CnpxSearchHit*)sh).num_tot_proteins = (int)pep.map->size();
+  else (*(CnpxLinkedPeptide*)sh).num_tot_proteins = (int)pep.map->size();
+
+  for (size_t j = 0; j<pep.map->size(); j++){
+    if (pep.n15 && db[pep.map->at(j).index].name.find(params->n15Label) == string::npos) {
+      if (!xl) (*(CnpxSearchHit*)sh).num_tot_proteins--;
+      else (*(CnpxLinkedPeptide*)sh).num_tot_proteins--;
+      continue;
+    }
+    if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
+      if (!xl) (*(CnpxSearchHit*)sh).num_tot_proteins--;
+      else (*(CnpxLinkedPeptide*)sh).num_tot_proteins--;
+      continue;
+    }
+    string protein = "";
+    for (size_t i = 0; i<db[pep.map->at(j).index].name.size(); i++){
+      if (params->truncate>0 && i == params->truncate) break;
+      protein += db[pep.map->at(j).index].name[i];
+    }
+    
+    if (pep.map->at(j).start<1) n = '-';
+    else n = db[pep.map->at(j).index].sequence[pep.map->at(j).start - 1];
+    if (pep.map->at(j).stop + 1 == db[pep.map->at(j).index].sequence.size()) c = '-';
+    else c = db[pep.map->at(j).index].sequence[pep.map->at(j).stop + 1];
+
+    if(j==0){
+      if (!xl) {
+        (*(CnpxSearchHit*)sh).protein=protein;
+        (*(CnpxSearchHit*)sh).peptide_prev_aa=n;
+        (*(CnpxSearchHit*)sh).peptide_next_aa=c;
+        (*(CnpxSearchHit*)sh).peptide_start_pos = (int)pep.map->at(j).start + 1;
+        if (linkA>0) (*(CnpxSearchHit*)sh).protein_link_pos_a = pep.map->at(j).start + linkA;
+        if (linkB>0) (*(CnpxSearchHit*)sh).protein_link_pos_b = pep.map->at(j).start + linkB;
+
+      } else {
+        (*(CnpxLinkedPeptide*)sh).protein=protein;
+        (*(CnpxLinkedPeptide*)sh).peptide_next_aa=c;
+        (*(CnpxLinkedPeptide*)sh).peptide_prev_aa=n;
+        (*(CnpxLinkedPeptide*)sh).peptide_start_pos = (int)pep.map->at(j).start + 1;
+        (*(CnpxLinkedPeptide*)sh).protein_link_pos_a = pep.map->at(j).start + linkA;
+
+      }
+    } else {
+      CnpxAlternativeProtein ap;
+      ap.protein = protein;
+      ap.peptide_prev_aa = n;
+      ap.peptide_next_aa = c;
+      ap.peptide_start_pos = (int)pep.map->at(j).start + 1;
+      if (linkA>0) ap.protein_link_pos_a = pep.map->at(j).start + linkA;
+      if (linkB>0) ap.protein_link_pos_b = pep.map->at(j).start + linkB;
+      if (!xl) (*(CnpxSearchHit*)sh).alternative_protein.push_back(ap);
+      else (*(CnpxLinkedPeptide*)sh).alternative_protein.push_back(ap);
+    }
+  }
+
+}
+
+void KData::addSearchScore(CnpxSearchHit& sh, string name, double value, string fmt){
+  char score[32];
+  sprintf(score, fmt.c_str(), value);
+  CnpxSearchScore ss;
+  ss.name = name;
+  ss.value = score;
+  sh.search_score.push_back(ss);
+}
+
+void KData::addSearchScore(CnpxSearchHit& sh, string name, int value){
+  char score[32];
+  sprintf(score, "%d", value);
+  CnpxSearchScore ss;
+  ss.name = name;
+  ss.value = score;
+  sh.search_score.push_back(ss);
+}
+
+void KData::addXlinkScore(CnpxLinkedPeptide& lp, string name, double value, string fmt){
+  char score[32];
+  sprintf(score, fmt.c_str(), value);
+  CnpxXLinkScore xls;
+  xls.name=name;
+  xls.value=score;
+  lp.xlink_score.push_back(xls);
+}
+
+void KData::addXlinkScore(CnpxLinkedPeptide& lp, string name, int value){
+  char score[32];
+  sprintf(score, "%d", value);
+  CnpxXLinkScore xls;
+  xls.name = name;
+  xls.value = score;
+  lp.xlink_score.push_back(xls);
+}
+
 void KData::buildXLTable(){
   int i, j;
   int xlA, xlB;
@@ -433,6 +531,37 @@ int KData::getMotifCount(){
 int KData::getXLIndex(int motifIndex, int xlIndex){
   if (motifIndex >= motifCount) return -1;
   return motifs[motifIndex].xlIndex[xlIndex];
+}
+
+CnpxModificationInfo KData::makeModificationInfo(vector<kPepMod>& mods, string peptide, bool n15, bool nTerm, bool cTerm){
+  CnpxModificationInfo mi;
+  for (size_t i = 0; i<mods.size(); i++){
+    if (mods[i].pos == -1) mi.mod_nterm_mass = mods[i].mass;
+    else if (mods[i].pos == -2) mi.mod_cterm_mass = mods[i].mass;
+    else {
+      CnpxModAminoAcidMass maam;
+      maam.position=(int)mods[i].pos + 1;
+      maam.mass=mods[i].mass + aa.getAAMass(peptide[mods[i].pos], n15);
+      maam.variable=mods[i].mass;
+      mi.mod_aminoacid_mass.push_back(maam);
+    }
+  }
+  if (nTerm && aa.getFixedModMass('$') != 0)mi.mod_nterm_mass += aa.getFixedModMass('$');
+  if (cTerm && aa.getFixedModMass('%') != 0)mi.mod_cterm_mass += aa.getFixedModMass('%');
+  mi.mod_nterm_mass += aa.getFixedModMass('n');
+  mi.mod_cterm_mass += aa.getFixedModMass('c');
+  if (mi.mod_nterm_mass != 0) mi.mod_nterm_mass += 1.00782503;
+  if (mi.mod_cterm_mass != 0) mi.mod_cterm_mass += 17.00273963;
+  for (size_t i = 0; i<peptide.size(); i++){
+    if (aa.getFixedModMass(peptide[i])>0) {
+      CnpxModAminoAcidMass maam;
+      maam.position=i + 1;
+      maam.mass=aa.getAAMass(peptide[i], n15);
+      maam.staticMass=aa.getFixedModMass(peptide[i]);
+      mi.mod_aminoacid_mass.push_back(maam);
+    }
+  }
+  return mi;
 }
 
 //This function tries to assign best possible 18O2 and 18O4 precursor ion mass values
@@ -1182,6 +1311,109 @@ bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
   return true;
 }
 
+bool KData::outputNeoPepXML(CnpxSpectrumQuery& p, KDatabase& db, kResults& r){
+  char score[32];
+
+  CnpxSearchHit sh;
+
+  sh.hit_rank = 1;
+  
+  sh.calc_neutral_pep_mass = r.psmMass;
+  sh.massdiff = r.psmMass - r.obsMass;
+  
+  if(r.type<2) { //single or loop
+    sh.peptide = r.peptide1;
+    if(r.type=0) sh.xlink_type="na";
+    else sh.xlink_type="loop";
+
+    CnpxModificationInfo mi = makeModificationInfo(r.mods1, r.peptide1, r.n15Pep1, r.nTerm1, r.cTerm1);
+    if (!mi.modified_peptide.empty() || mi.mod_cterm_mass != 0 || mi.mod_nterm_mass != 0 || !mi.mod_aminoacid_mass.empty()) sh.modification_info.push_back(mi);
+
+    addProteins(&sh, db, r.pep1, false, r.link1, r.link2);
+
+  } else { //XL
+    sh.peptide='-';
+    sh.peptide_prev_aa='-';
+    sh.peptide_next_aa='-';
+    sh.protein='-';
+    sh.num_tot_proteins=1;
+    sh.xlink_type="xl";
+
+    CnpxXLink xl;
+    xl.identifier=r.xlLabel;
+    xl.mass=r.xlMass;
+
+    CnpxLinkedPeptide lp;
+    lp.designation="alpha";
+    lp.peptide=r.peptide1;
+    lp.calc_neutral_pep_mass=r.massA;
+    lp.complement_mass=r.obsMass-r.massA;
+
+    CnpxModificationInfo mi=makeModificationInfo(r.mods1,r.peptide1,r.n15Pep1,r.nTerm1,r.cTerm1);
+    if(!mi.modified_peptide.empty() || mi.mod_cterm_mass!=0 || mi.mod_nterm_mass!=0 || !mi.mod_aminoacid_mass.empty()) lp.modification_info.push_back(mi);
+
+    addProteins(&lp,db,r.pep1,true,r.link1,0);
+    
+    addXlinkScore(lp,"score",r.scoreA,"%.4lf");
+    addXlinkScore(lp,"rank",r.rankA);
+    addXlinkScore(lp,"link",r.link1);
+    addXlinkScore(lp,"e-value",r.eVal1,"%.3e");
+    addXlinkScore(lp,"ion_match",r.matches1);
+    addXlinkScore(lp,"consecutive_ion_match",r.conFrag1);
+    
+    xl.linked_peptide.push_back(lp);
+    
+    //second peptide
+    CnpxLinkedPeptide lp2;
+    lp2.designation="beta";
+    lp2.peptide=r.peptide2;
+    lp2.calc_neutral_pep_mass=r.massB;
+    lp2.complement_mass=r.obsMass-r.massB;
+
+    mi = makeModificationInfo(r.mods2, r.peptide2, r.n15Pep2, r.nTerm2, r.cTerm2);
+    if (!mi.modified_peptide.empty() || mi.mod_cterm_mass != 0 || mi.mod_nterm_mass != 0 || !mi.mod_aminoacid_mass.empty()) lp2.modification_info.push_back(mi);
+
+    addProteins(&lp2, db, r.pep2, true, r.link2, 0);
+    
+    addXlinkScore(lp2, "score", r.scoreB, "%.4lf");
+    addXlinkScore(lp2, "rank", r.rankB);
+    addXlinkScore(lp2, "link", r.link2);
+    addXlinkScore(lp2, "e-value", r.eVal2, "%.3e");
+    addXlinkScore(lp2, "ion_match", r.matches2);
+    addXlinkScore(lp2, "consecutive_ion_match", r.conFrag2);
+
+    xl.linked_peptide.push_back(lp2);
+
+    sh.xlink.push_back(xl);
+
+  } //XL
+
+  addSearchScore(sh, "kojak_score", r.score, "%.4lf");
+  addSearchScore(sh, "delta_score", r.scoreDelta, "%.4lf");
+  addSearchScore(sh, "ppm_error", r.ppm, "%.4lf");
+  addSearchScore(sh, "e-value", r.eVal, "%.3e");
+  addSearchScore(sh, "ion_match", r.matches1+r.matches2);
+  addSearchScore(sh, "consecutive_ion_match", r.conFrag1+r.conFrag2);
+
+
+  if(p.search_result.empty()){
+    CnpxSearchResult sr;
+    sr.search_hit.push_back(sh);
+    p.search_result.push_back(sr);
+    p.spectrum=r.baseName+"."+to_string(r.scanNumber)+"."+to_string(r.scanNumber)+"."+to_string(r.charge);
+    p.start_scan=r.scanNumber;
+    p.end_scan=r.scanNumber;
+    p.precursor_neutral_mass=r.obsMass;
+    p.assumed_charge=r.charge;
+    p.index=1;
+    p.retention_time_sec=r.rTime*60;
+  } else {
+    p.search_result[0].search_hit.push_back(sh);
+  }
+
+  return true;
+}
+
 bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
 
   unsigned int i;
@@ -1493,13 +1725,15 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   kEnzymeRules enzyme;
   kResults res;
 
-  PepXMLWriter p;
-  pxwAminoAcidModification aam;
-  pxwTerminalModification tm;
-  pxwMSMSRunSummary rs;
-  pxwSampleEnzyme enz;
-  PXWSearchSummary ss;
-  PXWSpectrumQuery sq;
+  NeoPepXMLParser p;
+  string pepXML_fileName;
+  //PepXMLWriter p;
+  //pxwAminoAcidModification aam;
+  //pxwTerminalModification tm;
+  //pxwMSMSRunSummary rs;
+  //pxwSampleEnzyme enz;
+  //PXWSearchSummary ss;
+  //PXWSpectrumQuery sq;
 
   CMzIdentML mzID;
   string analysisSoftware_ref;
@@ -1576,6 +1810,15 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     }
   }
   if(params->exportPepXML) {
+    CnpxMSMSPipelineAnalysis pa;
+
+    char timebuf[80];
+    time_t timeNow;
+    time(&timeNow);
+    strftime(timebuf, 80, "%Y-%m-%dT%H:%M:%S", localtime(&timeNow));
+    pa.date.parseDateTime(timebuf);
+    
+    CnpxMSMSRunSummary rs;
     rs.base_name=params->inFile; 
     rs.base_name = rs.base_name.substr(0, rs.base_name.find_last_of('.'));
     outFile=params->outFile;
@@ -1586,86 +1829,115 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     }
     rs.raw_data=params->ext;
     rs.raw_data_type="raw";
-    rs.search_engine="Kojak";
-    ss.base_name=rs.base_name;
+
+    //Add the enzyme
+    CnpxSampleEnzyme se;
+    se.name = params->enzymeName;
+    CnpxSpecificity ses;
+    enzyme = db.getEnzymeRules();
+    for (i = 65; i < 90; i++){
+      if (enzyme.cutC[i]) ses.cut += (char)i;
+      if (enzyme.exceptN[i]) ses.no_cut += (char)i;
+    }
+    if (ses.cut.size()>0){
+      ses.sense = "C";
+    } else {
+      ses.sense = "N";
+      for (i = 65; i < 90; i++){
+        if (enzyme.cutN[i]) ses.cut += (char)i;
+        if (enzyme.exceptC[i]) ses.no_cut += (char)i;
+      }
+    }
+    se.specificity.push_back(ses);
+    rs.sample_enzyme.push_back(se);
+    
+    CnpxSearchSummary ss;
     ss.search_engine="Kojak";
+    ss.base_name=rs.base_name;
     ss.search_engine_version=version;
+    ss.precursor_mass_type="monoisotopic";
+    ss.fragment_mass_type="monoisotopic";
+    ss.search_id=1;
     processPath(params->dbFile,outPath);
-    ss.search_database=outPath;
-    for (i = 0; i<params->fMods->size(); i++){
+
+    CnpxSearchDatabase sd;
+    sd.local_path=outPath;
+    sd.type="AA";
+    ss.search_database.push_back(sd);
+
+    CnpxEnzymaticSearchConstraint esc;
+    esc.enzyme=params->enzymeName;
+    esc.max_num_internal_cleavages=params->miscleave;
+    esc.min_number_termini=2;
+    ss.enzymatic_search_constraint.push_back(esc);
+
+    //Add modifications
+    for (i = 0; i<params->fMods->size(); i++){ 
+      CnpxAminoAcidModification aam;
       if (params->fMods->at(i).index == '$' || params->fMods->at(i).index=='%') { //special case protein termini
-        if (params->fMods->at(i).index == '$') tm.terminus=true;
-        else tm.terminus=false;
-        tm.massdiff = params->fMods->at(i).mass;
-        tm.mass = params->fMods->at(i).mass;
-        tm.variable = false;
-        tm.protein = true;
-        ss.terminalMods->push_back(tm);
+        if (params->fMods->at(i).index == '$') aam.protein_terminus="n";
+        else aam.protein_terminus="c";
+        aam.massdiff = params->fMods->at(i).mass;
+        aam.mass = params->fMods->at(i).mass;
+        aam.variable = "N";
+        ss.aminoacid_modification.push_back(aam);
       } else if (params->fMods->at(i).index == 'n' || params->fMods->at(i).index == 'c') { //peptide termini
-        if (params->fMods->at(i).index == 'n') tm.terminus = true;
-        else tm.terminus = false;
-        tm.massdiff = params->fMods->at(i).mass;
-        tm.mass = params->fMods->at(i).mass;
-        tm.variable = false;
-        tm.protein = false;
-        ss.terminalMods->push_back(tm);
+        if (params->fMods->at(i).index == 'n') aam.peptide_terminus = "n";
+        else aam.peptide_terminus = "c";
+        aam.massdiff = params->fMods->at(i).mass;
+        aam.mass = params->fMods->at(i).mass;
+        aam.variable = "N";
+        ss.aminoacid_modification.push_back(aam);
       } else {
         aam.aminoacid = (char)params->fMods->at(i).index;
         aam.massdiff = params->fMods->at(i).mass;
         aam.mass = db.getAAMass(params->fMods->at(i).index);
-        aam.variable = false;
-        ss.aminoAcidMods->push_back(aam);
+        aam.variable = "N";
+        ss.aminoacid_modification.push_back(aam);
       }
     }
     for(i=0;i<params->mods->size();i++){
+      CnpxAminoAcidModification aam;
       if (params->mods->at(i).index == '$' || params->mods->at(i).index == '%') { //special case protein termini
-        if (params->mods->at(i).index == '$') tm.terminus = true;
-        else tm.terminus = false;
-        tm.massdiff = params->mods->at(i).mass;
-        tm.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
-        tm.variable = true;
-        tm.protein = true;
-        ss.terminalMods->push_back(tm);
+        if (params->mods->at(i).index == '$') aam.protein_terminus = "n";
+        else aam.protein_terminus = "c";
+        aam.massdiff = params->mods->at(i).mass;
+        aam.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
+        aam.variable = "Y";
+        ss.aminoacid_modification.push_back(aam);
       } else if (params->mods->at(i).index == 'n' || params->mods->at(i).index == 'c') { //peptide termini
-        if (params->mods->at(i).index == 'n') tm.terminus = true;
-        else tm.terminus = false;
-        tm.massdiff = params->mods->at(i).mass;
-        tm.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
-        tm.variable = true;
-        tm.protein = false;
-        ss.terminalMods->push_back(tm);
+        if (params->mods->at(i).index == 'n') aam.protein_terminus = "n";
+        else aam.protein_terminus = "c";
+        aam.massdiff = params->mods->at(i).mass;
+        aam.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
+        aam.variable = "Y";
+        ss.aminoacid_modification.push_back(aam);
       } else {
         aam.aminoacid=(char)params->mods->at(i).index;
         aam.massdiff=params->mods->at(i).mass;
         aam.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
-        aam.variable = true;
-        ss.aminoAcidMods->push_back(aam);
+        aam.variable = "Y";
+        ss.aminoacid_modification.push_back(aam);
       }
     }
     for(i=0;i<par.xmlParams.size();i++){
-      ss.parameters->push_back(par.xmlParams[i]);
+      CnpxParameter px;
+      px.name=par.xmlParams[i].name;
+      px.value=par.xmlParams[i].value;
+      ss.parameter.push_back(px);
     }
-    enz.name=params->enzymeName;
-    enz.cut.clear();
-    enz.no_cut.clear();
-    enz.minNumTermini=2;
-    enz.maxNumInternalCleavages=params->miscleave;
-    enzyme = db.getEnzymeRules();
-    for (i = 65; i < 90; i++){
-      if (enzyme.cutC[i]) enz.cut += (char)i;
-      if (enzyme.exceptN[i]) enz.no_cut += (char)i;
-    }
-    if (enz.cut.size()>0){
-      enz.sense = "C";
-    } else {
-      enz.sense = "N";
-      for (i = 65; i < 90; i++){
-        if (enzyme.cutN[i]) enz.cut += (char)i;
-        if (enzyme.exceptC[i]) enz.no_cut += (char)i;
-      }
-    }
+
+    rs.search_summary.push_back(ss);
+    pa.msms_run_summary.push_back(rs);
+    
     sprintf(fName, "%s.pep.xml", params->outFile);
-    if(!p.createPepXML(fName,rs,&enz,&ss)) bBadFiles=true;
+    pepXML_fileName=fName;
+    FILE* ft=fopen(fName,"wt");
+    if(ft==NULL) bBadFiles=true;
+    else fclose(ft);
+    pa.summary_xml = pepXML_fileName;
+    
+    p.msms_pipeline_analysis.push_back(pa);
   }
   
   if (params->diag->size()>0){ //create diagnostic file if needed
@@ -1751,19 +2023,28 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     res.scanNumber=spec[i].getScanNumber();
     res.scanID=spec[i].getNativeID();
     res.rTime=spec[i].getRTime();
+    
+    CnpxSpectrumQuery sq;
+    sq.spectrum = res.baseName + "." + to_string(res.scanNumber) + "." + to_string(res.scanNumber) + "." + to_string(spec[i].getPrecursor(0).charge);
+    sq.start_scan = res.scanNumber;
+    sq.end_scan = res.scanNumber;
+    sq.precursor_neutral_mass = spec[i].getPrecursor(0).monoMass;
+    sq.assumed_charge = spec[i].getPrecursor(0).charge;
+    sq.index = 1;
+    sq.retention_time_sec = spec[i].getRTime() * 60;
 
     //if there are no matches to the spectrum, return null result and continue
     if(tmpSC.simpleScore==0){
       fprintf(fOut,"%d\t%.4f\t0\t0\t0\t0\t0\t0\t999\t0\t999\t-\t-\t-\t-\t0\t999\t-\t-\t-\t-\t0\n",res.scanNumber,res.rTime);
+
+      if(params->exportPepXML) {
+        sq.index = p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size() + 1;
+        p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.push_back(sq);
+      }
       continue;
     }
 
-    if(params->exportPepXML){
-      sq.clear();
-      sq.end_scan=res.scanNumber;
-      sq.retention_time_sec=res.rTime;
-      sq.start_scan=res.scanNumber;
-    }
+    
 
     //Export top scoring peptide, plus any ties that occur after it.
     topScore=tmpSC.simpleScore;
@@ -2025,7 +2306,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       }
 
       if(params->exportPepXML){
-        outputPepXML(sq,db,res);
+        outputNeoPepXML(sq,db,res);
       }
 
       //Get the next entry - it must also be exported if it has the same score
@@ -2036,7 +2317,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     }
 
     if(params->exportPepXML) {
-      p.writeSpectrumQuery(sq);
+      sq.index=p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size()+1;
+      p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.push_back(sq);
+      //p.writeSpectrumQuery(sq);
     }
 
   }
@@ -2050,7 +2333,8 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     if (params->dimers) fclose(fDimer);
   }
   if(params->exportPepXML){
-    p.closePepXML();
+    p.write(pepXML_fileName.c_str(),true);
+    //p.closePepXML();
   }
   if (params->exportMzID){
     sprintf(fName, "%s.mzid", params->outFile);
