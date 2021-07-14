@@ -55,6 +55,8 @@ public:
   void      addSearchScore    (CnpxSearchHit& sh, std::string name, int value);
   void      addXlinkScore     (CnpxLinkedPeptide& lp, std::string name, double value, std::string fmt);
   void      addXlinkScore     (CnpxLinkedPeptide& lp, std::string name, int value);
+  void      addXlinkScore     (CnpxXLink& lp, std::string name, double value, std::string fmt);
+  void      addXlinkScore     (CnpxXLink& lp, std::string name, int value);
   void      buildXLTable      ();
   bool      checkLink         (char p1Site, char p2Site, int linkIndex);
   void      diagSinglet       ();

@@ -174,6 +174,24 @@ void KData::addXlinkScore(CnpxLinkedPeptide& lp, string name, int value){
   lp.xlink_score.push_back(xls);
 }
 
+void KData::addXlinkScore(CnpxXLink& xl, string name, double value, string fmt){
+  char score[32];
+  sprintf(score, fmt.c_str(), value);
+  CnpxXLinkScore xls;
+  xls.name = name;
+  xls.value = score;
+  xl.xlink_score.push_back(xls);
+}
+
+void KData::addXlinkScore(CnpxXLink& xl, string name, int value){
+  char score[32];
+  sprintf(score, "%d", value);
+  CnpxXLinkScore xls;
+  xls.name = name;
+  xls.value = score;
+  xl.xlink_score.push_back(xls);
+}
+
 void KData::buildXLTable(){
   int i, j;
   int xlA, xlB;
@@ -555,7 +573,7 @@ CnpxModificationInfo KData::makeModificationInfo(vector<kPepMod>& mods, string p
   for (size_t i = 0; i<peptide.size(); i++){
     if (aa.getFixedModMass(peptide[i])>0) {
       CnpxModAminoAcidMass maam;
-      maam.position=i + 1;
+      maam.position=(int)i + 1;
       maam.mass=aa.getAAMass(peptide[i], n15);
       maam.staticMass=aa.getFixedModMass(peptide[i]);
       mi.mod_aminoacid_mass.push_back(maam);
@@ -1312,8 +1330,6 @@ bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
 }
 
 bool KData::outputNeoPepXML(CnpxSpectrumQuery& p, KDatabase& db, kResults& r){
-  char score[32];
-
   CnpxSearchHit sh;
 
   sh.hit_rank = 1;
@@ -1330,6 +1346,15 @@ bool KData::outputNeoPepXML(CnpxSpectrumQuery& p, KDatabase& db, kResults& r){
     if (!mi.modified_peptide.empty() || mi.mod_cterm_mass != 0 || mi.mod_nterm_mass != 0 || !mi.mod_aminoacid_mass.empty()) sh.modification_info.push_back(mi);
 
     addProteins(&sh, db, r.pep1, false, r.link1, r.link2);
+
+    if(r.type==1) { //loop link
+      CnpxXLink xl;
+      xl.identifier = r.xlLabel;
+      xl.mass = r.xlMass;
+      addXlinkScore(xl, "link", r.link1);
+      addXlinkScore(xl, "link", r.link2);
+      sh.xlink.push_back(xl);
+    }
 
   } else { //XL
     sh.peptide='-';
@@ -2038,7 +2063,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       fprintf(fOut,"%d\t%.4f\t0\t0\t0\t0\t0\t0\t999\t0\t999\t-\t-\t-\t-\t0\t999\t-\t-\t-\t-\t0\n",res.scanNumber,res.rTime);
 
       if(params->exportPepXML) {
-        sq.index = p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size() + 1;
+        sq.index = (int)p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size() + 1;
         p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.push_back(sq);
       }
       continue;
@@ -2317,7 +2342,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     }
 
     if(params->exportPepXML) {
-      sq.index=p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size()+1;
+      sq.index=(int)p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size()+1;
       p.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.push_back(sq);
       //p.writeSpectrumQuery(sq);
     }
