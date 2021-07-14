@@ -6,11 +6,12 @@ FLAGS = -O3 -static -std=c++11 -D_NOSQLITE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BI
 #Paths to supporting software
 MSTOOLKITPATH = ../MSToolkit
 HARDKLORPATH = ../Hardklor
+NEOPEPXMLPATH = ../NeoPepXMLParser
 
 #Do not touch these variables
-LIBPATH = -L$(MSTOOLKITPATH) -L$(HARDKLORPATH)
-LIBS = -lmstoolkitlite -lhardklor -lpthread
-INCLUDE = -I$(MSTOOLKITPATH)/include -I$(HARDKLORPATH)
+LIBPATH = -L$(MSTOOLKITPATH) -L$(HARDKLORPATH) -L$(NEOPEPXMLPATH)
+LIBS = -lmstoolkitlite -lhardklor -lneopepxmlparser -lpthread
+INCLUDE = -I$(MSTOOLKITPATH)/include -I$(HARDKLORPATH) -I$(NEOPEPXMLPATH)
 
 
 #Do not touch these variables
