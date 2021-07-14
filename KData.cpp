@@ -1323,7 +1323,7 @@ bool KData::outputNeoPepXML(CnpxSpectrumQuery& p, KDatabase& db, kResults& r){
   
   if(r.type<2) { //single or loop
     sh.peptide = r.peptide1;
-    if(r.type=0) sh.xlink_type="na";
+    if(r.type==0) sh.xlink_type="na";
     else sh.xlink_type="loop";
 
     CnpxModificationInfo mi = makeModificationInfo(r.mods1, r.peptide1, r.n15Pep1, r.nTerm1, r.cTerm1);
