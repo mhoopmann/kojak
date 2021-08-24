@@ -1898,22 +1898,29 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
     //Add modifications
     for (i = 0; i<params->fMods->size(); i++){ 
-      CnpxAminoAcidModification aam;
       if (params->fMods->at(i).index == '$' || params->fMods->at(i).index=='%') { //special case protein termini
-        if (params->fMods->at(i).index == '$') aam.protein_terminus="n";
-        else aam.protein_terminus="c";
-        aam.massdiff = params->fMods->at(i).mass;
-        aam.mass = params->fMods->at(i).mass;
-        aam.variable = "N";
-        ss.aminoacid_modification.push_back(aam);
+        CnpxTerminalModification tm;
+        if (params->fMods->at(i).index == '$') {
+          tm.terminus="c";
+          tm.protein_terminus="n";
+        } else {
+          tm.terminus="c";
+          tm.protein_terminus="c";
+        }
+        tm.massdiff = params->fMods->at(i).mass;
+        tm.mass = params->fMods->at(i).mass;
+        tm.variable = "N";
+        ss.terminal_modification.push_back(tm);
       } else if (params->fMods->at(i).index == 'n' || params->fMods->at(i).index == 'c') { //peptide termini
-        if (params->fMods->at(i).index == 'n') aam.peptide_terminus = "n";
-        else aam.peptide_terminus = "c";
-        aam.massdiff = params->fMods->at(i).mass;
-        aam.mass = params->fMods->at(i).mass;
-        aam.variable = "N";
-        ss.aminoacid_modification.push_back(aam);
+        CnpxTerminalModification tm;
+        if (params->fMods->at(i).index == 'n') tm.terminus = "n";
+        else tm.terminus = "c";
+        tm.massdiff = params->fMods->at(i).mass;
+        tm.mass = params->fMods->at(i).mass;
+        tm.variable = "N";
+        ss.terminal_modification.push_back(tm);
       } else {
+        CnpxAminoAcidModification aam;
         aam.aminoacid = (char)params->fMods->at(i).index;
         aam.massdiff = params->fMods->at(i).mass;
         aam.mass = db.getAAMass(params->fMods->at(i).index);
@@ -1922,22 +1929,29 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       }
     }
     for(i=0;i<params->mods->size();i++){
-      CnpxAminoAcidModification aam;
       if (params->mods->at(i).index == '$' || params->mods->at(i).index == '%') { //special case protein termini
-        if (params->mods->at(i).index == '$') aam.protein_terminus = "n";
-        else aam.protein_terminus = "c";
-        aam.massdiff = params->mods->at(i).mass;
-        aam.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
-        aam.variable = "Y";
-        ss.aminoacid_modification.push_back(aam);
+        CnpxTerminalModification tm;
+        if (params->mods->at(i).index == '$') {
+          tm.terminus="n";
+          tm.protein_terminus = "n";
+        } else {
+          tm.terminus="c";
+          tm.protein_terminus = "c";
+        }
+        tm.massdiff = params->mods->at(i).mass;
+        tm.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
+        tm.variable = "Y";
+        ss.terminal_modification.push_back(tm);
       } else if (params->mods->at(i).index == 'n' || params->mods->at(i).index == 'c') { //peptide termini
-        if (params->mods->at(i).index == 'n') aam.protein_terminus = "n";
-        else aam.protein_terminus = "c";
-        aam.massdiff = params->mods->at(i).mass;
-        aam.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
-        aam.variable = "Y";
-        ss.aminoacid_modification.push_back(aam);
+        CnpxTerminalModification tm;
+        if (params->mods->at(i).index == 'n') tm.terminus = "n";
+        else tm.terminus = "c";
+        tm.massdiff = params->mods->at(i).mass;
+        tm.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
+        tm.variable = "Y";
+        ss.terminal_modification.push_back(tm);
       } else {
+        CnpxAminoAcidModification aam;
         aam.aminoacid=(char)params->mods->at(i).index;
         aam.massdiff=params->mods->at(i).mass;
         aam.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
