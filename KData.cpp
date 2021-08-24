@@ -1900,13 +1900,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     for (i = 0; i<params->fMods->size(); i++){ 
       if (params->fMods->at(i).index == '$' || params->fMods->at(i).index=='%') { //special case protein termini
         CnpxTerminalModification tm;
-        if (params->fMods->at(i).index == '$') {
-          tm.terminus="c";
-          tm.protein_terminus="n";
-        } else {
-          tm.terminus="c";
-          tm.protein_terminus="c";
-        }
+        if (params->fMods->at(i).index == '$') tm.terminus="n";
+        else tm.terminus="c";
+        tm.protein_terminus="Y";
         tm.massdiff = params->fMods->at(i).mass;
         tm.mass = params->fMods->at(i).mass;
         tm.variable = "N";
@@ -1915,6 +1911,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         CnpxTerminalModification tm;
         if (params->fMods->at(i).index == 'n') tm.terminus = "n";
         else tm.terminus = "c";
+        tm.protein_terminus = "N";
         tm.massdiff = params->fMods->at(i).mass;
         tm.mass = params->fMods->at(i).mass;
         tm.variable = "N";
@@ -1931,13 +1928,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     for(i=0;i<params->mods->size();i++){
       if (params->mods->at(i).index == '$' || params->mods->at(i).index == '%') { //special case protein termini
         CnpxTerminalModification tm;
-        if (params->mods->at(i).index == '$') {
-          tm.terminus="n";
-          tm.protein_terminus = "n";
-        } else {
-          tm.terminus="c";
-          tm.protein_terminus = "c";
-        }
+        if (params->mods->at(i).index == '$') tm.terminus="n";
+        else tm.terminus="c";
+        tm.protein_terminus = "Y";
         tm.massdiff = params->mods->at(i).mass;
         tm.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
         tm.variable = "Y";
@@ -1946,6 +1939,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         CnpxTerminalModification tm;
         if (params->mods->at(i).index == 'n') tm.terminus = "n";
         else tm.terminus = "c";
+        tm.protein_terminus = "N";
         tm.massdiff = params->mods->at(i).mass;
         tm.mass = db.getAAMass(params->mods->at(i).index) + params->mods->at(i).mass;
         tm.variable = "Y";
