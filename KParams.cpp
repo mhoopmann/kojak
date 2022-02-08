@@ -319,12 +319,17 @@ void KParams::parse(const char* cmd) {
     logParam(xml);
 
   } else if(strcmp(param,"fixed_modification")==0){
-    m.index=(int)values[0][0];
-    m.mass=atof(&values[1][0]);
-    if(m.mass!=0) params->fMods->push_back(m);
-    xml.name = "fixed_modification";
-    xml.value = values[0]+" "+values[1];
-    logParam(xml);
+    if(values.size()!=2){
+      warn("ERROR: Invalid value(s) for fixed_modifcation parameter. Stopping analysis.", 3);
+      exit(-5);
+    } else {
+      m.index=(int)values[0][0];
+      m.mass=atof(&values[1][0]);
+      if(m.mass!=0) params->fMods->push_back(m);
+      xml.name = "fixed_modification";
+      xml.value = values[0]+" "+values[1];
+      logParam(xml);
+    }
 
   } else if (strcmp(param, "fixed_modification_protC") == 0){
     m.index = (int)'%';
@@ -465,13 +470,18 @@ void KParams::parse(const char* cmd) {
     logParam(xml);
 
   } else if(strcmp(param,"modification")==0){
-    m.xl=false;
-    m.index=(int)values[0][0];
-    m.mass=atof(&values[1][0]);
-    if(m.mass!=0 && !checkMod(m)) params->mods->push_back(m);
-    xml.name = "modification";
-    xml.value = values[0]+" "+values[1];
-    logParam(xml);
+    if (values.size() != 2){
+      warn("ERROR: Invalid value(s) for modifcation parameter. Stopping analysis.", 3);
+      exit(-5);
+    } else {
+      m.xl=false;
+      m.index=(int)values[0][0];
+      m.mass=atof(&values[1][0]);
+      if(m.mass!=0 && !checkMod(m)) params->mods->push_back(m);
+      xml.name = "modification";
+      xml.value = values[0]+" "+values[1];
+      logParam(xml);
+    }
 
   } else if (strcmp(param, "modification_protC") == 0){
     m.xl = false;
