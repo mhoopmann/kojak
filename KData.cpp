@@ -72,6 +72,17 @@ KSpectrum& KData::operator [](const int& i){
   return spec[i];
 }
 
+//============================
+//  Thread-Start Functions
+//============================
+
+//These functions fire off when a thread starts. They pass the variables to for
+//each thread-specific analysis to the appropriate function.
+void KData::xCorrProc(KSpectrum* s){
+  s->xCorrScore(false); //this cruft should be eliminated...xCorrScore() should always use kojak version
+  s = NULL;
+}
+
 
 /*============================
   Functions
@@ -311,6 +322,49 @@ void KData::buildXLTable(){
 
 bool KData::checkLink(char p1Site, char p2Site, int linkIndex){
   return xlTargets[p1Site][linkIndex].target[p2Site];
+}
+
+bool KData::doXCorr(kParams& params){
+  int i;
+  int iPercent;
+  int iTmp;
+
+  ThreadPool<KSpectrum*>* threadPool = new ThreadPool<KSpectrum*>(xCorrProc, params.threads*2, params.threads*2, 1);
+
+  //Set progress meter
+  iPercent = 0;
+  printf("%2d%%", iPercent);
+  fflush(stdout);
+
+  //Iterate the peptide for the first pass
+  for (i = 0; i<spec.size(); i++){
+
+    threadPool->WaitForQueuedParams();
+
+    KSpectrum* a = &spec[i];
+    threadPool->Launch(a);
+
+    //Update progress meter
+    iTmp = (int)((double)i / spec.size() * 100);
+    if (iTmp>iPercent){
+      iPercent = iTmp;
+      printf("\b\b\b%2d%%", iPercent);
+      fflush(stdout);
+    }
+  }
+
+  threadPool->WaitForQueuedParams();
+  threadPool->WaitForThreads();
+
+  //Finalize progress meter
+  printf("\b\b\b100%%");
+  cout << endl;
+
+  //clean up memory & release pointers
+  delete threadPool;
+  threadPool = NULL;
+
+  return true;
 }
 
 KSpectrum* KData::getSpectrum(const int& i){

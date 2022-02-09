@@ -27,6 +27,8 @@ limitations under the License.
 #include "mzIMLTools.h"
 #include "pepXMLWriter.h"
 #include "NeoPepXMLParser.h"
+#include "Threading.h"
+#include "ThreadPool.h"
 #include <iostream>
 
 /*
@@ -39,6 +41,24 @@ limitations under the License.
 #endif
 */
 
+//=============================
+// Structures for threading
+//=============================
+struct kDataStruct {
+  Mutex*      mutex;        //Pointer to a mutex for protecting memory
+  KSpectrum*  spec;
+  bool        score;
+  kDataStruct(Mutex* m, KSpectrum* s, bool b){
+    mutex = m;
+    spec = s;
+    score = b;
+  }
+  ~kDataStruct(){
+    mutex = NULL;   //release mutex
+    spec = NULL;
+  }
+};
+
 class KData {
 public:
 
@@ -49,6 +69,10 @@ public:
   KSpectrum& operator[ ](const int& i);
   KSpectrum& at(const int& i);
   KSpectrum* getSpectrum(const int& i);
+
+  //Master Functions
+  bool doXCorr(kParams& params);
+  static void xCorrProc(KSpectrum* s);
 
   void      addProteins       (void* sh, KDatabase& db, int pIndex, bool xl, int linkA, int linkB);
   void      addSearchScore    (CnpxSearchHit& sh, std::string name, double value, std::string fmt);

@@ -109,7 +109,8 @@ int KojakManager::run(){
       return -2;
     }
     spec.mapPrecursors();
-    spec.xCorr(params.xcorr);
+    spec.doXCorr(params);
+    //spec.xCorr(params.xcorr);
 
     //Step #4: Analyze single peptides, monolinks, and crosslinks
     KAnalysis anal(params, &db, &spec);
