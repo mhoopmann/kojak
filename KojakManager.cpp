@@ -3,8 +3,13 @@
 #include "KData.h"
 #include "KDB.h"
 #include "KIons.h"
+#include "Profiler.h"
+
+#include "KFileLoader.h"
 
 using namespace std;
+
+extern Profiler prof;
 
 KojakManager::KojakManager(){
   param_obj.setParams(&params);
@@ -64,6 +69,12 @@ int KojakManager::run(){
 
   //Step 1: Prepare from settings
   KData spec(&params);
+
+  KFileLoader loader;
+  loader.params=&params;
+  loader.readFile();
+  exit(1);
+
   spec.setLog(&log);
   spec.setVersion(VERSION);
   for (i = 0; i<params.xLink->size(); i++) spec.setLinker(params.xLink->at(i));
@@ -110,7 +121,11 @@ int KojakManager::run(){
     }
     spec.mapPrecursors();
     spec.doXCorr(params);
+    //prof.Init();
+    //int64 pID=prof.StartTimer("xCorr");
     //spec.xCorr(params.xcorr);
+    //prof.StopTimer(pID);
+    //prof.Release();
 
     //Step #4: Analyze single peptides, monolinks, and crosslinks
     KAnalysis anal(params, &db, &spec);

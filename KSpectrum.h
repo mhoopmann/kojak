@@ -140,6 +140,7 @@ public:
   void  resetSingletList    ();
   void  sortMZ              ();
   void  xCorrScore          (bool b);
+  void  kojakXCorr          (double*& pdTempRawData, double*& pdTmpFastXcorrData, float*& pfFastXcorrData, kPreprocessStruct*& pPre);
 
 private:
 
@@ -165,12 +166,16 @@ private:
   kScoreCard            topHit[20];
   int                   xCorrArraySize;
 
-  //Functions
-  void BinIons      (kPreprocessStruct *pPre);
-  void CometXCorr   ();
-  void MakeCorrData (double *pdTempRawData, kPreprocessStruct *pPre, double scale);
+  //double *pdTempRawData;
+  //double *pdTmpFastXcorrData;
+  //float  *pfFastXcorrData;
+  //kPreprocessStruct pPre;
 
-  void kojakXCorr   ();
+  //Functions
+  void BinIons        (kPreprocessStruct *pPre);
+  void CometXCorr     ();
+  void MakeCorrData   (double *pdTempRawData, kPreprocessStruct *pPre, double scale);
+
 
   //Utilities
   static int compareIntensity (const void *p1,const void *p2);

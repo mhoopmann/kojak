@@ -44,16 +44,20 @@ limitations under the License.
 //=============================
 // Structures for threading
 //=============================
-struct kDataStruct {
+struct kSpectrumStruct {
+  bool*       mem;    //Pointer to the memory manager array to mark memory is in use
   Mutex*      mutex;        //Pointer to a mutex for protecting memory
   KSpectrum*  spec;
-  bool        score;
-  kDataStruct(Mutex* m, KSpectrum* s, bool b){
+  kSpectrumStruct(Mutex* m, KSpectrum* s){
     mutex = m;
     spec = s;
-    score = b;
   }
-  ~kDataStruct(){
+  ~kSpectrumStruct(){
+    //Mark that memory is not being used, but do not delete it here.
+    Threading::LockMutex(*mutex);
+    if (mem != NULL) *mem = false;
+    mem = NULL;
+    Threading::UnlockMutex(*mutex);
     mutex = NULL;   //release mutex
     spec = NULL;
   }
@@ -72,7 +76,7 @@ public:
 
   //Master Functions
   bool doXCorr(kParams& params);
-  static void xCorrProc(KSpectrum* s);
+  static void xCorrProc(kSpectrumStruct* s);
 
   void      addProteins       (void* sh, KDatabase& db, int pIndex, bool xl, int linkA, int linkB);
   void      addSearchScore    (CnpxSearchHit& sh, std::string name, double value, std::string fmt);
@@ -111,6 +115,9 @@ public:
   int       size              ();
   int       sizeLink          ();
   void      xCorr             (bool b);
+
+  void memoryAllocate();
+  void memoryFree();
   
 
 private:
@@ -122,7 +129,7 @@ private:
   std::vector<KSpectrum>  spec;
   std::vector<kLinker>    link;  //just cross-links, not mono-links
   std::vector<kMass>      massList;
-  kParams*           params;
+  static kParams*           params;
   KIons              aa;
   kXLMotif           motifs[20]; //lets put a cap on this for now
   int                motifCount;
@@ -143,6 +150,19 @@ private:
   bool        writeMzIDEnzyme   (pxwBasicXMLTag t, CEnzymes& e);
   void        writeMzIDPE       (CMzIdentML& m, CSpectrumIdentificationItem& m_sii, int pepID, KDatabase& db);
   std::string writeMzIDSIP      (CMzIdentML& m, std::string& sRef, KParams& par);
+
+  //MH: Common memory to be shared by all threads during spectral processing
+  static bool* memoryPool;                 //MH: Regulator of memory use
+  //static double **ppdTmpRawDataArr;          //MH: Number of arrays equals threads
+  //static double **ppdTmpFastXcorrDataArr;    //MH: Ditto
+  //static double **ppdTmpCorrelationDataArr;  //MH: Ditto
+
+  static double** tempRawData;
+  static double** tmpFastXcorrData;
+  static float**  fastXcorrData;
+  static Mutex    mutexMemoryPool;
+  static kPreprocessStruct** preProcess;
+  //static kPreprocessStruct **pre;
 
 };
 

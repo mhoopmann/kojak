@@ -15,9 +15,12 @@ limitations under the License.
 */
 
 #include "KSpectrum.h"
+//#include "Profiler.h"
 #include <iostream>
 
 using namespace std;
+
+//extern Profiler prof;
 
 /*============================
   Constructors & Destructors
@@ -887,6 +890,7 @@ bool KSpectrum::generateSingletDecoys(kParams* params, KDecoys& decoys) {
 // through each candidate peptide and rotating spectra in m/z space.
 
 //Rethink the need to have score2 as a parameter...
+//TODO: Get rid of rand(). Possible options, simply rotate link site to next position.
 double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex,double score2) {
   int i;
   int n;
@@ -2014,8 +2018,8 @@ void KSpectrum::sortMZ(){
 }
 
 void KSpectrum::xCorrScore(bool b){
-  if(b) CometXCorr();
-  else  kojakXCorr();
+  //if(b) CometXCorr();
+  //else  kojakXCorr();
 }
 
 
@@ -2118,87 +2122,97 @@ void KSpectrum::CometXCorr(){
 
 }
 
-void KSpectrum::kojakXCorr(){
+void KSpectrum::kojakXCorr(double*& pdTempRawData, double*& pdTmpFastXcorrData, float*& pfFastXcorrData, kPreprocessStruct*& pPre){
   int i;
   int j;
   int iTmp;
   double dTmp;
   double dSum;
-  double *pdTempRawData;
-  double *pdTmpFastXcorrData;
-  float  *pfFastXcorrData;
-  kPreprocessStruct pPre;
+//  double *pdTempRawData;
+//  double *pdTmpFastXcorrData;
+//  float  *pfFastXcorrData;
+  //kPreprocessStruct pPre;
 
-  pPre.iHighestIon = 0;
-  pPre.dHighestIntensity = 0;
+  //pPre.iHighestIon = 0;
+  //pPre.dHighestIntensity = 0;
+  //BinIons(&pPre);
 
-  BinIons(&pPre);
+  pPre->iHighestIon=0;
+  pPre->dHighestIntensity=0;
+  BinIons(pPre);
+
+  memset(pdTempRawData,0,xCorrArraySize*sizeof(double));
+  memset(pdTmpFastXcorrData, 0, xCorrArraySize*sizeof(double));
+  memset(pfFastXcorrData, 0, xCorrArraySize*sizeof(float));
   //cout << scanNumber << ": " << kojakBins << "\t" << xCorrArraySize << "\t" << invBinSize << "\t" << (int)invBinSize+1 << endl;
   kojakSparseArray=new char*[kojakBins];
   for(i=0;i<kojakBins;i++) kojakSparseArray[i]=NULL;
 
-  pdTempRawData = (double *)calloc((size_t)xCorrArraySize, (size_t)sizeof(double));
-  if (pdTempRawData == NULL) {
-    fprintf(stderr, " Error - calloc(pdTempRawData[%d]).\n\n", xCorrArraySize);
-    exit(1);
-  }
+  //pdTempRawData = (double *)calloc((size_t)xCorrArraySize, (size_t)sizeof(double));
+  //if (pdTempRawData == NULL) {
+  //  fprintf(stderr, " Error - calloc(pdTempRawData[%d]).\n\n", xCorrArraySize);
+  //  exit(1);
+  //}
 
-  pdTmpFastXcorrData = (double *)calloc((size_t)xCorrArraySize, (size_t)sizeof(double));
-  if (pdTmpFastXcorrData == NULL) {
-    fprintf(stderr, " Error - calloc(pdTmpFastXcorrData[%d]).\n\n", xCorrArraySize);
-    exit(1);
-  }
+  //pdTmpFastXcorrData = (double *)calloc((size_t)xCorrArraySize, (size_t)sizeof(double));
+  //if (pdTmpFastXcorrData == NULL) {
+  //  fprintf(stderr, " Error - calloc(pdTmpFastXcorrData[%d]).\n\n", xCorrArraySize);
+  //  exit(1);
+  //}
 
-  pfFastXcorrData = (float *)calloc((size_t)xCorrArraySize, (size_t)sizeof(float));
-  if (pfFastXcorrData == NULL) {
-    fprintf(stderr, " Error - calloc(pfFastXcorrData[%d]).\n\n", xCorrArraySize);
-    exit(1);
-  }
+  //pfFastXcorrData = (float *)calloc((size_t)xCorrArraySize, (size_t)sizeof(float));
+  //if (pfFastXcorrData == NULL) {
+  //  fprintf(stderr, " Error - calloc(pfFastXcorrData[%d]).\n\n", xCorrArraySize);
+  //  exit(1);
+  //}
+
+  //prof.StopTimer(pID);
 
   // Create data for correlation analysis.
-  MakeCorrData(pdTempRawData, &pPre, 50.0);
+  //MakeCorrData(pdTempRawData, &pPre, 50.0);
+  MakeCorrData(pdTempRawData, pPre, 50.0);
 
   // Make fast xcorr spectrum.
   dSum=0.0;
-  for (i=0; i<75; i++) dSum += pPre.pdCorrelationData[i].intensity;
+  for (i=0; i<75; i++) dSum += pPre->pdCorrelationData[i].intensity;
   for (i=75; i < xCorrArraySize +75; i++) {
-    if (i<xCorrArraySize) dSum += pPre.pdCorrelationData[i].intensity;
-    if (i>=151) dSum -= pPre.pdCorrelationData[i-151].intensity;
-    pdTmpFastXcorrData[i-75] = (dSum - pPre.pdCorrelationData[i-75].intensity)* 0.0066666667;
+    if (i<xCorrArraySize) dSum += pPre->pdCorrelationData[i].intensity;
+    if (i>=151) dSum -= pPre->pdCorrelationData[i-151].intensity;
+    pdTmpFastXcorrData[i-75] = (dSum - pPre->pdCorrelationData[i-75].intensity)* 0.0066666667;
   }
 
   xCorrSparseArraySize=1;
   for (i=0; i<xCorrArraySize; i++) {
-    dTmp = pPre.pdCorrelationData[i].intensity - pdTmpFastXcorrData[i];
+    dTmp = pPre->pdCorrelationData[i].intensity - pdTmpFastXcorrData[i];
     pfFastXcorrData[i] = (float)dTmp;
 
     // Add flanking peaks if used
     iTmp = i-1;
-    if (iTmp >= 0) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
+    if (iTmp >= 0) pfFastXcorrData[i] += (float) ((pPre->pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
 
     iTmp = i+1;
-    if (iTmp < xCorrArraySize) pfFastXcorrData[i] += (float) ((pPre.pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
+    if (iTmp < xCorrArraySize) pfFastXcorrData[i] += (float) ((pPre->pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp])*0.5);
 
   }
-  free(pdTmpFastXcorrData);
+  //free(pdTmpFastXcorrData);
 
   //MH: Fill sparse matrix
   for(i=0;i<xCorrArraySize;i++){
     if(pfFastXcorrData[i]>0.5 || pfFastXcorrData[i]<-0.5){
 
       //Fill in missing masses as a result of adding flanking peaks
-      if(pPre.pdCorrelationData[i].mass==0){
+      if(pPre->pdCorrelationData[i].mass==0){
         j=1;
         while(true){
           if( (i+j)<xCorrArraySize){
-            if(pPre.pdCorrelationData[i+j].mass>0){
-              pPre.pdCorrelationData[i].mass=pPre.pdCorrelationData[i+j].mass-j*binSize;
+            if(pPre->pdCorrelationData[i+j].mass>0){
+              pPre->pdCorrelationData[i].mass=pPre->pdCorrelationData[i+j].mass-j*binSize;
               break;
             }
           }
           if( (i-j)>-1){
-            if(pPre.pdCorrelationData[i-j].mass>0){
-              pPre.pdCorrelationData[i].mass=pPre.pdCorrelationData[i-j].mass+j*binSize;
+            if(pPre->pdCorrelationData[i-j].mass>0){
+              pPre->pdCorrelationData[i].mass=pPre->pdCorrelationData[i-j].mass+j*binSize;
               break;
             }
           }
@@ -2245,9 +2259,12 @@ void KSpectrum::kojakXCorr(){
   */
 
   //exit(1);
-  free(pPre.pdCorrelationData);
-  free(pfFastXcorrData);
-  free(pdTempRawData);
+  //pID=prof.StartTimer("free memory");
+  //free(pPre.pdCorrelationData);
+  //free(pfFastXcorrData);
+  //free(pdTempRawData);
+  //prof.StopTimer(pID);
+  //memoryFree();
 
 }
 
@@ -2266,11 +2283,12 @@ void KSpectrum::BinIons(kPreprocessStruct *pPre) {
   xCorrArraySize = (int)((dPrecursor + 100.0) / binSize);
   kojakBins = (int)(spec->at(spec->size()-1).mass+100.0);
 
-  pPre->pdCorrelationData = (kSpecPoint *)calloc(xCorrArraySize, (size_t)sizeof(kSpecPoint));
-  if (pPre->pdCorrelationData == NULL) {
-    fprintf(stderr, " Error - calloc(pdCorrelationData[%d]).\n\n", xCorrArraySize);
-    exit(1);
-  }
+  memset(pPre->pdCorrelationData, 0, xCorrArraySize*sizeof(kSpecPoint));
+  //pPre->pdCorrelationData = (kSpecPoint *)calloc(xCorrArraySize, (size_t)sizeof(kSpecPoint));
+  //if (pPre->pdCorrelationData == NULL) {
+  //  fprintf(stderr, " Error - calloc(pdCorrelationData[%d]).\n\n", xCorrArraySize);
+  //  exit(1);
+  //}
 
   i = 0;
   while(true) {
@@ -2353,7 +2371,6 @@ void KSpectrum::MakeCorrData(double *pdTempRawData, kPreprocessStruct *pPre, dou
   }
 
 }
-
 
 /*============================
   Utilities

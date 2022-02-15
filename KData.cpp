@@ -15,9 +15,20 @@ limitations under the License.
 */
 
 #include "KData.h"
+#include "Profiler.h"
 
 using namespace std;
 using namespace MSToolkit;
+
+extern Profiler prof;
+
+Mutex KData::mutexMemoryPool;
+bool* KData::memoryPool;
+double** KData::tempRawData;
+double** KData::tmpFastXcorrData;
+float**  KData::fastXcorrData;
+kPreprocessStruct** KData::preProcess;
+kParams* KData::params;
 
 /*============================
   Constructors
@@ -78,8 +89,24 @@ KSpectrum& KData::operator [](const int& i){
 
 //These functions fire off when a thread starts. They pass the variables to for
 //each thread-specific analysis to the appropriate function.
-void KData::xCorrProc(KSpectrum* s){
-  s->xCorrScore(false); //this cruft should be eliminated...xCorrScore() should always use kojak version
+void KData::xCorrProc(kSpectrumStruct* s){
+  int i;
+  Threading::LockMutex(mutexMemoryPool);
+  for (i = 0; i<params->threads; i++){
+    if (!memoryPool[i]){
+      memoryPool[i] = true;
+      break;
+    }
+  }
+  Threading::UnlockMutex(mutexMemoryPool);
+  if (i == params->threads){
+    cout << "Error in KData::xCorrProc" << endl;
+    exit(-1);
+  }
+  s->mem=&memoryPool[i];
+  s->spec->kojakXCorr(tempRawData[i],tmpFastXcorrData[i],fastXcorrData[i],preProcess[i]);
+  delete s;
+  //s->xCorrScore(false); //this cruft should be eliminated...xCorrScore() should always use kojak version
   s = NULL;
 }
 
@@ -325,23 +352,32 @@ bool KData::checkLink(char p1Site, char p2Site, int linkIndex){
 }
 
 bool KData::doXCorr(kParams& params){
+  klog->addMessage("Using Kojak modified XCorr scores.", true);
+  cout << "  Using Kojak modified XCorr scores." << endl;
+  klog->addMessage("Transforming spectra.", true);
+  cout << "  Transforming spectra ... ";
+
   int i;
   int iPercent;
   int iTmp;
+  size_t szBuffer=2000;
+  size_t index=0;
 
-  ThreadPool<KSpectrum*>* threadPool = new ThreadPool<KSpectrum*>(xCorrProc, params.threads*2, params.threads*2, 1);
+  memoryAllocate();
+
+  ThreadPool<kSpectrumStruct*>* threadPool = new ThreadPool<kSpectrumStruct*>(xCorrProc, params.threads, params.threads, 1);
 
   //Set progress meter
   iPercent = 0;
   printf("%2d%%", iPercent);
   fflush(stdout);
 
-  //Iterate the peptide for the first pass
+  //Iterate the spectra for the first pass
   for (i = 0; i<spec.size(); i++){
 
     threadPool->WaitForQueuedParams();
 
-    KSpectrum* a = &spec[i];
+    kSpectrumStruct* a=new kSpectrumStruct(&mutexMemoryPool,&spec[i]);
     threadPool->Launch(a);
 
     //Update progress meter
@@ -363,6 +399,7 @@ bool KData::doXCorr(kParams& params){
   //clean up memory & release pointers
   delete threadPool;
   threadPool = NULL;
+  memoryFree();
 
   return true;
 }
@@ -772,6 +809,57 @@ bool KData::mapPrecursors(){
   bScans = new bool[spec.size()];
 
   return true;
+}
+
+void KData::memoryAllocate(){
+  //find largest possible array for a spectrum
+  int threads=params->threads;
+  double xlMass=0;
+  for(size_t a=0;a<params->xLink->size();a++){
+    if(params->xLink->at(a).mass>xlMass) xlMass=params->xLink->at(a).mass;
+  }
+  int xCorrArraySize = (int)((params->maxPepMass*2+xlMass + 100.0) / params->binSize);
+
+  //Mark all arrays as available
+  memoryPool = new bool[threads];
+  for(int a=0;a<threads;a++) memoryPool[a]=false;
+
+  //Allocate arrays
+  tempRawData = new double*[threads]();
+  for(int a=0;a<threads;a++) tempRawData[a]=new double[xCorrArraySize]();
+  
+  tmpFastXcorrData = new double*[threads]();
+  for(int a=0;a<threads;a++) tmpFastXcorrData[a]=new double[xCorrArraySize]();
+
+  fastXcorrData = new float*[threads]();
+  for (int a = 0; a<threads; a++) fastXcorrData[a] = new float[xCorrArraySize]();
+
+  preProcess = new kPreprocessStruct*[threads]();
+  for (int a = 0; a<threads; a++) {
+    preProcess[a] = new kPreprocessStruct();
+    preProcess[a]->pdCorrelationData = new kSpecPoint[xCorrArraySize]();
+  }
+
+  //Create mutex
+  Threading::CreateMutex(&mutexMemoryPool);
+}
+
+void KData::memoryFree(){
+  delete [] memoryPool;
+  for(int a=0;a<params->threads;a++){
+    delete [] tempRawData[a];
+    delete [] tmpFastXcorrData[a];
+    delete [] fastXcorrData[a];
+    delete [] preProcess[a]->pdCorrelationData;
+    delete preProcess[a];
+  }
+  delete [] tempRawData;
+  delete [] tmpFastXcorrData;
+  delete [] fastXcorrData;
+  delete [] preProcess;
+
+  //Destroy mutexes
+  Threading::DestroyMutex(mutexMemoryPool);
 }
 
 void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
@@ -2486,15 +2574,20 @@ bool KData::readSpectra(){
   printf("%2d%%", iPercent);
   fflush(stdout);
 
+  prof.Init();
+
   if(!msr.readFile(params->msFile,s)) return false;
   while(s.getScanNumber()>0){
 
     totalScans++;
     if(s.size()<1) {
+      int64 pID=prof.StartTimer("ReadFile");
       msr.readFile(NULL,s);
+      prof.StopTimer(pID);
       continue;
     }
 
+    int64 pID=prof.StartTimer("ProcessSpectrum");
     pls.clear();
     pls.setRTime(s.getRTime());
     pls.setScanNumber(s.getScanNumber());
@@ -2580,9 +2673,12 @@ bool KData::readSpectra(){
         pls.setInstrumentPrecursor(true);
       }
     }
+    prof.StopTimer(pID);
 
     //Add spectrum (if it has enough data points) to data object and read next file
+    pID=prof.StartTimer("Add2Array");
     if(pls.size()>params->minPeaks) spec.push_back(pls);
+    prof.StopTimer(pID);
 
     /*
     for(unsigned int d=0;d<params->diag->size();d++){
@@ -2605,13 +2701,16 @@ bool KData::readSpectra(){
       printf("\b\b\b%2d%%", iPercent);
       fflush(stdout);
     }
-
+    pID = prof.StartTimer("ReadFile");
     msr.readFile(NULL,s);
+    prof.StopTimer(pID);
   }
 
   //Finalize progress meter
   if(iPercent<100) printf("\b\b\b100%%");
   cout << endl;
+
+  prof.Release();
 
   cout << "  " << spec.size() << " total spectra have enough data points (" << params->minPeaks << " peaks) for searching." << endl;
   //cout << totalScans << " total scans were loaded." <<  endl;
