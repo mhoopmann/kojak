@@ -301,7 +301,10 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
       }
     }
   }
-
+  if (pls.getScanNumber() == 22018) {
+    cout << pls.getMZ() << endl;
+    cout << "Precursor: " << precursor << "\t" << centBuf->at(precursor).getScanNumber() << endl;
+  }
   if(precursor<0){
     //cout << "Warning: Precursor not found for " << scanNum << " " << mz << endl;
     return ret;
@@ -336,6 +339,10 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     if(k==2) break;
   }
 
+  if (pls.getScanNumber() == 22018) {
+    cout << "MS1 spec count: " << vs.size() << endl;
+  }
+
   //If total spectra to be combined is small (5 scan events), try 
   //grabbing a +/- 5 sec window around max, regardless of precursor observation
   /*
@@ -361,6 +368,10 @@ int KPrecursor::getSpecRange(KSpectrum& pls){
     return ret;
   } 
   s.setScanNumber(centBuf->at(precursor).getScanNumber());
+  if (pls.getScanNumber() == 22018) {
+    cout << "sp scan number: " << s.getScanNumber() << endl;
+    for(int x=0;x<s.size();x++) cout << s[x].mz << "\t" << s[x].intensity << endl;
+  }
 
   //Obtain the possible precursor charge states of the selected ion.
   //Find the index of the closest peak to the selected m/z.
@@ -689,11 +700,21 @@ void KPrecursor::averageScansCentroid(vector<Spectrum*>& s, Spectrum& avg, doubl
   double  lowMZ=-1.0;
   kScanBin sb;
   vector<kScanBin> topList;
-
-  pos=new int[s.size()];
-
+  
   avg.clear();
 
+  //if vector is just one scan, then simply copy the peaks
+  if(s.size()==1){
+    int index=findPeak(*s[0], min);
+    if (s[0]->at(index).mz<min) index++;
+    while(index<s[0]->size() && s[0]->at(index).mz<max){
+      avg.add(s[0]->at(index++));
+    }
+    return;
+  }
+
+  pos=new int[s.size()];
+  
   //Set some really small bin width related to the mz region being summed.
   binWidth=0.0001;
   

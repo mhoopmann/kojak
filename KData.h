@@ -63,6 +63,39 @@ struct kSpectrumStruct {
   }
 };
 
+typedef struct kMS2struct{
+  MSToolkit::Spectrum* s;
+  KSpectrum* pls;
+  int state;
+  bool thread;
+  kMS2struct(MSToolkit::Spectrum* sp, int topCount, double binSize, double binOffset){
+    s = sp;
+    pls = new KSpectrum(topCount, binSize, binOffset);
+    state = 0;
+    thread = false;
+  }
+  ~kMS2struct(){
+    delete s;
+    pls = NULL;  //this needs to be deleted elsewhere
+    //delete pls;
+  }
+} kMS2struct;
+
+//use functors for sorting
+static struct compareScanBinRev3 {
+  bool operator() (const kScanBin& p1, const kScanBin& p2) {
+    return p2.intensity<p1.intensity;
+  }
+} compareScanBinRev3;
+
+static struct compareSpecPoint2 {
+  bool operator() (const kSpecPoint& p1, const kSpecPoint& p2){ 
+    return p1.mass<p2.mass; 
+  }
+} compareSpecPoint2;
+
+static inline bool compareScanBinRev(const kScanBin& p1, const kScanBin& p2) { return p2.intensity<p1.intensity; }
+
 class KData {
 public:
 
@@ -123,26 +156,29 @@ public:
 private:
 
   //Data Members
-  bool* bScans;
-  char               version[32];
-  char**             xlTable;
-  std::vector<KSpectrum>  spec;
+  bool*                   bScans;
+  char                    version[32];
+  char**                  xlTable;
+  std::vector<KSpectrum*>  spec;
   std::vector<kLinker>    link;  //just cross-links, not mono-links
   std::vector<kMass>      massList;
-  static kParams*           params;
-  KIons              aa;
-  kXLMotif           motifs[20]; //lets put a cap on this for now
-  int                motifCount;
-  kXLTarget          xlTargets[128][5]; //capping analysis at 5 crosslinkers for now
-  KLog*              klog;
+  static kParams*         params;
+  KIons                   aa;
+  kXLMotif                motifs[20]; //lets put a cap on this for now
+  int                     motifCount;
+  kXLTarget               xlTargets[128][5]; //capping analysis at 5 crosslinkers for now
+  static KLog*            klog;
 
   //Utilities
   void        centroid(MSToolkit::Spectrum& s, MSToolkit::Spectrum& out, double resolution, int instrument = 0);
+  static void centroid(MSToolkit::Spectrum* s, KSpectrum* out, double resolution, int instrument = 0);
   void        collapseSpectrum(MSToolkit::Spectrum& s);
+  static void collapseSpectrum(KSpectrum& s);
   static int  compareInt        (const void *p1, const void *p2);
   static int  compareMassList   (const void *p1, const void *p2);
   int         getCharge(MSToolkit::Spectrum& s, int index, int next);
-  double      polynomialBestFit (std::vector<double>& x, std::vector<double>& y, std::vector<double>& coeff, int degree=2);
+  static int  getCharge(KSpectrum& s, int index, int next);
+  static double polynomialBestFit (std::vector<double>& x, std::vector<double>& y, std::vector<double>& coeff, int degree=2);
   bool        processPath       (const char* in_path, char* out_path);
   std::string processPeptide    (kPeptide& pep, std::vector<kPepMod>* mod, KDatabase& db);
   void        processProtein    (int pepIndex, int site, char linkSite, std::string& prot, std::string& sites, bool& decoy, KDatabase& db);
@@ -164,6 +200,38 @@ private:
   static kPreprocessStruct** preProcess;
   //static kPreprocessStruct **pre;
 
+  //New optimized file loading structures
+  static std::deque<MSToolkit::Spectrum*> dMS1;
+  static std::vector<MSToolkit::Spectrum*> vMS1Buffer;
+  static Mutex mutexLockMS1;
+  static CHardklor2** h;
+  static CHardklor**  hO;
+  static Mutex* mutexHardklor;
+  static CAveragine** averagine;
+  static CMercury8** mercury;
+  static CModelLibrary* models;
+  static bool* bHardklor;
+
+  static CHardklorSetting hs;
+  static CHardklorSetting hs2;
+  static CHardklorSetting hs4;
+
+  static void averageScansCentroid(std::vector<MSToolkit::Spectrum*>& s, MSToolkit::Spectrum& avg, double min, double max);
+  static int  findPeak(MSToolkit::Spectrum* s, double mass);
+  static int  findPeak(MSToolkit::Spectrum* s, double mass, double prec);
+  static void formatMS2(MSToolkit::Spectrum* s, KSpectrum* pls);
+  static void initHardklor();
+  static void processMS2(kMS2struct* s);
+  static void processMS2B(kMS2struct* s);
+  static int  processPrecursor(kMS2struct* s, int tIndex);
+  static void releaseHardklor();
+
+  static bool compareSpecPoint(const kSpecPoint& p1, const kSpecPoint& p2){ return p1.mass<p2.mass; }
+  //static inline bool compareScanBinRev(const kScanBin& p1, const kScanBin& p2) { return p2.intensity<p1.intensity; }
+  static int compareScanBinRev2(const void *p1, const void *p2);
+
+  static int maxPrecursorMass;
+ 
 };
 
 

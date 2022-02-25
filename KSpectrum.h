@@ -17,6 +17,7 @@ limitations under the License.
 #ifndef _KSPECTRUM_H
 #define _KSPECTRUM_H
 
+#include <algorithm>
 #include <cmath>
 #include <list>
 #include <vector>
@@ -139,8 +140,9 @@ public:
   void  refreshScore        (KDatabase& db, std::string dStr);  //To be run AFTER analysis completes. Looks at top scores, if a tie, make sure decoys are listed second (to help TPP analysis)
   void  resetSingletList    ();
   void  sortMZ              ();
+  void  sortIntensityRev    () { sort(spec->begin(),spec->end(),compareIntensityRev); }
   void  xCorrScore          (bool b);
-  void  kojakXCorr          (double*& pdTempRawData, double*& pdTmpFastXcorrData, float*& pfFastXcorrData, kPreprocessStruct*& pPre);
+  void  kojakXCorr          (double* pdTempRawData, double* pdTmpFastXcorrData, float* pfFastXcorrData, kPreprocessStruct*& pPre);
 
 private:
 
@@ -179,6 +181,7 @@ private:
 
   //Utilities
   static int compareIntensity (const void *p1,const void *p2);
+  static bool compareIntensityRev (const kSpecPoint& p1, const kSpecPoint& p2) { return p1.intensity>p2.intensity;}
   static int compareMZ        (const void *p1,const void *p2);
 
 

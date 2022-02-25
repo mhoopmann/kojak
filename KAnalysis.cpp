@@ -491,7 +491,7 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
   int len;
   char mot[10];
   char site[10];
-  int m,n;
+  int m,n,c;
   double minMass;
   double maxMass;
   vector<int> scanIndex;
@@ -583,12 +583,16 @@ bool KAnalysis::analyzeSinglets(kPeptide& pep, int index, double lowLinkMass, do
 
       //This set of iterations is slow because of the amount of iterating.
       for (n = 0; n < m; n++){ //iterate over sites
-        counterMotif = spec->getCounterMotif(mot[n], 0);
-        if (counterMotif>-1){ //only check peptide if it has a counterpart at this link site.
-          xlIndex = spec->getXLIndex((int)mot[n], 0);
-          xlMass = spec->getLink(xlIndex).mass;
-          for (j = 0; j<scanIndex.size(); j++){ //iterate over all potential spectra
-            bSearch = scoreSingletSpectra2(scanIndex[j], i, ions[iIndex][i].mass, xlMass, counterMotif, len, index, (char)k, minMass, iIndex, site[n], xlIndex);
+        for(c=0;c<10;c++){ //check all crosslinkers that bind to this site
+          counterMotif = spec->getCounterMotif(mot[n], c);
+          if (counterMotif>-1){ //only check peptide if it has a counterpart at this link site.
+            xlIndex = spec->getXLIndex((int)mot[n], c);
+            xlMass = spec->getLink(xlIndex).mass;
+            for (j = 0; j<scanIndex.size(); j++){ //iterate over all potential spectra
+              bSearch = scoreSingletSpectra2(scanIndex[j], i, ions[iIndex][i].mass, xlMass, counterMotif, len, index, (char)k, minMass, iIndex, site[n], xlIndex);
+            }
+          } else {
+            break; //no countermotif means no more crosslinkers
           }
         }
       }

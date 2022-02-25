@@ -15,12 +15,12 @@ limitations under the License.
 */
 
 #include "KData.h"
-#include "Profiler.h"
+//#include "Profiler.h"
 
 using namespace std;
 using namespace MSToolkit;
 
-extern Profiler prof;
+//extern Profiler prof;
 
 Mutex KData::mutexMemoryPool;
 bool* KData::memoryPool;
@@ -29,6 +29,25 @@ double** KData::tmpFastXcorrData;
 float**  KData::fastXcorrData;
 kPreprocessStruct** KData::preProcess;
 kParams* KData::params;
+
+KLog* KData::klog;
+
+deque<Spectrum*> KData::dMS1;
+vector<Spectrum*> KData::vMS1Buffer;
+Mutex KData::mutexLockMS1;
+CHardklor2** KData::h;
+CHardklor** KData::hO;
+CAveragine** KData::averagine;
+CMercury8** KData::mercury;
+CModelLibrary* KData::models;
+Mutex* KData::mutexHardklor;
+CHardklorSetting KData::hs;
+CHardklorSetting KData::hs2;
+CHardklorSetting KData::hs4;
+bool* KData::bHardklor;
+
+int KData::maxPrecursorMass;
+
 
 /*============================
   Constructors
@@ -73,6 +92,7 @@ KData::~KData(){
   if(bScans!=NULL) delete[] bScans;
   for (int i = 0; i<128; i++) delete[] xlTable[i];
   delete[] xlTable;
+  for(size_t a=0;a<spec.size();a++) delete spec[a];
 }
 
 
@@ -80,7 +100,7 @@ KData::~KData(){
   Operators
 ============================*/
 KSpectrum& KData::operator [](const int& i){
-  return spec[i];
+  return *spec[i];
 }
 
 //============================
@@ -318,7 +338,7 @@ void KData::buildXLTable(){
     }
   }
 
-  //Output for diagnostic purposes
+  ////Output for diagnostic purposes
   //for (i = 0; i < motifCount; i++){
   //  cout << "Motif " << i << ": " << &motifs[i].motif[0] << endl;
   //  for(k=0;k<10;k++){
@@ -377,7 +397,7 @@ bool KData::doXCorr(kParams& params){
 
     threadPool->WaitForQueuedParams();
 
-    kSpectrumStruct* a=new kSpectrumStruct(&mutexMemoryPool,&spec[i]);
+    kSpectrumStruct* a=new kSpectrumStruct(&mutexMemoryPool,spec[i]);
     threadPool->Launch(a);
 
     //Update progress meter
@@ -404,8 +424,170 @@ bool KData::doXCorr(kParams& params){
   return true;
 }
 
+//Returns closet mz value to desired point
+int KData::findPeak(Spectrum* s, double mass){
+  int sz = s->size();
+  int lower = 0;
+  int mid = sz / 2;
+  int upper = sz;
+
+
+  //binary search to closest mass
+  while (s->at(mid).mz != mass){
+    if (lower >= upper) break;
+    if (mass<s->at(mid).mz){
+      upper = mid - 1;
+      mid = (lower + upper) / 2;
+    } else {
+      lower = mid + 1;
+      mid = (lower + upper) / 2;
+    }
+    if (mid == sz) {
+      mid--;
+      break;
+    }
+  }
+
+  //Check that mass is closest
+  if (mid>0 && fabs(s->at(mid - 1).mz - mass)<fabs(s->at(mid).mz - mass)) return mid - 1;
+  if (mid<s->size() - 1 && fabs(s->at(mid + 1).mz - mass)<fabs(s->at(mid).mz - mass)) return mid + 1;
+  return mid;
+
+}
+
+//Returns point within precision or -1 if doesn't exist
+int KData::findPeak(Spectrum* s, double mass, double prec){
+  int sz = s->size();
+  int lower = 0;
+  int mid = sz / 2;
+  int upper = sz;
+
+  double minMass = mass - (mass / 1000000 * prec);
+  double maxMass = mass + (mass / 1000000 * prec);
+
+  //binary search to closest mass
+  while (s->at(mid).mz<minMass || s->at(mid).mz>maxMass){
+    if (lower >= upper) break;
+    if (mass<s->at(mid).mz){
+      upper = mid - 1;
+      mid = (lower + upper) / 2;
+    } else {
+      lower = mid + 1;
+      mid = (lower + upper) / 2;
+    }
+    if (mid == sz) {
+      mid--;
+      break;
+    }
+  }
+
+  //Check that mass is correct
+  if (s->at(mid).mz>minMass && s->at(mid).mz<maxMass) return mid;
+
+  return -1;
+}
+
+void KData::formatMS2(MSToolkit::Spectrum* s, KSpectrum* pls){
+  char nStr[256];
+  string sStr;
+
+  pls->setRTime(s->getRTime());
+  pls->setScanNumber(s->getScanNumber());
+  s->getNativeID(nStr,256);
+  sStr=nStr;
+  pls->setNativeID(sStr);
+
+  bool doCentroid=false;
+  switch(s->getCentroidStatus()){
+  case 0:
+    if(params->ms2Centroid) {
+      char tmpStr[256];
+      sprintf(tmpStr,"Kojak parameter indicates MS/MS data are centroid, but spectrum %d labeled as profile.",s->getScanNumber());
+      klog->addError(string(tmpStr));
+    } else doCentroid=true;
+    break;
+  case 1:
+    if (!params->ms2Centroid) {
+      klog->addWarning(0, "Spectrum is labeled as centroid, but Kojak parameter indicates data are profile. Ignoring Kojak parameter.");
+    }
+    break;
+  default:
+    if(!params->ms2Centroid) doCentroid=true;
+    break;
+  }
+
+  //If not centroided, do so now.
+  int totalPeaks=0;
+  if(doCentroid){
+    centroid(s, pls, params->ms2Resolution, params->instrument);
+    totalPeaks += pls->size();
+  } else {
+    kSpecPoint sp;
+    for(int i=0;i<s->size();i++){
+      sp.mass=s->at(i).mz;
+      sp.intensity=s->at(i).intensity;
+      pls->addPoint(sp);
+    }
+  }
+
+  //remove precursor if requested
+  if(params->removePrecursor>0){
+    double pMin=s->getMZ()-params->removePrecursor;
+    double pMax=s->getMZ()+params->removePrecursor;
+    for(int i=0;i<pls->size();i++){
+      if((*pls)[i].mass>pMin && (*pls)[i].mass<pMax) (*pls)[i].intensity=0;
+    }
+  }
+
+  //Collapse the isotope peaks
+  int collapsedPeaks=0;
+  if (params->specProcess == 1 && pls->size()>1) {
+    collapseSpectrum(*pls);
+    collapsedPeaks += pls->size();
+  }
+
+  //If user limits number of peaks to analyze, sort by intensity and take top N
+  int j;
+  if (params->maxPeaks>0 && pls->size()>params->maxPeaks){
+    if (pls->size()>1) pls->sortIntensityRev();
+    vector<kSpecPoint> v;
+    for (int i = 0; i<params->maxPeaks; i++) v.push_back((*pls)[i]);
+    pls->clear();
+    for (int i = 0; i<params->maxPeaks; i++) pls->addPoint(v[i]);
+    pls->sortMZ();
+    pls->setMaxIntensity(v[0].intensity);
+  } else {
+    float max=0;
+    for (size_t i = 0; i<pls->size(); i++){
+      if((*pls)[i].intensity>max) max=(*pls)[i].intensity;
+    }
+    pls->setMaxIntensity(max);
+  }
+
+  //Get any additional information user requested
+  pls->setCharge(s->getCharge());
+  pls->setMZ(s->getMZ());
+  if(params->preferPrecursor>0){
+    if(s->getMonoMZ()>0 && s->getCharge()>0){
+      kPrecursor pre;
+      pre.monoMass=s->getMonoMZ()*s->getCharge()-s->getCharge()*1.007276466;
+      pre.charge=s->getCharge();
+      pre.corr=0;
+      pls->addPrecursor(pre,params->topCount);
+      for(int px=1;px<=params->isotopeError;px++){
+        if(px==4) break;
+        pre.monoMass -= 1.00335483;
+        pre.corr -= 0.1;
+        pls->addPrecursor(pre, params->topCount);
+      }
+      pls->setInstrumentPrecursor(true);
+    }
+  }
+
+}
+
 KSpectrum* KData::getSpectrum(const int& i){
-  return &spec[i];
+  return spec[i];
 }
 
 char** KData::getXLTable(){
@@ -413,7 +595,113 @@ char** KData::getXLTable(){
 }
 
 KSpectrum& KData::at(const int& i){
-  return spec[i];
+  return *spec[i];
+}
+
+//Places centroided peaks in bins, then finds average. Has potential for error when accuracy drifts into neighboring bins.
+void KData::averageScansCentroid(vector<Spectrum*>& s, Spectrum& avg, double min, double max){
+  //int64 pID = prof.StartTimer("aveScanCent-fixThisBlock");
+  unsigned int i;
+  int j, k;
+  double binWidth;
+  double offset = -1.0;
+  float* bin;
+  float intensity;
+  int binCount;
+  int* pos;
+  double  lowMZ = -1.0;
+  kScanBin sb;
+  vector<kScanBin> topList;
+
+  avg.clear();
+
+  //Commented for testing purposes only. Be sure to uncomment.
+  //if vector is just one scan, then simply copy the peaks
+  if (s.size() == 1){
+    int index = findPeak(s[0], min);
+    if (s[0]->at(index).mz<min) index++;
+    while (index<s[0]->size() && s[0]->at(index).mz<max){
+      avg.add(s[0]->at(index++));
+    }
+    //prof.StopTimer(pID);
+    return;
+  }
+  
+  //int64 pID2 = prof.StartTimer("aveAlloc");
+  pos = new int[s.size()];
+  //prof.StopTimer(pID2);
+
+  //Set some really small bin width related to the mz region being summed.
+  binWidth = 0.0001;
+
+  binCount = (int)((max - min) / binWidth + 1);
+  //pID2 = prof.StartTimer("aveAlloc");
+  bin = new float[binCount];
+  for (j = 0; j<binCount; j++) bin[j] = 0;
+  //prof.StopTimer(pID2);
+
+  //align all spectra to point closest to min and set offset
+  for (i = 0; i<s.size(); i++)  {
+    pos[i] = findPeak(s[i], min);
+    if (s[i]->at(pos[i]).mz<min) pos[i]++;
+    if (offset<0) offset = s[i]->at(pos[i]).mz;
+    else if (s[i]->at(pos[i]).mz<offset) offset = s[i]->at(pos[i]).mz;
+    //cout << s[i]->getScanNumber() << "\t" << pos[i] << "\t" << s[i]->at(pos[i]).mz << endl;
+  }
+  //printf("Offset: %.5lf\n",offset);
+
+  //Iterate all spectra and add peaks to bins
+  for (i = 0; i<s.size(); i++) {
+    while (pos[i]<s[i]->size() && s[i]->at(pos[i]).mz<max){
+      j = (int)((s[i]->at(pos[i]).mz - offset) / binWidth);
+      //cout << i << "\t" << pos[i] << "\t" << j << endl;
+      if (j<0){
+        pos[i]++;
+        continue;
+      }
+      if (j >= binCount) break;
+      bin[j] += s[i]->at(pos[i]).intensity;
+      pos[i]++;
+    }
+  }
+
+  //Unsure of current efficiency. Finds bin of tallest peak, then combines with neighboring bins
+  //to produce an average. Thus summing of neighboring bins allows flexibility when dealing with mass accuracy drift.
+  //Using larger bins has the same effect, but perhaps fewer significant digits in the final result.
+  for (j = 0; j<binCount; j++){
+    if (bin[j]>0) {
+      sb.index = j;
+      sb.intensity = bin[j];
+      topList.push_back(sb);
+    }
+  }
+  if (topList.size()>0) {
+    //sort(topList.begin(), topList.end(), [](const kScanBin& a, const kScanBin& b){ return b.intensity<a.intensity;});
+    //sort(topList.begin(), topList.end(), compareScanBinRev);
+    qsort(&topList[0], topList.size(), sizeof(kScanBin), compareScanBinRev2);
+    for (i = 0; i<topList.size(); i++){
+      if (bin[topList[i].index] == 0) continue;
+      intensity = 0;
+      j = topList[i].index - 50; //This will sum bins within 0.05 m/z... might be too wide...
+      k = topList[i].index + 51;
+      if (j<0) j = 0;
+      if (k>binCount) k = binCount;
+      for (j = j; j<k; j++){
+        intensity += bin[j];
+        bin[j] = 0;
+      }
+      intensity /= s.size();
+      avg.add(offset + topList[i].index*binWidth, intensity);
+    }
+    avg.sortMZ();
+  }
+
+  //clean up memory
+  delete[] bin;
+  delete[] pos;
+
+  //prof.StopTimer(pID);
+
 }
 
 void KData::diagSinglet(){
@@ -428,18 +716,18 @@ void KData::diagSinglet(){
     //if(spec[b].getScoreCard(0).simpleScore==0) continue;
     maxScore = 0;
     unknownMass = 0;
-    for (int q = 0; q<spec[b].sizePrecursor(); q++){
-      if (spec[b].getTopPeps(q)->singletCount == 0) continue;
-      if (spec[b].getTopPeps(q)->singletFirst->simpleScore>spec[b].getScoreCard(0).simpleScore){
-        if (spec[b].getTopPeps(q)->singletFirst->simpleScore>maxScore) {
-          maxScore = spec[b].getTopPeps(q)->singletFirst->simpleScore;
-          unknownMass = spec[b].getPrecursor(q).monoMass - spec[b].getTopPeps(q)->singletFirst->mass;
+    for (int q = 0; q<spec[b]->sizePrecursor(); q++){
+      if (spec[b]->getTopPeps(q)->singletCount == 0) continue;
+      if (spec[b]->getTopPeps(q)->singletFirst->simpleScore>spec[b]->getScoreCard(0).simpleScore){
+        if (spec[b]->getTopPeps(q)->singletFirst->simpleScore>maxScore) {
+          maxScore = spec[b]->getTopPeps(q)->singletFirst->simpleScore;
+          unknownMass = spec[b]->getPrecursor(q).monoMass - spec[b]->getTopPeps(q)->singletFirst->mass;
         }
       }
     }
     if (maxScore>0) oddCount++;
     if (maxScore>3) bigCount++;
-    if (maxScore>3 && spec[b].getScoreCard(0).simpleScore>0 && maxScore>spec[b].getScoreCard(0).simpleScore * 2) twoCount++;
+    if (maxScore>3 && spec[b]->getScoreCard(0).simpleScore>0 && maxScore>spec[b]->getScoreCard(0).simpleScore * 2) twoCount++;
     if (maxScore>bigScore) {
       bigScore = maxScore;
       bigMass = unknownMass;
@@ -642,6 +930,70 @@ int KData::getXLIndex(int motifIndex, int xlIndex){
   return motifs[motifIndex].xlIndex[xlIndex];
 }
 
+void KData::initHardklor(){
+  hs2.noBase = true;
+  hs4.noBase = true;
+
+  CHardklorVariant hv;
+  hv.addAtom(107, 2);
+  hv.addEnrich(107, 2, params->enrichment);
+  hs2.variant->push_back(hv);
+
+  hv.clear();
+  hv.addAtom(107, 4);
+  hv.addEnrich(107, 2, params->enrichment);
+  hs4.variant->push_back(hv);
+
+  hv.clear();
+  hs.winSize = hs2.winSize = hs4.winSize = 10;
+  hs.peptide = hs2.peptide = hs4.peptide = 4;
+  hs.sn = hs2.sn = hs4.sn = 0;
+  hs.depth = hs2.depth = hs4.depth = 3;
+  hs.minCharge = hs2.minCharge = hs4.minCharge = 2;
+  hs.maxCharge = hs2.maxCharge = hs4.maxCharge = 8;
+  hs.algorithm = Version2;
+  if (params->instrument == 1) hs.msType = hs2.msType = hs4.msType = FTICR;
+  else hs.msType = hs2.msType = hs4.msType = OrbiTrap;
+  hs.res400 = hs2.res400 = hs4.res400 = params->ms1Resolution;
+  hs.corr = 0.875;
+  hs2.corr = hs4.corr = 0.85;
+  hs.centroid = hs2.centroid = hs4.centroid = true;
+
+  strcpy(hs.inFile, "PLTmp.ms1");
+  strcpy(hs2.inFile, "PLTmp.ms1");
+  strcpy(hs4.inFile, "PLTmp.ms1");
+
+  hs.fileFormat = hs2.fileFormat = hs4.fileFormat = ms1;
+
+  CHardklorVariant hkv;
+  vector<CHardklorVariant> pepVariants;
+  pepVariants.clear();
+  pepVariants.push_back(hkv);
+
+  averagine = new CAveragine*[params->threads]();
+  mercury = new CMercury8*[params->threads]();
+  h = new CHardklor2*[params->threads]();
+  hO = new CHardklor*[params->threads]();
+  mutexHardklor = new Mutex[params->threads]();
+  bHardklor = new bool[params->threads]();
+  for (int a = 0; a<params->threads; a++){
+    averagine[a] = new CAveragine(NULL, NULL);
+    mercury[a] = new CMercury8(NULL);
+    if (a == 0) models = new CModelLibrary(averagine[a], mercury[a]);
+    h[a] = new CHardklor2(averagine[a], mercury[a], models);
+    h[a]->Echo(false);
+    h[a]->SetResultsToMemory(true);
+    hO[a] = new CHardklor(averagine[a], mercury[a]);
+    hO[a]->Echo(false);
+    hO[a]->SetResultsToMemory(true);
+    Threading::CreateMutex(&mutexHardklor[a]);
+    bHardklor[a] = false;
+  }
+  models->eraseLibrary();
+  models->buildLibrary(2, 8, pepVariants);
+
+}
+
 CnpxModificationInfo KData::makeModificationInfo(vector<kPepMod>& mods, string peptide, bool n15, bool nTerm, bool cTerm){
   CnpxModificationInfo mi;
   for (size_t i = 0; i<mods.size(); i++){
@@ -720,59 +1072,59 @@ bool KData::mapPrecursors(){
     bool bAddEstimate=false;
 
     if(params->preferPrecursor==1){
-      if(spec[i].sizePrecursor()==0){
-        if(spec[i].getCharge()>0) bAddEstimate=true;
+      if (spec[i]->sizePrecursor() == 0){
+        if (spec[i]->getCharge()>0) bAddEstimate = true;
         else bAddHardklor=true;
       }
     } else if(params->preferPrecursor==0){
-      spec[i].clearPrecursors();
+      spec[i]->clearPrecursors();
       bAddHardklor=true;
-      if (spec[i].getCharge()) bAddEstimate = true;
+      if (spec[i]->getCharge()) bAddEstimate = true;
     } else {
       bAddHardklor=true;
-      if(spec[i].getCharge()) bAddEstimate=true;
+      if (spec[i]->getCharge()) bAddEstimate = true;
     }
 
     if(bAddHardklor){
       //only do Hardklor analysis if data contain precursor scans
-      if (params->precursorRefinement) ret = pre.getSpecRange(spec[i]);
+      if (params->precursorRefinement) ret = pre.getSpecRange(*spec[i]);
     }
 
     if(bAddEstimate){
       kPrecursor pr;
-      pr.monoMass = spec[i].getMZ()*spec[i].getCharge() - 1.007276466*spec[i].getCharge();
-      pr.charge = spec[i].getCharge();
+      pr.monoMass = spec[i]->getMZ()*spec[i]->getCharge() - 1.007276466*spec[i]->getCharge();
+      pr.charge = spec[i]->getCharge();
       pr.corr = -5;
-      spec[i].setCharge(pr.charge);
-      spec[i].addPrecursor(pr, params->topCount);
+      spec[i]->setCharge(pr.charge);
+      spec[i]->addPrecursor(pr, params->topCount);
       for (int px = 1; px <= params->isotopeError; px++){
         if (px == 4) break;
         pr.monoMass -= 1.00335483;
         pr.corr -= 0.1;
-        spec[i].addPrecursor(pr, params->topCount);
+        spec[i]->addPrecursor(pr, params->topCount);
       }
     }
 
     //Now clean up any duplicate precursors. They should already be in order of priority. Use 5ppm as tolerance
-    for(k=0;k<spec[i].sizePrecursor()-1;k++){
-      for(n=k+1;n<spec[i].sizePrecursor();n++){
-        double m1=spec[i].getPrecursor(k).monoMass;
-        double m2=spec[i].getPrecursor(n).monoMass;
+    for (k = 0; k<spec[i]->sizePrecursor() - 1; k++){
+      for (n = k + 1; n<spec[i]->sizePrecursor(); n++){
+        double m1 = spec[i]->getPrecursor(k).monoMass;
+        double m2 = spec[i]->getPrecursor(n).monoMass;
         double m=(m1-m2)/m1*1e6;
         if(fabs(m)<5){
-          spec[i].erasePrecursor(n);
+          spec[i]->erasePrecursor(n);
           n--;
         }
       }
     }
 
-    if(spec[i].sizePrecursor()>0){
+    if (spec[i]->sizePrecursor()>0){
       foundPre++;
       specCounts++;
-      peakCounts+=spec[i].size();
+      peakCounts += spec[i]->size();
 
       //build singletList
-      spec[i].resetSingletList();
+      spec[i]->resetSingletList();
 
     }
 
@@ -796,8 +1148,8 @@ bool KData::mapPrecursors(){
   massList.clear();
   for(i=0;i<spec.size();i++){
     m.index=(int)i;
-    for(j=0;j<spec[i].sizePrecursor();j++){
-      m.mass=spec[i].getPrecursor(j).monoMass;
+    for (j = 0; j<spec[i]->sizePrecursor(); j++){
+      m.mass = spec[i]->getPrecursor(j).monoMass;
       massList.push_back(m);
     }
   }
@@ -818,6 +1170,8 @@ void KData::memoryAllocate(){
   for(size_t a=0;a<params->xLink->size();a++){
     if(params->xLink->at(a).mass>xlMass) xlMass=params->xLink->at(a).mass;
   }
+  double td = params->maxPepMass * 2 + xlMass+1;
+  maxPrecursorMass=(int)td;
   int xCorrArraySize = (int)((params->maxPepMass*2+xlMass + 100.0) / params->binSize);
 
   //Mark all arrays as available
@@ -1021,12 +1375,12 @@ bool KData::outputIntermediate(KDatabase& db){
 
   for (i = 0; i<spec.size(); i++) {
 
-    fprintf(fOut, "<spectrum scan=\"%d\" retention_time_sec=\"%.4f\" selected_mz=\"%.8lf\">\n", spec[i].getScanNumber(), spec[i].getRTime(), spec[i].getMZ());
+    fprintf(fOut, "<spectrum scan=\"%d\" retention_time_sec=\"%.4f\" selected_mz=\"%.8lf\">\n", spec[i]->getScanNumber(), spec[i]->getRTime(), spec[i]->getMZ());
     fprintf(fOut, " <precursorList>\n");
-    for (j = 0; j<spec[i].sizePrecursor(); j++){
-      fprintf(fOut, "  <precursor mono_mass=\"%.8lf\" charge=\"%d\" corr=\"%.4lf\">\n", spec[i].getPrecursor(j).monoMass, spec[i].getPrecursor(j).charge, spec[i].getPrecursor(j).corr);
+    for (j = 0; j<spec[i]->sizePrecursor(); j++){
+      fprintf(fOut, "  <precursor mono_mass=\"%.8lf\" charge=\"%d\" corr=\"%.4lf\">\n", spec[i]->getPrecursor(j).monoMass, spec[i]->getPrecursor(j).charge, spec[i]->getPrecursor(j).corr);
       fprintf(fOut, "   <peptideList>\n");
-      tp=spec[i].getTopPeps(j);
+      tp = spec[i]->getTopPeps(j);
       sc=tp->singletFirst;
       for (z = 0; z<params->intermediate; z++){
         if (sc==NULL) break;
@@ -1049,7 +1403,7 @@ bool KData::outputIntermediate(KDatabase& db){
           protSeq += db[pep.map->at(n).index].name;
           if (n<pep.map->size()-1) protSeq+='-';
         }
-        fprintf(fOut, "    <peptide sequence=\"%s\" mass=\"%.8lf\" protein=\"%s\" num_tot_proteins=\"%d\" link_site=\"%d\" score=\"%.4lf\" complement_mass=\"%.8lf\">\n", &pepSeq[0], sc->mass, &protSeq[0], (int)pep.map->size(), sc->k1 + 1, sc->simpleScore,spec[i].getPrecursor((int)sc->pre).monoMass-sc->mass);
+        fprintf(fOut, "    <peptide sequence=\"%s\" mass=\"%.8lf\" protein=\"%s\" num_tot_proteins=\"%d\" link_site=\"%d\" score=\"%.4lf\" complement_mass=\"%.8lf\">\n", &pepSeq[0], sc->mass, &protSeq[0], (int)pep.map->size(), sc->k1 + 1, sc->simpleScore, spec[i]->getPrecursor((int)sc->pre).monoMass - sc->mass);
         if (sc->modLen>0){
           fprintf(fOut, "     <modificationList>\n");
           for (k = 0; k<sc->modLen; k++){
@@ -2175,7 +2529,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   for(i=0;i<spec.size();i++) {
 
     //update top hits so that a target result is always first among ties between targets and decoys
-    spec[i].refreshScore(db,dStr);
+    spec[i]->refreshScore(db, dStr);
 
     //Check if we need to output diagnostic information
     bDiag=false;
@@ -2184,29 +2538,29 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         bDiag=true;
       } else {
         for (d = 0; d<params->diag->size(); d++){
-          if (spec[i].getScanNumber() == params->diag->at(d)){
+          if (spec[i]->getScanNumber() == params->diag->at(d)){
             bDiag=true;
             break;
           }
         }
       }
     }
-    if(bDiag) outputDiagnostics(fDiag,spec[i],db);
+    if(bDiag) outputDiagnostics(fDiag,*spec[i],db);
 
     scoreIndex=0;
-    tmpSC=spec[i].getScoreCard(scoreIndex);
-    res.scanNumber=spec[i].getScanNumber();
-    res.scanID=spec[i].getNativeID();
-    res.rTime=spec[i].getRTime();
+    tmpSC = spec[i]->getScoreCard(scoreIndex);
+    res.scanNumber = spec[i]->getScanNumber();
+    res.scanID = spec[i]->getNativeID();
+    res.rTime = spec[i]->getRTime();
     
     CnpxSpectrumQuery sq;
-    sq.spectrum = res.baseName + "." + to_string(res.scanNumber) + "." + to_string(res.scanNumber) + "." + to_string(spec[i].getPrecursor(0).charge);
+    sq.spectrum = res.baseName + "." + to_string(res.scanNumber) + "." + to_string(res.scanNumber) + "." + to_string(spec[i]->getPrecursor(0).charge);
     sq.start_scan = res.scanNumber;
     sq.end_scan = res.scanNumber;
-    sq.precursor_neutral_mass = spec[i].getPrecursor(0).monoMass;
-    sq.assumed_charge = spec[i].getPrecursor(0).charge;
+    sq.precursor_neutral_mass = spec[i]->getPrecursor(0).monoMass;
+    sq.assumed_charge = spec[i]->getPrecursor(0).charge;
     sq.index = 1;
-    sq.retention_time_sec = spec[i].getRTime() * 60;
+    sq.retention_time_sec = spec[i]->getRTime() * 60;
 
     //if there are no matches to the spectrum, return null result and continue
     if(tmpSC.simpleScore==0){
@@ -2229,7 +2583,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       count++;
 
       //Get precursor ion for the PSM
-      precursor=spec[i].getPrecursor((int)tmpSC.precursor);
+      precursor = spec[i]->getPrecursor((int)tmpSC.precursor);
       res.obsMass = precursor.monoMass;
       res.charge  = precursor.charge;
       res.ppm = (tmpSC.mass - precursor.monoMass) / precursor.monoMass*1e6;
@@ -2248,7 +2602,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       //if no other match has the same precursor, just take the lowest score in the list
       n=scoreIndex+1;
       while(n<19){
-        tmpSC2=spec[i].getScoreCard(n++);
+        tmpSC2 = spec[i]->getScoreCard(n++);
         if(tmpSC2.simpleScore==0) break;
         if(tmpSC2.simpleScore==topScore) continue;
         if(tmpSC2.precursor!=tmpSC.precursor) continue;
@@ -2273,7 +2627,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       if(tmpSC.score1<tmpSC.score2) res.scorePepDif = tmpSC.score1;
       else res.scorePepDif = tmpSC.score2;
       
-      KTopPeps* tp = spec[i].getTopPeps((int)tmpSC.precursor);
+      KTopPeps* tp = spec[i]->getTopPeps((int)tmpSC.precursor);
       kSingletScoreCard* grr;
       grr = tp->singletFirst;
       int rank=1;
@@ -2355,7 +2709,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         iDupe=1;
         while(n<19){
           iDupe++;
-          tmpSC2=spec[i].getScoreCard(n++);
+          tmpSC2 = spec[i]->getScoreCard(n++);
           if(tmpSC2.simpleScore==0) break;
           if(tmpSC2.simpleScore!=topScore) break;
 
@@ -2488,7 +2842,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       if(bDupe) scoreIndex+=iDupe;
       else scoreIndex++;
       if(scoreIndex>=20) break;
-      tmpSC=spec[i].getScoreCard(scoreIndex);
+      tmpSC = spec[i]->getScoreCard(scoreIndex);
     }
 
     if(params->exportPepXML) {
@@ -2524,6 +2878,490 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
 }
 
+void KData::processMS2(kMS2struct* s){
+
+  int j;
+  //cout << "ProcessMS2: " << s->s->getScanNumber() << "\t" << s->state << endl;
+  if (s->state == 0){
+    //int64 pID = prof.StartTimer("formatMS2");
+    formatMS2(s->s,s->pls);
+    //prof.StopTimer(pID);
+  } else if (s->state==1) {
+
+    bool bAddHardklor = false;
+    bool bAddEstimate = false;
+
+    if (params->preferPrecursor == 1){
+      if (s->pls->sizePrecursor() == 0){
+        if (s->pls->getCharge()>0) bAddEstimate = true;
+        else bAddHardklor = true;
+      }
+    } else if (params->preferPrecursor == 0){
+      s->pls->clearPrecursors();
+      bAddHardklor = true;
+      if (s->pls->getCharge()) bAddEstimate = true;
+    } else {
+      bAddHardklor = true;
+      if (s->pls->getCharge()) bAddEstimate = true;
+    }
+
+    int ret;
+    if (bAddHardklor && params->precursorRefinement){
+      //only do Hardklor analysis if data contain precursor scans
+      //ret = pre.getSpecRange(*spec[i]);
+      int tIndex;
+      Threading::LockMutex(mutexLockMS1);
+      for (tIndex = 0; tIndex<params->threads; tIndex++){
+        if (!bHardklor[tIndex]){
+          bHardklor[tIndex] = true;
+          break;
+        }
+      }
+      if (tIndex == params->threads) cout << "Thread overload" << endl;
+      Threading::UnlockMutex(mutexLockMS1);
+
+      Threading::LockMutex(mutexHardklor[tIndex]);
+      ret = processPrecursor(s, tIndex);
+      bHardklor[tIndex] = false;
+      Threading::UnlockMutex(mutexHardklor[tIndex]);
+
+      //Threading::LockMutex(mutexLockMS1); //is this necessary?
+      //bHardklor[tIndex] = false;
+      //Threading::UnlockMutex(mutexLockMS1);
+    }
+
+    if (bAddEstimate){
+      kPrecursor pr;
+      pr.monoMass = s->pls->getMZ()*s->pls->getCharge() - 1.007276466*s->pls->getCharge();
+      pr.charge = s->pls->getCharge();
+      pr.corr = -5;
+      s->pls->setCharge(pr.charge);
+      s->pls->addPrecursor(pr, params->topCount);
+      for (int px = 1; px <= params->isotopeError; px++){
+        if (px == 4) break;
+        pr.monoMass -= 1.00335483;
+        pr.corr -= 0.1;
+        s->pls->addPrecursor(pr, params->topCount);
+      }
+    }
+
+    //Now clean up any duplicate precursors. They should already be in order of priority. Use 5ppm as tolerance
+    for (int k = 0; k<s->pls->sizePrecursor(); k++){
+
+      //Also use this as an opportunity to remove any oversized precursors (beyond limits of search space defined by user)
+      /*if (s->pls->getPrecursor(k).monoMass>maxPrecursorMass){
+        cout << "Warning: removing precursor mass of " << s->pls->getPrecursor(k).monoMass << " in scan " << s->pls->getScanNumber() << endl;
+        s->pls->erasePrecursor(k);
+        k--;
+        continue;
+      }*/
+
+      for (int n = k + 1; n<s->pls->sizePrecursor(); n++){
+        double m1 = s->pls->getPrecursor(k).monoMass;
+        double m2 = s->pls->getPrecursor(n).monoMass;
+        double m = (m1 - m2) / m1*1e6;
+        if (fabs(m)<5){
+          s->pls->erasePrecursor(n);
+          n--;
+        }
+      }
+    }
+
+    int foundPre=0;
+    int specCounts=0;
+    int peakCounts=0;
+    if (s->pls->sizePrecursor()>0){
+      foundPre++;
+      specCounts++;
+      peakCounts += s->pls->size();
+
+      //build singletList
+      s->pls->resetSingletList();
+
+    } else s->state=3; //no precursors, so advance state past transform to delete.
+
+  } else if (s->state == 2) {
+    //int64 pID=prof.StartTimer("Transform");
+    //int64 pID2 = prof.StartTimer("TransformMutex");
+    Threading::LockMutex(mutexMemoryPool);
+    for (j = 0; j<params->threads; j++){
+      if (!memoryPool[j]){
+        memoryPool[j] = true;
+        break;
+      }
+    }
+    Threading::UnlockMutex(mutexMemoryPool);
+    //prof.StopTimer(pID2);
+    if (j == params->threads){
+      cout << "Error in KData::processMS2::state==2" << endl;
+      exit(-1);
+    }
+    s->pls->kojakXCorr(tempRawData[j], tmpFastXcorrData[j], fastXcorrData[j], preProcess[j]);
+    memoryPool[j]=false;
+    //prof.StopTimer(pID);
+
+  }
+
+  s->state++;
+  s->thread = false;
+}
+
+void KData::processMS2B(kMS2struct* s){
+
+  int j;
+
+  //int64 pID = prof.StartTimer("formatMS2");
+  formatMS2(s->s, s->pls);
+  //prof.StopTimer(pID);
+
+  if(s->pls->size()<=params->minPeaks){
+    s->state=4;
+    s->thread=false;
+    return;
+  }
+
+  bool bAddHardklor = false;
+  bool bAddEstimate = false;
+
+  if (params->preferPrecursor == 1){
+    if (s->pls->sizePrecursor() == 0){
+      if (s->pls->getCharge()>0) bAddEstimate = true;
+      else bAddHardklor = true;
+    }
+  } else if (params->preferPrecursor == 0){
+    s->pls->clearPrecursors();
+    bAddHardklor = true;
+    if (s->pls->getCharge()) bAddEstimate = true;
+  } else {
+    bAddHardklor = true;
+    if (s->pls->getCharge()) bAddEstimate = true;
+  }
+
+  int ret;
+  if (bAddHardklor && params->precursorRefinement){
+    //only do Hardklor analysis if data contain precursor scans
+    //ret = pre.getSpecRange(*spec[i]);
+    int tIndex;
+    Threading::LockMutex(mutexLockMS1);
+    for (tIndex = 0; tIndex<params->threads; tIndex++){
+      if (!bHardklor[tIndex]){
+        bHardklor[tIndex] = true;
+        break;
+      }
+    }
+    if (tIndex == params->threads) cout << "Thread overload" << endl;
+    Threading::UnlockMutex(mutexLockMS1);
+
+    Threading::LockMutex(mutexHardklor[tIndex]);
+    ret = processPrecursor(s, tIndex);
+    bHardklor[tIndex] = false;
+    Threading::UnlockMutex(mutexHardklor[tIndex]);
+    //Threading::LockMutex(mutexLockMS1); //is this necessary?
+    //bHardklor[tIndex] = false;
+    //Threading::UnlockMutex(mutexLockMS1);
+  }
+
+  if (bAddEstimate){
+    kPrecursor pr;
+    pr.monoMass = s->pls->getMZ()*s->pls->getCharge() - 1.007276466*s->pls->getCharge();
+    pr.charge = s->pls->getCharge();
+    pr.corr = -5;
+    s->pls->setCharge(pr.charge);
+    s->pls->addPrecursor(pr, params->topCount);
+    for (int px = 1; px <= params->isotopeError; px++){
+      if (px == 4) break;
+      pr.monoMass -= 1.00335483;
+      pr.corr -= 0.1;
+      s->pls->addPrecursor(pr, params->topCount);
+    }
+  }
+
+  //Now clean up any duplicate precursors. They should already be in order of priority. Use 5ppm as tolerance
+  for (int k = 0; k<s->pls->sizePrecursor(); k++){
+    for (int n = k + 1; n<s->pls->sizePrecursor(); n++){
+      double m1 = s->pls->getPrecursor(k).monoMass;
+      double m2 = s->pls->getPrecursor(n).monoMass;
+      double m = (m1 - m2) / m1*1e6;
+      if (fabs(m)<5){
+        s->pls->erasePrecursor(n);
+        n--;
+      }
+    }
+  }
+
+  int foundPre = 0;
+  int specCounts = 0;
+  int peakCounts = 0;
+  if (s->pls->sizePrecursor()>0){
+    foundPre++;
+    specCounts++;
+    peakCounts += s->pls->size();
+         //build singletList
+    s->pls->resetSingletList();
+
+  } else {
+    s->state = 4; //no precursors, so advance state past transform to delete.
+    s->thread = false;
+    return;
+  }
+
+  //pID = prof.StartTimer("Transform");
+  //int64 pID2 = prof.StartTimer("TransformMutex");
+  Threading::LockMutex(mutexMemoryPool);
+  for (j = 0; j<params->threads; j++){
+    if (!memoryPool[j]){
+      memoryPool[j] = true;
+      break;
+    }
+  }
+  Threading::UnlockMutex(mutexMemoryPool);
+  //prof.StopTimer(pID2);
+  if (j == params->threads){
+    cout << "Error in KData::processMS2::state==2" << endl;
+    exit(-1);
+  }
+  s->pls->kojakXCorr(tempRawData[j], tmpFastXcorrData[j], fastXcorrData[j], preProcess[j]);
+  memoryPool[j] = false;
+  //prof.StopTimer(pID);
+
+  s->state=3;
+  s->thread = false;
+}
+
+int KData::processPrecursor(kMS2struct* s, int tIndex){
+  //int64 pID = prof.StartTimer("ProcessPrecursor");
+
+  int j;
+  float rt = s->pls->getRTime();
+  double mz = s->pls->getMZ();
+  float maxIntensity = 0;
+  float maxRT = 0;
+  int best = 0;
+  int precursor = -1;
+  int ret=0;
+
+  //Find the MS1 scan that contains the precursor ion within 6 seconds of when it was acquired.
+  for (int i = 0; i<dMS1.size(); i++){
+    if (dMS1[i]->getRTime()<rt - 0.167) continue;
+    if (dMS1[i]->getRTime()>rt + 0.167) break;
+    int j = findPeak(dMS1[i], mz, 10);
+
+    if (j>-1){
+      if (dMS1[i]->at(j).intensity>maxIntensity){
+        maxIntensity = dMS1[i]->at(j).intensity;
+        maxRT = dMS1[i]->getRTime();
+        best = dMS1[i]->getScanNumber();
+        precursor = i;
+      }
+    }
+  }
+
+  if (precursor<0){
+    //cout << "Warning: Precursor not found for " << scanNum << " " << mz << endl;
+    //prof.StopTimer(pID);
+    return ret;
+  }
+
+  //Get up to +/-15 sec of spectra around the max precursor intensity
+  //This is done by extending on both sides until a gap is found or time is reached.
+  //Additionally, stop if 2 scans found flanking either side (maximum 5 scans per precursor).
+  vector<Spectrum*> vs;
+  float rtHigh;
+  float rtLow;
+  rtHigh = rtLow = dMS1[precursor]->getRTime();
+  int k = 0;
+  for (int i = precursor; i<dMS1.size(); i++){
+    if (dMS1[i]->getRTime()>maxRT + 0.25) break;
+    j = findPeak(dMS1[i], mz, 10);
+    if (j<0) break;
+    vs.push_back(dMS1[i]);
+    rtHigh = dMS1[i]->getRTime();
+    k++;
+    if (k == 3) break;
+  }
+
+  k = 0;
+  int i = precursor;
+  while (i>0){
+    i--;
+    if (dMS1[i]->getRTime()<maxRT - 0.25) break;
+    j = findPeak(dMS1[i], mz, 10);
+    if (j<0) break;
+    vs.push_back(dMS1[i]);
+    rtLow = dMS1[i]->getRTime();
+    k++;
+    if (k == 2) break;
+  }
+
+  //Average points between mz-1.5 and mz+2
+  Spectrum sp;
+  if (params->enrichment>0) averageScansCentroid(vs, sp, mz - 1.75, mz + 1.75);
+  else averageScansCentroid(vs, sp, mz - 1.0, mz + 1.5);
+  if (sp.size() == 0) {
+    cout << "\n   WARNING: Unexpected precursor scan data!";
+    if (!params->ms1Centroid) cout << " Params are set to MS1 profile mode, but are MS1 scans centroided?" << endl;
+    //prof.StopTimer(pID);
+    return ret;
+  }
+  sp.setScanNumber(dMS1[precursor]->getScanNumber());
+
+  //Obtain the possible precursor charge states of the selected ion.
+  //Find the index of the closest peak to the selected m/z.
+  vector<int> preCharges;
+  double tmz = fabs(mz - sp[0].mz);
+  for (j = 1; j<sp.size(); j++){
+    if (fabs(mz - sp[j].mz)<tmz) tmz = fabs(mz - sp[j].mz);
+    else break;
+  }
+  j = j - 1;
+  h[tIndex]->QuickCharge(sp, j, preCharges);
+
+  //Clear corr
+  double corr = 0;
+  double monoMass = 0;
+  int charge = 0;
+  kPrecursor pre;
+
+  //Perform 18O2 analysis with Hardklor. If enrichment is set to 0, store unenriched results in the *O2 variables.
+  //This is done in a non-competitive to identify an 18O2 peptide without solving everything
+  if (params->enrichment>0) {
+    hO[tIndex]->GoHardklor(hs2, &sp);
+
+    for (j = 0; j<hO[tIndex]->Size(); j++){
+      if (hO[tIndex]->operator[](j).corr>corr){
+        monoMass = hO[tIndex]->operator[](j).monoMass;
+        charge = hO[tIndex]->operator[](j).charge;
+        corr = hO[tIndex]->operator[](j).corr;
+      }
+    }
+    if (corr>0){
+      pre.monoMass = monoMass;
+      pre.charge = charge;
+      pre.corr = corr;
+      if (params->enrichment>0) pre.label = 1;
+      else pre.label = 0;
+      s->pls->addPrecursor(pre, params->topCount);
+    }
+
+  } else {
+
+    h[tIndex]->GoHardklor(hs, &sp);
+
+    //If nothing was found, really narrow down the window and try again.
+    if (h[tIndex]->Size() == 0){
+      averageScansCentroid(vs, sp, mz - 0.6, mz + 1.2);
+      sp.setScanNumber(dMS1[precursor]->getScanNumber());
+      if (params->enrichment>0) h[tIndex]->GoHardklor(hs2, &sp);
+      else h[tIndex]->GoHardklor(hs, &sp);
+    }
+
+    float intensity = 0;
+    for (j = 0; j<h[tIndex]->Size(); j++){
+
+      //Must have highest intensity and intersect isolated peak.
+      if (h[tIndex]->operator[](j).intensity<intensity) continue;
+      tmz = (h[tIndex]->operator[](j).monoMass + 1.007276466*h[tIndex]->operator[](j).charge) / h[tIndex]->operator[](j).charge;
+      while (tmz<(s->pls->getMZ() + 0.01)){
+        if (fabs(tmz - s->pls->getMZ())<0.01){
+          monoMass = h[tIndex]->operator[](j).monoMass;
+          charge = h[tIndex]->operator[](j).charge;
+          corr = h[tIndex]->operator[](j).corr;
+          intensity = h[tIndex]->operator[](j).intensity;
+          ret = 1;
+          break;
+        }
+        tmz += (1.00335483 / h[tIndex]->operator[](j).charge);
+      }
+    }
+
+    //failing to match precursor peak, keep most intense precursor in presumed isolation window
+    if (corr == 0){
+      for (j = 0; j<h[tIndex]->Size(); j++){
+        if (h[tIndex]->operator[](j).intensity>intensity){
+          monoMass = h[tIndex]->operator[](j).monoMass;
+          charge = h[tIndex]->operator[](j).charge;
+          corr = h[tIndex]->operator[](j).corr;
+          intensity = h[tIndex]->operator[](j).intensity;
+          ret = 2;
+        }
+      }
+    }
+
+    if (corr>0){
+      pre.monoMass = monoMass;
+      pre.charge = charge;
+      pre.corr = corr;
+      if (params->enrichment>0) pre.label = 1;
+      else pre.label = 0;
+      s->pls->addPrecursor(pre, params->topCount);
+      //also add isotope error
+      if (params->isotopeError>0){
+        pre.monoMass -= 1.00335483;
+        pre.corr = -1;
+        s->pls->addPrecursor(pre, params->topCount);
+      }
+      if (params->isotopeError>1){
+        pre.monoMass -= 1.00335483;
+        pre.corr = -2;
+        s->pls->addPrecursor(pre, params->topCount);
+      }
+      if (params->isotopeError>2){
+        pre.monoMass -= 1.00335483;
+        pre.corr = -3;
+        s->pls->addPrecursor(pre, params->topCount);
+      }
+    }
+
+  }
+
+  //Clear corr
+  corr = 0;
+
+  //Perform the 18O4 Hardklor analysis on the same data if needed
+  if (params->enrichment>0) {
+    hO[tIndex]->GoHardklor(hs4, &sp);
+    for (j = 0; j<hO[tIndex]->Size(); j++){
+      if (hO[tIndex]->operator[](j).corr>corr){
+        monoMass = hO[tIndex]->operator[](j).monoMass;
+        charge = hO[tIndex]->operator[](j).charge;
+        corr = hO[tIndex]->operator[](j).corr;
+        ret = 1;
+      }
+    }
+  }
+  if (corr>0){
+    pre.monoMass = monoMass;
+    pre.charge = charge;
+    pre.corr = corr;
+    pre.label = 2;
+    s->pls->addPrecursor(pre, params->topCount);
+  }
+
+  //Assume two precursors with nearly identical mass (within precursor tolerance) are the same.
+  //This can occur when checking multiple enrichment states.
+  //Keep only the higher correlated precursor.
+  if (s->pls->sizePrecursor()>1){
+    bool bCheck = true;
+    while (bCheck){
+      bCheck = false;
+      for (k = 0; k<s->pls->sizePrecursor() - 1; k++){
+        for (j = k + 1; j<s->pls->sizePrecursor(); j++){
+          if (fabs(s->pls->getPrecursor(k).monoMass - s->pls->getPrecursor(j).monoMass) / s->pls->getPrecursor(k).monoMass*1e6 < params->ppmPrecursor){
+            if (s->pls->getPrecursor(k).corr>s->pls->getPrecursor(j).corr) s->pls->erasePrecursor(j);
+            else s->pls->erasePrecursor(k);
+            bCheck = true;
+            break;
+          }
+        }
+        if (bCheck) break;
+      }
+    }
+  }
+
+  //prof.StopTimer(pID);
+  return ret;
+}
+
 void KData::readLinkers(char* fn){
   FILE* f;
   kLinker k;
@@ -2546,153 +3384,80 @@ void KData::readLinkers(char* fn){
 bool KData::readSpectra(){
 
   MSReader   msr;
-  Spectrum   s;
+  Spectrum*   s;
   Spectrum   c;
-  KSpectrum  pls(params->topCount,params->binSize,params->binOffset);
-  kSpecPoint sp;
-  float      max;
   kPrecursor pre;
 
-  int totalScans=0;
-  int totalPeaks=0;
-  int collapsedPeaks=0;
-  int iPercent=0;
+  int totalScans = 0;
+  int totalPeaks = 0;
+  int collapsedPeaks = 0;
+  int iPercent = 0;
   int iTmp;
 
-  int i;
-  int j;
+  //prof.Init();
 
-  char nStr[256];
-  string sStr;
+  size_t index;
 
-  bool doCentroid;
+  deque<kMS2struct*> dMS2;
+  vMS1Buffer.reserve(2000);
+  memoryAllocate();
+  initHardklor();
 
+  Threading::CreateMutex(&mutexLockMS1);
+
+  ThreadPool<kMS2struct*>* threadPool = new ThreadPool<kMS2struct*>(processMS2B, params->threads, params->threads, 1);
+
+  for(size_t a=0;a<spec.size();a++) delete spec[a];
   spec.clear();
-  msr.setFilter(MS2);
+
+  msr.setFilter(MS1);
+  msr.addFilter(MS2);
 
   //Set progress meter
   printf("%2d%%", iPercent);
   fflush(stdout);
 
-  prof.Init();
+  s = new Spectrum;
 
-  if(!msr.readFile(params->msFile,s)) return false;
-  while(s.getScanNumber()>0){
+  //int64 pID = prof.StartTimer("ReadFile");
+  if (!msr.readFile(params->msFile, *s)) return false;
+  //prof.StopTimer(pID);
+
+  //temporary
+  int nextMS2=0;
+
+  while (s->getScanNumber()>0){
 
     totalScans++;
-    if(s.size()<1) {
-      int64 pID=prof.StartTimer("ReadFile");
-      msr.readFile(NULL,s);
-      prof.StopTimer(pID);
+    if (s->size()<1) {
+      //pID = prof.StartTimer("ReadFile");
+      msr.readFile(NULL, *s);
+      //prof.StopTimer(pID);
       continue;
     }
 
-    int64 pID=prof.StartTimer("ProcessSpectrum");
-    pls.clear();
-    pls.setRTime(s.getRTime());
-    pls.setScanNumber(s.getScanNumber());
-    s.getNativeID(nStr,256);
-    sStr=nStr;
-    pls.setNativeID(sStr);
-    max=0;
-
-    doCentroid=false;
-    switch(s.getCentroidStatus()){
-    case 0:
-      if(params->ms2Centroid) {
-        char tmpStr[256];
-        sprintf(tmpStr,"Kojak parameter indicates MS/MS data are centroid, but spectrum %d labeled as profile.",s.getScanNumber());
-        klog->addError(string(tmpStr));
-      } else doCentroid=true;
-      break;
-    case 1:
-      if (!params->ms2Centroid) {
-        klog->addWarning(0, "Spectrum is labeled as centroid, but Kojak parameter indicates data are profile. Ignoring Kojak parameter.");
+    if (s->getMsLevel() == 1) {
+      vMS1Buffer.emplace_back(s);
+      //int64 pID2 = prof.StartTimer("Buffering");
+      if (vMS1Buffer.size() == 10){  //When buffer is full, transfer to MS1 memory pool
+        for (int a = 0; a<params->threads; a++) Threading::LockMutex(mutexHardklor[a]);
+        while (spec.size()>0 && dMS1.size()>0 && dMS1.front()->getRTime()<spec.back()->getRTime() - 1){ //clear old memory
+          delete dMS1.front();
+          dMS1.pop_front();
+        }
+        for (size_t a = 0; a<vMS1Buffer.size(); a++){
+          dMS1.emplace_back(vMS1Buffer[a]);
+          vMS1Buffer[a] = NULL;
+        }
+        vMS1Buffer.clear();
+        for (int a = 0; a<params->threads; a++) Threading::UnlockMutex(mutexHardklor[a]);
       }
-      break;
-    default:
-      if(!params->ms2Centroid) doCentroid=true;
-      break;
-    }
+      //prof.StopTimer(pID2);
 
-    //If not centroided, do so now.
-    if(doCentroid){
-      centroid(s, c, params->ms2Resolution, params->instrument);
-      totalPeaks += c.size();
-    } else c=s;
-
-    //remove precursor if requested
-    if(params->removePrecursor>0){
-      double pMin=s.getMZ()-params->removePrecursor;
-      double pMax=s.getMZ()+params->removePrecursor;
-      for(i=0;i<c.size();i++){
-        if(c[i].mz>pMin && c[i].mz<pMax) c[i].intensity=0;
-      }
-    }
-
-    //Collapse the isotope peaks
-    if (params->specProcess == 1 && c.size()>1) {
-      collapseSpectrum(c);
-      collapsedPeaks += c.size();
-    }
-
-    //If user limits number of peaks to analyze, sort by intensity and take top N
-    if (params->maxPeaks>0){
-      if (c.size()>1) c.sortIntensityRev();
-      if (c.size()<params->maxPeaks) j = c.size();
-      else j = params->maxPeaks;
     } else {
-      j = c.size();
+      kMS2struct* ms = new kMS2struct(s, params->topCount, params->binSize, params->binOffset);
+      dMS2.emplace_back(ms);
     }
-    for (i = 0; i<j; i++){
-      sp.mass = c[i].mz;
-      sp.intensity = c[i].intensity;
-      pls.addPoint(sp);
-      if (sp.intensity>max) max = sp.intensity;
-    }
-    pls.setMaxIntensity(max);
-
-    //Sort again by MZ, if needed
-    if (pls.size()>1 && params->maxPeaks>0) pls.sortMZ();
-
-    //Get any additional information user requested
-    pls.setCharge(s.getCharge());
-    pls.setMZ(s.getMZ());
-    if(params->preferPrecursor>0){
-      if(s.getMonoMZ()>0 && s.getCharge()>0){
-        pre.monoMass=s.getMonoMZ()*s.getCharge()-s.getCharge()*1.007276466;
-        pre.charge=s.getCharge();
-        pre.corr=0;
-        pls.addPrecursor(pre,params->topCount);
-        for(int px=1;px<=params->isotopeError;px++){
-          if(px==4) break;
-          pre.monoMass -= 1.00335483;
-          pre.corr -= 0.1;
-          pls.addPrecursor(pre, params->topCount);
-         }
-        pls.setInstrumentPrecursor(true);
-      }
-    }
-    prof.StopTimer(pID);
-
-    //Add spectrum (if it has enough data points) to data object and read next file
-    pID=prof.StartTimer("Add2Array");
-    if(pls.size()>params->minPeaks) spec.push_back(pls);
-    prof.StopTimer(pID);
-
-    /*
-    for(unsigned int d=0;d<params->diag->size();d++){
-      if(pls.getScanNumber()==params->diag->at(d)){
-        char diagStr[256];
-        sprintf(diagStr,"diagnostic_spectrum_%d.txt",params->diag->at(d));
-        FILE* f=fopen(diagStr,"wt");
-        fprintf(f,"Scan: %d\t%d\n",pls.getScanNumber(),pls.size());
-        for(int k=0;k<pls.size();k++) fprintf(f,"%.6lf\t%.0f\n",pls[k].mass,pls[k].intensity);
-        fclose(f);
-        break;
-      }
-    }
-    */
 
     //Update progress meter
     iTmp = msr.getPercent();
@@ -2701,23 +3466,399 @@ bool KData::readSpectra(){
       printf("\b\b\b%2d%%", iPercent);
       fflush(stdout);
     }
-    pID = prof.StartTimer("ReadFile");
-    msr.readFile(NULL,s);
-    prof.StopTimer(pID);
+
+    while (dMS2.size()>0 && dMS2[0]->state >= 3){ //copy and/or clear finished MS2 spectra
+      //cout << "Closing: " << dMS2[0]->pls->getScanNumber() << "\t" << nextMS2 << "\t" << dMS2.size() << endl;
+      if (dMS2[0]->state == 3) spec.push_back(dMS2[0]->pls);
+      else delete dMS2[0]->pls;
+      dMS2.pop_front();
+      nextMS2--;
+    }
+    //Launch next MS2
+    //int freeThreads = params->threads - threadPool->NumActiveThreads();
+    while(/*freeThreads>0 &&*/ nextMS2<dMS2.size()) {
+      if (dMS1.size()>0 && (dMS2[nextMS2]->s->getRTime() + 2)<dMS1.back()->getRTime()){
+        //only launch this if there are enough MS1 for precursor analysis
+        dMS2[nextMS2]->thread = true;
+        threadPool->Launch(dMS2[nextMS2]);
+        nextMS2++;
+        //freeThreads--;
+      } else break; //we got here because we need more MS1 first.
+    }
+
+    //int pID4=prof.StartTimer("Spinning");
+    //int pID5=prof.StartTimer("Spinning and Waiting");
+    //threadPool->WaitForQueuedParams();
+    ////int freeThreads=params->threads-threadPool->NumActiveThreads();
+    //prof.StopTimer(pID5);
+    //index = 0;
+    //while (/*freeThreads>0 &&*/ index<dMS2.size()){
+    //  if (index == 0 && dMS2[index]->state == 3){
+    //    spec.push_back(dMS2[index]->pls);
+    //    dMS2.pop_front();
+    //    continue;
+    //  } else if (index == 0 && dMS2[index]->state == 4){
+    //    delete dMS2[index]->pls;
+    //    dMS2.pop_front();
+    //    continue;
+    //  }
+    //  if (dMS2[index]->thread) {
+    //    index++;
+    //    continue;
+    //  }
+    //  if (dMS2[index]->state == 1 && dMS1.size()>0 && (dMS2[index]->s->getRTime() + 2)<dMS1.back()->getRTime()){
+    //    //only launch this if there are enough MS1 for precursor analysis
+    //    //if(dMS2[index]->s->getScanNumber()==76)
+    //    dMS2[index]->thread = true;
+    //    threadPool->Launch(dMS2[index]);
+    //    //freeThreads--;
+    //  } else if (dMS2[index]->state == 3){
+    //    //do nothing, it will be cleaned up later
+    //  } else if (dMS2[index]->state==2){
+    //    if (dMS2[index]->pls->size()>params->minPeaks){
+    //      dMS2[index]->thread = true;
+    //      threadPool->Launch(dMS2[index]);
+    //      //freeThreads--;
+    //    } else  dMS2[index]->state=4;
+    //  } else if(dMS2[index]->state==0) {
+    //    dMS2[index]->thread = true;
+    //    threadPool->Launch(dMS2[index]);
+    //    //freeThreads--;
+    //  }
+    //  index++;
+    //}
+    //prof.StopTimer(pID4);
+
+    s = new Spectrum;
+
+    //pID = prof.StartTimer("ReadFile");
+    msr.readFile(NULL, *s);
+    //prof.StopTimer(pID);
+
   }
 
+  //int64 pID3 = prof.StartTimer("Post File Reading");
+
+  //finish flushing buffer
+  for (int a = 0; a<params->threads; a++) Threading::LockMutex(mutexHardklor[a]);
+  while (spec.size()>0 && dMS1.size()>0 && dMS1.front()->getRTime()<spec.back()->getRTime() - 1){ //clear old memory
+    delete dMS1.front();
+    dMS1.pop_front();
+  }
+  for (size_t a = 0; a<vMS1Buffer.size(); a++){
+    dMS1.emplace_back(vMS1Buffer[a]);
+    vMS1Buffer[a] = NULL;
+  }
+  vMS1Buffer.clear();
+  for (int a = 0; a<params->threads; a++) Threading::UnlockMutex(mutexHardklor[a]);
+
+  while (nextMS2<dMS2.size()) {
+    dMS2[nextMS2]->thread = true;
+    threadPool->Launch(dMS2[nextMS2]);
+    nextMS2++;
+  }
+
+  threadPool->WaitForQueuedParams();
+  threadPool->WaitForThreads();
+
+  //finish processing last MS2 scans
+  while (dMS2.size()>0){
+    while (dMS2.size()>0 && dMS2[0]->state >= 3){ //copy and/or clear finished MS2 spectra
+      //cout << "Closing: " << dMS2[0]->pls->getScanNumber() << "\t" << nextMS2 << "\t" << dMS2.size() << endl;
+      if (dMS2[0]->state == 3) spec.push_back(dMS2[0]->pls);
+      else delete dMS2[0]->pls;
+      dMS2.pop_front();
+      nextMS2--;
+    }
+    //Launch next MS2
+    //int freeThreads = params->threads - threadPool->NumActiveThreads();
+    //while (freeThreads>0 && nextMS2<dMS2.size()) {
+    //  dMS2[nextMS2]->thread = true;
+    //  threadPool->Launch(dMS2[nextMS2]);
+    //  nextMS2++;
+    //  freeThreads--;
+    //}
+
+    //int pID4 = prof.StartTimer("Spinning");
+    //int pID5 = prof.StartTimer("Spinning and Waiting");
+    //threadPool->WaitForQueuedParams();
+    ////int freeThreads = 10; //params->threads - threadPool->NumActiveThreads();
+    //prof.StopTimer(pID5);
+    //index = 0;
+    //while (/*freeThreads>0 &&*/ index<dMS2.size()){
+    //  if (index == 0 && dMS2[index]->state == 3){
+    //    spec.push_back(dMS2[index]->pls);
+    //    dMS2.pop_front();
+    //    continue;
+    //  } else if (index == 0 && dMS2[index]->state == 4){
+    //    delete dMS2[index]->pls;
+    //    dMS2.pop_front();
+    //    continue;
+    //  }
+    //  if (dMS2[index]->thread) {
+    //    index++;
+    //    continue;
+    //  }
+    //  if (dMS2[index]->state == 1){
+    //    //launch this regardless of number of MS1 scans...
+    //    dMS2[index]->thread = true;
+    //    threadPool->Launch(dMS2[index]);
+    //    //freeThreads--;
+    //  } else if (dMS2[index]->state == 3){
+    //    //do nothing, it will be cleaned up later
+    //  } else if (dMS2[index]->state == 2){
+    //    if (dMS2[index]->pls->size()>params->minPeaks){
+    //      dMS2[index]->thread = true;
+    //      threadPool->Launch(dMS2[index]);
+    //      //freeThreads--;
+    //    } else dMS2[index]->state=4;
+    //  } else if (dMS2[index]->state == 0){
+    //    dMS2[index]->thread = true;
+    //    threadPool->Launch(dMS2[index]);
+    //    //freeThreads--;
+    //  } 
+    //  index++;
+    //}
+    //prof.StopTimer(pID4);
+  }
+
+  //prof.StopTimer(pID3);
+
   //Finalize progress meter
-  if(iPercent<100) printf("\b\b\b100%%");
+  if (iPercent<100) printf("\b\b\b100%%");
   cout << endl;
 
-  prof.Release();
+  //clean up remaining memory
+  while (dMS1.size()>0){
+    delete dMS1.front();
+    dMS1.pop_front();
+  }
 
-  cout << "  " << spec.size() << " total spectra have enough data points (" << params->minPeaks << " peaks) for searching." << endl;
-  //cout << totalScans << " total scans were loaded." <<  endl;
-  //cout << totalPeaks << " total peaks in original data." << endl;
-  //cout << collapsedPeaks << " peaks after collapsing." << endl;
-  //cout << finalPeaks << " peaks after top N." << endl;
+  delete threadPool;
+  threadPool = NULL;
+  memoryFree();
+  releaseHardklor();
+
+  cout << spec.size() << " processed MS2 spectra" << endl;
+  //cout << spec[0] << endl;
+  //cout << spec[0]->getScanNumber() << "\t" << spec[0]->size() << endl;
+  //cout << spec[0]->getScanNumber() << "\t" << spec[0]->operator[](0).mass << "\t" << (*spec[0])[0].intensity << endl;
+
+  Threading::DestroyMutex(mutexLockMS1);
+
+  //Build mass list - this orders all precursor masses, with an index pointing to the actual
+  //array position for the spectrum. This is because all spectra will have more than 1
+  //precursor mass
+  kMass m;
+  massList.clear();
+  for (size_t i = 0; i<spec.size(); i++){
+    m.index = (int)i;
+    for (int j = 0; j<spec[i]->sizePrecursor(); j++){
+      m.mass = spec[i]->getPrecursor(j).monoMass;
+      massList.push_back(m);
+    }
+  }
+
+  //sort mass list from low to high
+  qsort(&massList[0], massList.size(), sizeof(kMass), compareMassList);
+
+  if (bScans != NULL) delete[] bScans;
+  bScans = new bool[spec.size()];
+
+  //prof.Release();
+
+  //MSReader   msr;
+  //Spectrum   s;
+  //Spectrum   c;
+  ////KSpectrum  pls(params->topCount,params->binSize,params->binOffset);
+  //KSpectrum* pls;
+  //kSpecPoint sp;
+  //float      max;
+  //kPrecursor pre;
+
+  //int totalScans=0;
+  //int totalPeaks=0;
+  //int collapsedPeaks=0;
+  //int iPercent=0;
+  //int iTmp;
+
+  //int i;
+  //int j;
+
+  //char nStr[256];
+  //string sStr;
+
+  //bool doCentroid;
+
+  //spec.clear();
+  //msr.setFilter(MS2);
+
+  ////Set progress meter
+  //printf("%2d%%", iPercent);
+  //fflush(stdout);
+
+  //prof.Init();
+
+  //if(!msr.readFile(params->msFile,s)) return false;
+  //while(s.getScanNumber()>0){
+
+  //  totalScans++;
+  //  if(s.size()<1) {
+  //    int64 pID=prof.StartTimer("ReadFile");
+  //    msr.readFile(NULL,s);
+  //    prof.StopTimer(pID);
+  //    continue;
+  //  }
+
+  //  int64 pID=prof.StartTimer("ProcessSpectrum");
+  //  pls = new KSpectrum(params->topCount, params->binSize, params->binOffset);
+  //  //pls.clear();
+  //  pls->setRTime(s.getRTime());
+  //  pls->setScanNumber(s.getScanNumber());
+  //  s.getNativeID(nStr,256);
+  //  sStr=nStr;
+  //  pls->setNativeID(sStr);
+  //  max=0;
+
+  //  doCentroid=false;
+  //  switch(s.getCentroidStatus()){
+  //  case 0:
+  //    if(params->ms2Centroid) {
+  //      char tmpStr[256];
+  //      sprintf(tmpStr,"Kojak parameter indicates MS/MS data are centroid, but spectrum %d labeled as profile.",s.getScanNumber());
+  //      klog->addError(string(tmpStr));
+  //    } else doCentroid=true;
+  //    break;
+  //  case 1:
+  //    if (!params->ms2Centroid) {
+  //      klog->addWarning(0, "Spectrum is labeled as centroid, but Kojak parameter indicates data are profile. Ignoring Kojak parameter.");
+  //    }
+  //    break;
+  //  default:
+  //    if(!params->ms2Centroid) doCentroid=true;
+  //    break;
+  //  }
+
+  //  //If not centroided, do so now.
+  //  if(doCentroid){
+  //    centroid(s, c, params->ms2Resolution, params->instrument);
+  //    totalPeaks += c.size();
+  //  } else c=s;
+
+  //  //remove precursor if requested
+  //  if(params->removePrecursor>0){
+  //    double pMin=s.getMZ()-params->removePrecursor;
+  //    double pMax=s.getMZ()+params->removePrecursor;
+  //    for(i=0;i<c.size();i++){
+  //      if(c[i].mz>pMin && c[i].mz<pMax) c[i].intensity=0;
+  //    }
+  //  }
+
+  //  //Collapse the isotope peaks
+  //  if (params->specProcess == 1 && c.size()>1) {
+  //    collapseSpectrum(c);
+  //    collapsedPeaks += c.size();
+  //  }
+
+  //  //If user limits number of peaks to analyze, sort by intensity and take top N
+  //  if (params->maxPeaks>0){
+  //    if (c.size()>1) c.sortIntensityRev();
+  //    if (c.size()<params->maxPeaks) j = c.size();
+  //    else j = params->maxPeaks;
+  //  } else {
+  //    j = c.size();
+  //  }
+  //  for (i = 0; i<j; i++){
+  //    sp.mass = c[i].mz;
+  //    sp.intensity = c[i].intensity;
+  //    pls->addPoint(sp);
+  //    if (sp.intensity>max) max = sp.intensity;
+  //  }
+  //  pls->setMaxIntensity(max);
+
+  //  //Sort again by MZ, if needed
+  //  if (pls->size()>1 && params->maxPeaks>0) pls->sortMZ();
+
+  //  //Get any additional information user requested
+  //  pls->setCharge(s.getCharge());
+  //  pls->setMZ(s.getMZ());
+  //  if(params->preferPrecursor>0){
+  //    if(s.getMonoMZ()>0 && s.getCharge()>0){
+  //      pre.monoMass=s.getMonoMZ()*s.getCharge()-s.getCharge()*1.007276466;
+  //      pre.charge=s.getCharge();
+  //      pre.corr=0;
+  //      pls->addPrecursor(pre,params->topCount);
+  //      for(int px=1;px<=params->isotopeError;px++){
+  //        if(px==4) break;
+  //        pre.monoMass -= 1.00335483;
+  //        pre.corr -= 0.1;
+  //        pls->addPrecursor(pre, params->topCount);
+  //       }
+  //      pls->setInstrumentPrecursor(true);
+  //    }
+  //  }
+  //  prof.StopTimer(pID);
+
+  //  //Add spectrum (if it has enough data points) to data object and read next file
+  //  pID=prof.StartTimer("Add2Array");
+  //  if(pls->size()>params->minPeaks) spec.push_back(pls);
+  //  prof.StopTimer(pID);
+
+  //  /*
+  //  for(unsigned int d=0;d<params->diag->size();d++){
+  //    if(pls.getScanNumber()==params->diag->at(d)){
+  //      char diagStr[256];
+  //      sprintf(diagStr,"diagnostic_spectrum_%d.txt",params->diag->at(d));
+  //      FILE* f=fopen(diagStr,"wt");
+  //      fprintf(f,"Scan: %d\t%d\n",pls.getScanNumber(),pls.size());
+  //      for(int k=0;k<pls.size();k++) fprintf(f,"%.6lf\t%.0f\n",pls[k].mass,pls[k].intensity);
+  //      fclose(f);
+  //      break;
+  //    }
+  //  }
+  //  */
+
+  //  //Update progress meter
+  //  iTmp = msr.getPercent();
+  //  if (iTmp>iPercent){
+  //    iPercent = iTmp;
+  //    printf("\b\b\b%2d%%", iPercent);
+  //    fflush(stdout);
+  //  }
+  //  pID = prof.StartTimer("ReadFile");
+  //  msr.readFile(NULL,s);
+  //  prof.StopTimer(pID);
+  //}
+
+  ////Finalize progress meter
+  //if(iPercent<100) printf("\b\b\b100%%");
+  //cout << endl;
+
+  //prof.Release();
+
+  //cout << "  " << spec.size() << " total spectra have enough data points (" << params->minPeaks << " peaks) for searching." << endl;
+  ////cout << totalScans << " total scans were loaded." <<  endl;
+  ////cout << totalPeaks << " total peaks in original data." << endl;
+  ////cout << collapsedPeaks << " peaks after collapsing." << endl;
+  ////cout << finalPeaks << " peaks after top N." << endl;
 	return true;
+}
+
+void KData::releaseHardklor(){
+  for (int a = 0; a<params->threads; a++){
+    delete h[a];
+    delete hO[a];
+    Threading::DestroyMutex(mutexHardklor[a]);
+    delete averagine[a];
+    delete mercury[a];
+  }
+  delete[] h;
+  delete[] hO;
+  delete[] mutexHardklor;
+  delete[] bHardklor;
+  delete[] averagine;
+  delete[] mercury;
+  delete models;
 }
 
 void KData::setLinker(kLinker x){
@@ -2756,7 +3897,7 @@ void KData::xCorr(bool b){
   printf("%2d%%", iPercent);
   fflush(stdout);
   for(size_t i=0;i<spec.size();i++) {
-    spec[i].xCorrScore(b);
+    spec[i]->xCorrScore(b);
 
     //Update progress meter
     iTmp = (int)((double)i / spec.size() * 100);
@@ -2894,6 +4035,130 @@ void KData::centroid(Spectrum& s, Spectrum& out, double resolution, int instrume
 					out.add(centroid);
 				}
 			
+      }
+
+    }
+  }
+
+}
+
+void KData::centroid(Spectrum* s, KSpectrum* out, double resolution, int instrument){
+  int i, j;
+  float maxIntensity;
+  int bestPeak;
+  bool bLastPos;
+
+  int nextBest;
+  double FWHM;
+  double maxMZ = (*s)[s->size() - 1].mz + 1.0;
+  kSpecPoint centroid;
+
+  vector<double> x;
+  vector<double> y;
+  vector<double> c;
+  int left, right;
+  bool bPoly;
+  float lastIntensity;
+
+  out->clear();
+
+  bLastPos = false;
+  for (i = 0; i<s->size() - 1; i++){
+
+    if ((*s)[i].intensity<(*s)[i + 1].intensity) {
+      bLastPos = true;
+      continue;
+    } else {
+      if (bLastPos){
+        bLastPos = false;
+
+        //find max and add peak
+        maxIntensity = 0;
+        for (j = i; j<i + 1; j++){
+          if ((*s)[j].intensity>maxIntensity){
+            maxIntensity = (*s)[j].intensity;
+            bestPeak = j;
+          }
+        }
+
+        //walk left and right to find bounds above half max
+        left = right = bestPeak;
+        lastIntensity = maxIntensity;
+        for (left = bestPeak - 1; left>0; left--){
+          if ((*s)[left].intensity<(maxIntensity / 3) || (*s)[left].intensity>lastIntensity){
+            left++;
+            break;
+          }
+          lastIntensity = (*s)[left].intensity;
+        }
+        lastIntensity = maxIntensity;
+        for (right = bestPeak + 1; right<s->size() - 1; right++){
+          if ((*s)[right].intensity<(maxIntensity / 3) || (*s)[right].intensity>lastIntensity){
+            right--;
+            break;
+          }
+          lastIntensity = (*s)[right].intensity;
+        }
+
+        //if we have at least 5 data points, try polynomial fit
+        double r2;
+        bPoly = false;
+        if ((right - left + 1)>4){
+          x.clear();
+          y.clear();
+          for (j = left; j <= right; j++){
+            x.push_back((*s)[j].mz);
+            y.push_back(log((*s)[j].intensity));
+          }
+          r2 = polynomialBestFit(x, y, c);
+          if (r2>0.95){
+            bPoly = true;
+            centroid.mass = -c[1] / (2 * c[2]) + c[3];
+            centroid.intensity = (float)exp(c[0] - c[2] * (c[1] / (2 * c[2]))*(c[1] / (2 * c[2])));
+          } else {
+
+          }
+        }
+
+        if (!bPoly){
+          //Best estimate of Gaussian centroid
+          //Get 2nd highest point of peak
+          if (bestPeak == s->size()) nextBest = bestPeak - 1;
+          else if ((*s)[bestPeak - 1].intensity > (*s)[bestPeak + 1].intensity) nextBest = bestPeak - 1;
+          else nextBest = bestPeak + 1;
+
+          //Get FWHM
+          switch (instrument){
+          case 0: FWHM = (*s)[bestPeak].mz*sqrt((*s)[bestPeak].mz) / (20 * resolution); break;  //Orbitrap
+          case 1: FWHM = (*s)[bestPeak].mz*(*s)[bestPeak].mz / (400 * resolution); break;				//FTICR
+          default: break;
+          }
+
+          //Calc centroid MZ (in three lines for easy reading)
+          centroid.mass = pow(FWHM, 2)*log((*s)[bestPeak].intensity / (*s)[nextBest].intensity);
+          centroid.mass /= GAUSSCONST*((*s)[bestPeak].mz - (*s)[nextBest].mz);
+          centroid.mass += ((*s)[bestPeak].mz + (*s)[nextBest].mz) / 2;
+
+          //Calc centroid intensity
+          centroid.intensity = (float)((*s)[bestPeak].intensity / exp(-pow(((*s)[bestPeak].mz - centroid.mass) / FWHM, 2)*GAUSSCONST));
+        }
+
+        //some peaks are funny shaped and have bad gaussian fit.
+        //if error is more than 10%, keep existing intensity
+        if (fabs(((*s)[bestPeak].intensity - centroid.intensity) / centroid.intensity * 100) > 10 ||
+          //not a good check for infinity
+          centroid.intensity>9999999999999.9 ||
+          centroid.intensity < 0) {
+          centroid.intensity = (*s)[bestPeak].intensity;
+        }
+
+        //Hack until I put in mass ranges
+        if (centroid.mass<0 || centroid.mass>maxMZ) {
+          //do nothing if invalid mz
+        } else {
+          out->addPoint(centroid);
+        }
+
       }
 
     }
@@ -3059,6 +4324,168 @@ void KData::collapseSpectrum(Spectrum& s){
   
 }
 
+void KData::collapseSpectrum(KSpectrum& s){
+  int i, j, k, n;
+  int charge, z;
+  int maxIndex;
+  float max;
+  float cutoff;
+  vector<int> dist;
+
+  vector<kSpecPoint> s2;
+
+  while (true){
+    max = 0.1f;
+    for (i = 0; i<s.size(); i++){
+      if (s[i].intensity>max){
+        max = s[i].intensity;
+        maxIndex = i;
+      }
+    }
+
+    //finish and exit function
+    if (max<1) break;
+
+    dist.clear();
+    dist.push_back(maxIndex);
+
+    //check right
+    j = maxIndex + 1;
+    while (j<s.size() && (s[j].mass - s[maxIndex].mass)<1.1){
+      if (s[j].intensity<1) {
+        j++;
+        continue;
+      }
+      charge = getCharge(s, maxIndex, j);
+
+      if (charge == 0){
+        j++;
+        continue;
+      }
+
+      //try stepping along at same charge state here out
+      //note that if this doesn't work, it doesn't go back and look for a different charge state
+      dist.push_back(j);
+      k = j;
+      n = j + 1;
+      while (n<s.size() && (s[n].mass - s[k].mass)<1.1){
+        if (s[n].intensity<1) {
+          n++;
+          continue;
+        }
+        z = getCharge(s, k, n);
+        if (z>0 && z<charge) {
+          break;
+        } else if (z == charge && (s[n].mass - s[k].mass)>(0.99 / charge) && (s[n].mass - s[k].mass)<(1.0041 / charge)) {
+          dist.push_back(n);
+          k = n;
+          n++;
+        } else {
+          n++;
+        }
+      }
+      break;
+    }
+
+    //if nothing found to the right, quit here?
+    if (dist.size() == 1){
+      s2.push_back(s[dist[0]]);
+      s[dist[0]].intensity = 0;
+      continue;
+    }
+
+    //step to the left
+    j = maxIndex - 1;
+    while (j >= 0 && (s[maxIndex].mass - s[j].mass)<1.1){
+      if (s[j].intensity<1) {
+        j--;
+        continue;
+      }
+      z = getCharge(s, j, maxIndex);
+      if (z != charge){
+        j--;
+        continue;
+      }
+
+      //try stepping along at same charge state here out
+      dist.push_back(j);
+      k = j;
+      n = j - 1;
+      while (n >= 0 && (s[k].mass - s[n].mass)<1.1){
+        if (s[n].intensity<1) {
+          n--;
+          continue;
+        }
+        z = getCharge(s, n, k);
+        //printf("\tleft\t%.6lf\t%.6lf\t%d\n",s[n].mz,s[k].mz-s[n].mz,z);
+        if (z>0 && z<charge) {
+          break;
+        } else if (z == charge && s[k].mass - s[n].mass > 0.99 / charge && s[k].mass - s[n].mass < 1.0041 / charge) {
+          dist.push_back(n);
+          k = n;
+          n--;
+        } else {
+          n--;
+        }
+      }
+      break;
+    }
+
+
+    //Only accept size of 2 if charge is 1 or 2
+    if (dist.size() == 2){
+      if (charge<3){
+        max = s[dist[0]].intensity + s[dist[1]].intensity;
+        kSpecPoint sp;
+        sp.mass = s[dist[0]].mass;
+        sp.intensity=max;
+        s2.push_back(sp);
+        s[dist[1]].intensity = 0;
+        // s2.add(s[dist[1]].mz,max);
+      } else {
+        s2.push_back(s[dist[0]]);
+        // s2.add(s[dist[1]]);
+      }
+      s[dist[0]].intensity = 0;
+      //s[dist[1]].intensity=0;
+    } else {
+      cutoff = max / 20;
+      max = 0;
+      j = dist[0];
+      k = dist[1];
+      for (i = 0; i<(int)dist.size(); i++) {
+        if (dist[i]<j && s[dist[i]].intensity>cutoff){
+          k = j;
+          j = dist[i];
+        }
+        if (s[dist[i]].intensity>cutoff){
+          max += s[dist[i]].intensity;
+          s[dist[i]].intensity = 0;
+        }
+      }
+      kSpecPoint sp;
+      sp.mass=s[j].mass;
+      sp.intensity=max;
+      s2.push_back(sp);
+      //s2.add(s[k].mz,max);
+    }
+
+  }
+
+  sort(s2.begin(),s2.end(),compareSpecPoint);
+  s.clear();
+  for (i = 0; i<s2.size(); i++) {
+    if (i<s2.size() - 1 && s2[i].mass == s2[i + 1].mass){
+      if (s2[i].intensity>s2[i + 1].intensity) s.addPoint(s2[i]);
+      else s.addPoint(s2[i + 1]);
+      i++;
+    } else {
+      s.addPoint(s2[i]);
+    }
+  }
+
+}
+
 int KData::compareInt(const void *p1, const void *p2){
   int d1 = *(int *)p1;
   int d2 = *(int *)p2;
@@ -3093,6 +4520,18 @@ int KData::getCharge(Spectrum& s, int index, int next){
   else if(mass>0.2475 && mass<0.25175) return 4;
   else if(mass>0.198 && mass<0.2014) return 5;
   else if(mass>0.165 && mass<0.1678333) return 6;
+  else return 0;
+
+}
+
+int KData::getCharge(KSpectrum& s, int index, int next){
+  double mass = s[next].mass - s[index].mass;
+  if (mass>0.99 && mass<1.007) return 1;
+  else if (mass>0.495 && mass<0.5035) return 2;
+  else if (mass>0.33 && mass<0.335667) return 3;
+  else if (mass>0.2475 && mass<0.25175) return 4;
+  else if (mass>0.198 && mass<0.2014) return 5;
+  else if (mass>0.165 && mass<0.1678333) return 6;
   else return 0;
 
 }
@@ -3565,4 +5004,14 @@ std::string KData::writeMzIDSIP(CMzIdentML& m, string& sRef, KParams& par){
 }
 
 
-
+int KData::compareScanBinRev2(const void *p1, const void *p2){
+  kScanBin d1 = *(kScanBin *)p1;
+  kScanBin d2 = *(kScanBin *)p2;
+  if (d1.intensity>d2.intensity) {
+    return -1;
+  } else if (d1.intensity<d2.intensity) {
+    return 1;
+  } else {
+    return 0;
+  }
+}

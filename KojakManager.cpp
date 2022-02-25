@@ -5,7 +5,7 @@
 #include "KIons.h"
 #include "Profiler.h"
 
-#include "KFileLoader.h"
+//#include "KFileLoader.h"
 
 using namespace std;
 
@@ -70,10 +70,10 @@ int KojakManager::run(){
   //Step 1: Prepare from settings
   KData spec(&params);
 
-  KFileLoader loader;
-  loader.params=&params;
-  loader.readFile();
-  exit(1);
+  //KFileLoader loader;
+  //loader.params=&params;
+  //loader.readFile();
+  //exit(1);
 
   spec.setLog(&log);
   spec.setVersion(VERSION);
@@ -119,8 +119,10 @@ int KojakManager::run(){
       log.addError("Error reading MS_data_file: " + files[i].input);
       return -2;
     }
-    spec.mapPrecursors();
-    spec.doXCorr(params);
+
+    cout << "Next stage" << endl;
+    //spec.mapPrecursors();
+    //spec.doXCorr(params);
     //prof.Init();
     //int64 pID=prof.StartTimer("xCorr");
     //spec.xCorr(params.xcorr);
