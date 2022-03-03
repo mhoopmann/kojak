@@ -20,10 +20,8 @@ limitations under the License.
 #include "KIons.h"
 #include "KParams.h"
 #include "KojakManager.h"
-//#include "Profiler.h"
 
 using namespace std;
-//Profiler prof;
 
 int main(int argc, char* argv[]){
   cout << "\nKojak version " << VERSION << ", " << BDATE << endl;

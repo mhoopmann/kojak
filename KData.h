@@ -21,7 +21,6 @@ limitations under the License.
 #include "KIons.h"
 #include "KLog.h"
 #include "KParams.h"
-#include "KPrecursor.h"
 #include "KSpectrum.h"
 #include "MSReader.h"
 #include "mzIMLTools.h"
@@ -31,38 +30,21 @@ limitations under the License.
 #include "ThreadPool.h"
 #include <iostream>
 
-/*
-#ifdef _MSC_VER
-#include <direct.h>
-#define getcwd _getcwd
-#define slashdir '\\'
-#else
-#define slashdir '/'
-#endif
-*/
+#include "CHardklor2.h"
+#include "CModelLibrary.h"
+#include "CHardklorSetting.h"
+#include "CHardklorVariant.h"
+
+#define GAUSSCONST 5.5451774444795623
+
+typedef struct kScanBin{
+  int   index;
+  float intensity;
+} kScanBin;
 
 //=============================
 // Structures for threading
 //=============================
-struct kSpectrumStruct {
-  bool*       mem;    //Pointer to the memory manager array to mark memory is in use
-  Mutex*      mutex;        //Pointer to a mutex for protecting memory
-  KSpectrum*  spec;
-  kSpectrumStruct(Mutex* m, KSpectrum* s){
-    mutex = m;
-    spec = s;
-  }
-  ~kSpectrumStruct(){
-    //Mark that memory is not being used, but do not delete it here.
-    Threading::LockMutex(*mutex);
-    if (mem != NULL) *mem = false;
-    mem = NULL;
-    Threading::UnlockMutex(*mutex);
-    mutex = NULL;   //release mutex
-    spec = NULL;
-  }
-};
-
 typedef struct kMS2struct{
   MSToolkit::Spectrum* s;
   KSpectrum* pls;
@@ -81,21 +63,6 @@ typedef struct kMS2struct{
   }
 } kMS2struct;
 
-//use functors for sorting
-static struct compareScanBinRev3 {
-  bool operator() (const kScanBin& p1, const kScanBin& p2) {
-    return p2.intensity<p1.intensity;
-  }
-} compareScanBinRev3;
-
-static struct compareSpecPoint2 {
-  bool operator() (const kSpecPoint& p1, const kSpecPoint& p2){ 
-    return p1.mass<p2.mass; 
-  }
-} compareSpecPoint2;
-
-static inline bool compareScanBinRev(const kScanBin& p1, const kScanBin& p2) { return p2.intensity<p1.intensity; }
-
 class KData {
 public:
 
@@ -106,10 +73,6 @@ public:
   KSpectrum& operator[ ](const int& i);
   KSpectrum& at(const int& i);
   KSpectrum* getSpectrum(const int& i);
-
-  //Master Functions
-  bool doXCorr(kParams& params);
-  static void xCorrProc(kSpectrumStruct* s);
 
   void      addProteins       (void* sh, KDatabase& db, int pIndex, bool xl, int linkA, int linkB);
   void      addSearchScore    (CnpxSearchHit& sh, std::string name, double value, std::string fmt);
@@ -132,7 +95,6 @@ public:
   int       getXLIndex        (int motifIndex, int xlIndex);
   char**    getXLTable        ();
   CnpxModificationInfo  makeModificationInfo(std::vector<kPepMod>& mods, std::string peptide, bool n15, bool nTerm, bool cTerm);
-  bool      mapPrecursors     ();
   void      outputDiagnostics (FILE* f, KSpectrum& s, KDatabase& db);
   bool      outputIntermediate(KDatabase& db);
   bool      outputMzID        (CMzIdentML& m, KDatabase& db, KParams& par, kResults& r);
@@ -147,19 +109,18 @@ public:
   void      setVersion        (const char* v);
   int       size              ();
   int       sizeLink          ();
-  void      xCorr             (bool b);
 
-  void memoryAllocate();
-  void memoryFree();
-  
+
+  void report();
 
 private:
 
-  //Data Members
+  //--Data Members --//
+  //Variables for peptide spectrum analysis
   bool*                   bScans;
   char                    version[32];
   char**                  xlTable;
-  std::vector<KSpectrum*>  spec;
+  std::vector<KSpectrum*> spec;
   std::vector<kLinker>    link;  //just cross-links, not mono-links
   std::vector<kMass>      massList;
   static kParams*         params;
@@ -169,14 +130,35 @@ private:
   kXLTarget               xlTargets[128][5]; //capping analysis at 5 crosslinkers for now
   static KLog*            klog;
 
+  //Common memory to be shared by all threads during spectral processing
+  static bool* memoryPool;          
+  static double** tempRawData;
+  static double** tmpFastXcorrData;
+  static float**  fastXcorrData;
+  static Mutex    mutexMemoryPool;
+  static kPreprocessStruct** preProcess;
+
+  //Optimized file loading structures for spectral processing
+  static std::deque<MSToolkit::Spectrum*> dMS1;
+  static std::vector<MSToolkit::Spectrum*> vMS1Buffer;
+  static Mutex mutexLockMS1;
+  static CHardklor2** h;
+  static CHardklor**  hO;
+  static CHardklorSetting hs;
+  static CHardklorSetting hs2;
+  static CHardklorSetting hs4;
+  static Mutex* mutexHardklor;
+  static CAveragine** averagine;
+  static CMercury8** mercury;
+  static CModelLibrary* models;
+  static bool* bHardklor;
+  static int maxPrecursorMass;
+
   //Utilities
-  void        centroid(MSToolkit::Spectrum& s, MSToolkit::Spectrum& out, double resolution, int instrument = 0);
   static void centroid(MSToolkit::Spectrum* s, KSpectrum* out, double resolution, int instrument = 0);
-  void        collapseSpectrum(MSToolkit::Spectrum& s);
   static void collapseSpectrum(KSpectrum& s);
   static int  compareInt        (const void *p1, const void *p2);
   static int  compareMassList   (const void *p1, const void *p2);
-  int         getCharge(MSToolkit::Spectrum& s, int index, int next);
   static int  getCharge(KSpectrum& s, int index, int next);
   static double polynomialBestFit (std::vector<double>& x, std::vector<double>& y, std::vector<double>& coeff, int degree=2);
   bool        processPath       (const char* in_path, char* out_path);
@@ -187,50 +169,22 @@ private:
   void        writeMzIDPE       (CMzIdentML& m, CSpectrumIdentificationItem& m_sii, int pepID, KDatabase& db);
   std::string writeMzIDSIP      (CMzIdentML& m, std::string& sRef, KParams& par);
 
-  //MH: Common memory to be shared by all threads during spectral processing
-  static bool* memoryPool;                 //MH: Regulator of memory use
-  //static double **ppdTmpRawDataArr;          //MH: Number of arrays equals threads
-  //static double **ppdTmpFastXcorrDataArr;    //MH: Ditto
-  //static double **ppdTmpCorrelationDataArr;  //MH: Ditto
-
-  static double** tempRawData;
-  static double** tmpFastXcorrData;
-  static float**  fastXcorrData;
-  static Mutex    mutexMemoryPool;
-  static kPreprocessStruct** preProcess;
-  //static kPreprocessStruct **pre;
-
-  //New optimized file loading structures
-  static std::deque<MSToolkit::Spectrum*> dMS1;
-  static std::vector<MSToolkit::Spectrum*> vMS1Buffer;
-  static Mutex mutexLockMS1;
-  static CHardklor2** h;
-  static CHardklor**  hO;
-  static Mutex* mutexHardklor;
-  static CAveragine** averagine;
-  static CMercury8** mercury;
-  static CModelLibrary* models;
-  static bool* bHardklor;
-
-  static CHardklorSetting hs;
-  static CHardklorSetting hs2;
-  static CHardklorSetting hs4;
-
+  //spectral processing functions
   static void averageScansCentroid(std::vector<MSToolkit::Spectrum*>& s, MSToolkit::Spectrum& avg, double min, double max);
   static int  findPeak(MSToolkit::Spectrum* s, double mass);
   static int  findPeak(MSToolkit::Spectrum* s, double mass, double prec);
   static void formatMS2(MSToolkit::Spectrum* s, KSpectrum* pls);
-  static void initHardklor();
+  void initHardklor();
+  void memoryAllocate();
+  void memoryFree();
   static void processMS2(kMS2struct* s);
-  static void processMS2B(kMS2struct* s);
   static int  processPrecursor(kMS2struct* s, int tIndex);
-  static void releaseHardklor();
+  void releaseHardklor();
 
+  //static functions
   static bool compareSpecPoint(const kSpecPoint& p1, const kSpecPoint& p2){ return p1.mass<p2.mass; }
-  //static inline bool compareScanBinRev(const kScanBin& p1, const kScanBin& p2) { return p2.intensity<p1.intensity; }
   static int compareScanBinRev2(const void *p1, const void *p2);
 
-  static int maxPrecursorMass;
  
 };
 

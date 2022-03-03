@@ -3,13 +3,8 @@
 #include "KData.h"
 #include "KDB.h"
 #include "KIons.h"
-#include "Profiler.h"
-
-//#include "KFileLoader.h"
 
 using namespace std;
-
-extern Profiler prof;
 
 KojakManager::KojakManager(){
   param_obj.setParams(&params);
@@ -113,21 +108,16 @@ int KojakManager::run(){
       log.addError("Cannot perform precursor refinement using MGF files. Please disable by setting precursor_refinement=0");
       return -10;
     }
-    log.addMessage("Reading spectra data file: " + files[i].input,true);
-    cout << "\n Reading spectra data file: " << files[i].input.c_str() << " ... ";
+    log.addMessage("Using Kojak modified XCorr scores.", true);
+    cout << "\n Using Kojak modified XCorr scores." << endl;
+    log.addMessage("Reading and processing spectra data file: " + files[i].input,true);
+    cout << " Reading and processingspectra data file: " << files[i].input.c_str() << " ... ";
     if (!spec.readSpectra()){
       log.addError("Error reading MS_data_file: " + files[i].input);
       return -2;
     }
 
-    cout << "Next stage" << endl;
-    //spec.mapPrecursors();
-    //spec.doXCorr(params);
-    //prof.Init();
-    //int64 pID=prof.StartTimer("xCorr");
-    //spec.xCorr(params.xcorr);
-    //prof.StopTimer(pID);
-    //prof.Release();
+    spec.report();
 
     //Step #4: Analyze single peptides, monolinks, and crosslinks
     KAnalysis anal(params, &db, &spec);

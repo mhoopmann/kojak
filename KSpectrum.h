@@ -75,6 +75,7 @@ public:
   int tmpSingletIMaxCorr;
   int tmpSingCount;
   int tmpHistCount;
+  int peakCounts;
 
 
   //Accessors
@@ -141,7 +142,6 @@ public:
   void  resetSingletList    ();
   void  sortMZ              ();
   void  sortIntensityRev    () { sort(spec->begin(),spec->end(),compareIntensityRev); }
-  void  xCorrScore          (bool b);
   void  kojakXCorr          (double* pdTempRawData, double* pdTmpFastXcorrData, float* pfFastXcorrData, kPreprocessStruct*& pPre);
 
 private:
@@ -168,23 +168,14 @@ private:
   kScoreCard            topHit[20];
   int                   xCorrArraySize;
 
-  //double *pdTempRawData;
-  //double *pdTmpFastXcorrData;
-  //float  *pfFastXcorrData;
-  //kPreprocessStruct pPre;
-
   //Functions
   void BinIons        (kPreprocessStruct *pPre);
-  void CometXCorr     ();
   void MakeCorrData   (double *pdTempRawData, kPreprocessStruct *pPre, double scale);
-
 
   //Utilities
   static int compareIntensity (const void *p1,const void *p2);
   static bool compareIntensityRev (const kSpecPoint& p1, const kSpecPoint& p2) { return p1.intensity>p2.intensity;}
   static int compareMZ        (const void *p1,const void *p2);
-
-
 
 };
 
