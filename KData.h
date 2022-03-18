@@ -102,6 +102,7 @@ public:
   bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db, KParams& par);
+  bool      outputTxt         (FILE* f, KDatabase& db, std::vector<kResults>& r);
   void      readLinkers       (char* fn);
   bool      readSpectra       ();
   void      setLinker         (kLinker x);

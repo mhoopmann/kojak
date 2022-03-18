@@ -503,7 +503,7 @@ void KSpectrum::setScanNumber(int i){
 /*============================
   Functions
 ============================*/
-bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
+bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
   int i;
   int iLoopCount;
   int iMaxCorr;
@@ -555,6 +555,11 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
 
   dSlope *= 10.0;
 
+  //reorder top scoring peptide so that ties always appear in the same order instead
+  //of the order in which the search threads finished (which can change from run to run).
+  string dStr = params->decoy;
+  refreshScore(db,dStr);
+
   iLoopCount = 20; //score all e-values among top hits?
   double topScore=topHit[0].simpleScore;
   for (i = 0; i<iLoopCount; i++) {
@@ -570,6 +575,8 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
       if(topHit[i].simpleScore==topScore){ //only do this for top hits right now: it is slow...
         if(i>0){
           //check if we've computed these already - happens with one of the peptides in ties.
+          //Note: there are slight differences if the alternate peptide in a tie score has a slightly different mass, resulting in a different decoy
+          //distribution should the order of peptides change in the next run.
           if(topHit[i].score1==topHit[i-1].score1) topHit[i].eVal1=topHit[i-1].eVal1;
           else topHit[i].eVal1 = generateSingletDecoys2(params, decoys, topHit[i].score1, topHit[i].mass1, (int)topHit[i].precursor, topHit[i].score2);
           if(topHit[i].score2==topHit[i-1].score2) topHit[i].eVal2=topHit[i-1].eVal2;
@@ -590,6 +597,23 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys) {
     }
   }
   return true;
+}
+
+bool KSpectrum::checkDecoy(KDatabase& db, string& dStr, kScoreCard& hit){
+  bool bDecoy = false;
+  size_t i;
+  kPeptide pep;
+  pep = db.getPeptide(hit.pep1);
+  for (i = 0; i<pep.map->size(); i++){
+    if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  }
+  if (!bDecoy && hit.pep2>-1){ //only check second peptide if necessary
+    pep = db.getPeptide(hit.pep2);
+    for (i = 0; i<pep.map->size(); i++){
+      if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+    }
+  }
+  return bDecoy;
 }
 
 void KSpectrum::checkScore(kScoreCard& s){
@@ -783,106 +807,6 @@ void KSpectrum::checkSingletScore(kSingletScoreCard& s){
 
 }
 
-//from Comet
-// Make synthetic decoy spectra to fill out correlation histogram by going
-// through each candidate peptide and rotating spectra in m/z space.
-/*
-bool KSpectrum::generateSingletDecoys(kParams* params, KDecoys& decoys) {
-  int i;
-  int n;
-  int j;
-  int k;
-  int maxZ;
-  int z;
-  int r;
-  int key;
-  int pos;
-  int xlSite;
-  int xlLen;
-  int badPre=0;
-  double dBion;
-  double dYion;
-  double dXcorr;
-  double dFragmentIonMass = 0.0;
-  double targetMass;
-  double diffMass;
-
-  // DECOY_SIZE is the minimum # of decoys required or else this function isn't
-  // called.  So need to generate iLoopMax more xcorr scores for the histogram.
-  int iLoopMax = decoys.decoySize - histogramSingletCount;
-  int seed = rand() % 3000;
-  int decoyIndex;
-
-  j = 0;
-  for (i = 0; i<iLoopMax; i++) { // iterate through required # decoys
-    dXcorr = 0.0;
-    decoyIndex = (seed + i) % 3000;
-
-    //grab precursor at random
-    badPre=0;
-    r = rand() % precursor->size();
-    while(precursor->at(r).monoMass<params->minPepMass*2+params->xLink->at(0).mass) {
-      badPre++;
-      if(badPre==50) return false;
-      r = rand() % precursor->size();
-    }
-    maxZ = precursor->at(r).charge;
-    if (maxZ>4) maxZ = 4;
-    n = (int)(precursor->at(r).monoMass / 2 - params->xLink->at(0).mass-params->minPepMass); //note, might have multiple xlink masses
-    if (n == 0) targetMass = precursor->at(r).monoMass / 2;
-    else targetMass = precursor->at(r).monoMass / 2 + rand() % n;
-    diffMass = precursor->at(r).monoMass-targetMass;
-
-    //find link site - somewhat wasted cycles
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
-      if (decoys.decoyIons[decoyIndex].pdIonsN[j]>targetMass) break;
-    }
-    xlSite=rand()%(j-1);
-    xlLen=j-1;
-
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
-      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
-      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
-      if(j>=xlSite) dBion+=diffMass;
-      if(j>=xlLen-xlSite) dYion+=diffMass;
-      if (dBion>targetMass && dYion>targetMass) break; //stop when fragment ion masses exceed precursor mass
-
-      for (n = 0; n<6; n++) {
-        if (!params->ionSeries[n]) continue;
-        switch (n) {
-        case 0: dFragmentIonMass = dBion - 27.9949141; break;
-        case 1: dFragmentIonMass = dBion; break;
-        case 2: dFragmentIonMass = dBion + 17.026547; break;
-        case 3: dFragmentIonMass = dYion + 25.9792649; break;
-        case 4: dFragmentIonMass = dYion; break;
-        case 5: dFragmentIonMass = dYion - 16.0187224; break;
-        default: break;
-        }
-        if (dFragmentIonMass>targetMass) continue;
-
-        for (z = 1; z<maxZ; z++) {
-          mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
-          mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
-          key = (int)mz;
-          if (key >= kojakBins) break;
-          if (kojakSparseArray[key] == NULL) continue;
-          pos = (int)((mz - key)*invBinSize);
-          dXcorr += kojakSparseArray[key][pos];
-        }
-      }
-    }
-
-    if (dXcorr <= 0.0) dXcorr = 0.0;
-    k = (int)(dXcorr*0.05 + 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
-    if (k < 0) k = 0;
-    else if (k >= HISTOSZ) k = HISTOSZ - 1;
-    histogramSinglet[k]++;
-    histogramSingletCount++;
-  }
-
-  return true;
-}
-*/
 
 //from Comet
 // Make synthetic decoy spectra to fill out correlation histogram by going
@@ -899,7 +823,7 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   int z;
   int key;
   int pos;
-  int xlSite;
+  int xlSite=0;
   int xlLen;
   double dXcorr;
   double dFragmentIonMass = 0.0;
@@ -909,7 +833,9 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   int tempHistogram[HISTOSZ];
   for(i=0;i<HISTOSZ;i++) tempHistogram[i]=0;
 
-  int seed = rand() % decoys.decoySize;
+  int seed = (scanNumber*histogramCount); //note: histogramCount is always decoySize for singlets...why not use score2?
+  if (seed<0) seed = -seed;
+  seed = seed % decoys.decoySize; //don't always start at the top, but not random either; remains reproducible across threads
   int decoyIndex;
 
   //compute modification mass
@@ -928,8 +854,9 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
       if (decoys.decoyIons[decoyIndex].pdIonsN[j]>mass) break;
     }
     if(j<1) return 1e12;
-    else if(j==1) xlSite=0;
-    else xlSite = rand() % (j - 1);
+
+    xlSite++;
+    if(xlSite>=(j-1)) xlSite=0;
     xlLen = j - 1;
 
     for (n = 0; n<decoyIonSz; n++) { //iterate over each ion series
@@ -978,117 +905,6 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
 
   return eVal;
 }
-/*
-bool KSpectrum::generateXLDecoys(kParams* params, KDecoys& decoys) {
-  int i;
-  int n;
-  int j;
-  int k;
-  int maxZ;
-  int z;
-  int r,r2;
-  int key;
-  int pos;
-  int xlSite;
-  int xlLen;
-  int badPre;
-  double dSum;
-  double d;
-  double dBion;
-  double dYion;
-  double dXcorr;
-  double dFragmentIonMass = 0.0;
-  double targetMass;
-  double diffMass;
-
-  // DECOY_SIZE is the minimum # of decoys required or else this function isn't
-  // called.  So need to generate iLoopMax more xcorr scores for the histogram.
-  int iLoopMax = DECOY_SIZE - histogramCount;
-  int seed = rand() % 3000;
-  int decoyIndex;
-
-  j = 0;
-  for (i = 0; i<iLoopMax; i++) { // iterate through required # decoys
-    dXcorr = 0.0;
-    decoyIndex = (seed + i) % 3000;
-
-    //grab precursor at random and xl at random
-    badPre=0;
-    r = rand() % precursor->size();
-    r2 = rand() % params->xLink->size();
-    while (precursor->at(r).monoMass<params->minPepMass * 2 + params->xLink->at(r2).mass) {
-      badPre++;
-      r = rand() % precursor->size();
-      r2 = rand() % params->xLink->size();
-      if(badPre==50) return false;
-    }
-    maxZ = precursor->at(r).charge;
-    if (maxZ>4) maxZ = 4;
-    targetMass = (precursor->at(r).monoMass-params->xLink->at(r2).mass-2*params->minPepMass)*((double)rand()/RAND_MAX)+params->minPepMass;
-    diffMass = precursor->at(r).monoMass - targetMass;
-
-    //find link site - somewhat wasted cycles
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
-      if (decoys.decoyIons[decoyIndex].pdIonsN[j]>targetMass) break;
-    }
-    xlSite = rand() % (j - 1);
-    xlLen = j - 1;
-
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
-      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
-      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
-      if (j >= xlSite) dBion += diffMass;
-      if (j >= xlLen - xlSite) dYion += diffMass;
-      if (dBion>targetMass && dYion>targetMass) break; //stop when fragment ion masses exceed precursor mass
-
-      for (n = 0; n<6; n++) {
-        if (!params->ionSeries[n]) continue;
-        switch (n) {
-        case 0: dFragmentIonMass = dBion - 27.9949141; break;
-        case 1: dFragmentIonMass = dBion; break;
-        case 2: dFragmentIonMass = dBion + 17.026547; break;
-        case 3: dFragmentIonMass = dYion + 25.9792649; break;
-        case 4: dFragmentIonMass = dYion; break;
-        case 5: dFragmentIonMass = dYion - 16.0187224; break;
-        default: break;
-        }
-        if (dFragmentIonMass>targetMass) continue;
-
-        for (z = 1; z<maxZ; z++) {
-          mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
-          mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
-          key = (int)mz;
-          if (key >= kojakBins) break;
-          if (kojakSparseArray[key] == NULL) continue;
-          pos = (int)((mz - key)*invBinSize);
-          dXcorr += kojakSparseArray[key][pos];
-        }
-      }
-    }
-
-    if (dXcorr <= 0.0) dXcorr = 0.0;
-    dXcorr*=0.05;
-
-    //find complement peptide randomly from proportion of singlet scores
-    d=(double)rand()/RAND_MAX;
-    dSum=0;
-    for(n=0;n<HISTOSZ;n++){
-      dSum+=(double)histogramSinglet[n]/histogramSingletCount;
-      if(d<=dSum){
-        dXcorr+=n;
-        break;
-      }
-    }
-    k = (int)(dXcorr + 0.5);
-    if (k < 0) k = 0;
-    else if (k >= HISTOSZ) k = HISTOSZ - 1;
-    histogram[k]++;
-    histogramCount++;
-  }
-
-  return true;
-}
-*/
 
 //from Comet
 // Make synthetic decoy spectra to fill out correlation histogram by going
@@ -1161,163 +977,6 @@ bool KSpectrum::generateXcorrDecoys(kParams* params, KDecoys& decoys) {
   }
   return true;
 }
-
-/*
-bool KSpectrum::generateXcorrDecoysXL(kParams* params, KDecoys& decoys) {
-  int i;
-  int n;
-  int j;
-  int k;
-  int maxZ;
-  int z;
-  int r;
-  int key;
-  int pos;
-  double dBion;
-  double dYion;
-  double dXcorr;
-  double dFragmentIonMass = 0.0;
-  int myCount = 0;
-
-  double p1Mass;
-  double p2Mass;
-  double totalMass;
-  double targetMass;
-  double pBindA;
-  double pBindB;
-
-
-  //tmpSingCount = histogramSingletCount;
-  //tmpHistCount = histogramCount;
-
-  // DECOY_SIZE is the minimum # of decoys required or else this function isn't
-  // called.  So need to generate iLoopMax more xcorr scores for the histogram.
-  int iLoopMax = DECOY_SIZE - histogramCount;
-  int seed = (scanNumber*histogramCount);
-  if (seed<0) seed = -seed;
-  seed = seed % DECOY_SIZE; //don't always start at the top, but not random either; remains reproducible across threads
-
-  int seed2 = (histogramCount*histogramCount);
-  if (seed2<0) seed2 = -seed2;
-  seed2 = seed2 % DECOY_SIZE;
-
-  int decoyIndex;
-
-  size_t maxPre = precursor->size();
-  r = 0;
-  for (i = 0; i<iLoopMax; i++) { // iterate through required # decoys
-    dXcorr = 0.0;
-    decoyIndex = (seed + i) % DECOY_SIZE;
-    //cout << "Decoy Index 1: " << decoyIndex << endl;
-
-    //iterate over precursors -- does this matter???
-    r++;
-    if (r >= (int)precursor->size()) r = 0;
-    maxZ = precursor->at(r).charge;
-    if (maxZ>4) maxZ = 4;
-
-    //determine size of each peptide
-    totalMass = precursor->at(r).monoMass - params->xLink->at(0).mass; //note only using first linker mass here. Maybe randomize?
-    targetMass = totalMass - 2*params->minPepMass;
-    p1Mass = targetMass*((double)rand() / RAND_MAX)+params->minPepMass;
-    p2Mass = totalMass-p1Mass;
-
-    //cout << precursor->at(r).monoMass << " = " << params->xLink->at(0).mass << " + " << p1Mass << " + " << p2Mass << endl;
-
-    //score p1
-    //determine attachment point (by mass)
-    pBindA = (p1Mass - 100)*((double)rand() / RAND_MAX)+50;
-    pBindB = p1Mass-pBindA;
-    targetMass = precursor->at(r).monoMass - p1Mass;
-    //cout << "p1: " << pBindA << "\t" << pBindB << "\t" << targetMass << endl;
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
-      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
-      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
-      if(dBion>pBindA) dBion+=targetMass;
-      if (dYion>pBindB) dYion+=targetMass;
-      if (dBion>precursor->at(r).monoMass && dYion>precursor->at(r).monoMass) break; //stop when fragment ion masses exceed precursor mass
-
-      for (n = 0; n<6; n++) {
-        if (!params->ionSeries[n]) continue;
-        switch (n) {
-        case 0: dFragmentIonMass = dBion - 27.9949141; break;
-        case 1: dFragmentIonMass = dBion; break;
-        case 2: dFragmentIonMass = dBion + 17.026547; break;
-        case 3: dFragmentIonMass = dYion + 25.9792649; break;
-        case 4: dFragmentIonMass = dYion; break;
-        case 5: dFragmentIonMass = dYion - 16.0187224; break;
-        default: break;
-        }
-        if (dFragmentIonMass>precursor->at(r).monoMass) continue;
-
-        for (z = 1; z<maxZ; z++) {
-          mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
-          mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
-          key = (int)mz;
-          if (key >= kojakBins) break;
-          if (kojakSparseArray[key] == NULL) continue;
-          pos = (int)((mz - key)*invBinSize);
-          dXcorr += kojakSparseArray[key][pos];
-        }
-      }
-    }
-    //cout << "Did p1" << endl;
-
-    //get a different decoy peptide
-    decoyIndex = (seed2 + i) % DECOY_SIZE;
-    //cout << "Decoy Index 2: " << decoyIndex << endl;
-
-    //score p2
-    //determine attachment point (by mass)
-    pBindA = (p2Mass - 100)*((double)rand() / RAND_MAX) + 50;
-    pBindB = p2Mass - pBindA;
-    targetMass = precursor->at(r).monoMass - p2Mass;
-    //cout << "p2: " << pBindA << "\t" << pBindB << "\t" << targetMass << endl;
-    for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
-      dBion = decoys.decoyIons[decoyIndex].pdIonsN[j];
-      dYion = decoys.decoyIons[decoyIndex].pdIonsC[j];
-      if (dBion>pBindA) dBion += targetMass;
-      if (dYion>pBindB) dYion += targetMass;
-      if (dBion>precursor->at(r).monoMass && dYion>precursor->at(r).monoMass) break; //stop when fragment ion masses exceed precursor mass
-
-      for (n = 0; n<6; n++) {
-        if (!params->ionSeries[n]) continue;
-        switch (n) {
-        case 0: dFragmentIonMass = dBion - 27.9949141; break;
-        case 1: dFragmentIonMass = dBion; break;
-        case 2: dFragmentIonMass = dBion + 17.026547; break;
-        case 3: dFragmentIonMass = dYion + 25.9792649; break;
-        case 4: dFragmentIonMass = dYion; break;
-        case 5: dFragmentIonMass = dYion - 16.0187224; break;
-        default: break;
-        }
-        if (dFragmentIonMass>precursor->at(r).monoMass) continue;
-
-        for (z = 1; z<maxZ; z++) {
-          mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
-          mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
-          key = (int)mz;
-          if (key >= kojakBins) break;
-          if (kojakSparseArray[key] == NULL) continue;
-          pos = (int)((mz - key)*invBinSize);
-          dXcorr += kojakSparseArray[key][pos];
-        }
-      }
-    }
-    //cout << "Did p2" << endl;
-
-    if (dXcorr <= 0.0) dXcorr = 0.0;
-    k = (int)(dXcorr*0.05 + 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
-    if (k < 0) k = 0;
-    else if (k >= HISTOSZ) k = HISTOSZ - 1;
-    histogram[k]++;
-    histogramCount++;
-    myCount++;
-    //if (scanNumber == 12896) cout << "myCount: " << myCount-1 << "\t" << k << "\t" << dXcorr*0.05 << endl;
-  }
-  return true;
-}
-*/
 
 //from Comet
 void KSpectrum::linearRegression(double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
@@ -1945,7 +1604,8 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
   rSquared = bestRSQ;
 }
 
-void KSpectrum::refreshScore(KDatabase& db, string dStr){
+//TODO: improve this function to account for modifications when checking peptide sequence...
+void KSpectrum::refreshScore(KDatabase& db, string& dStr){
 
   //skip any lists that are empty
   if(topHit[0].simpleScore==0) return;
@@ -1953,45 +1613,128 @@ void KSpectrum::refreshScore(KDatabase& db, string dStr){
   //if not a tie, we're done now.
   if(topHit[0].simpleScore>topHit[1].simpleScore) return;
 
-  //if we have a tie, but top hit has only targets, we're done now.
-  bool bDecoy=false;
-  size_t i;
-  kPeptide pep;
-  pep=db.getPeptide(topHit[0].pep1);
-  for(i=0;i<pep.map->size();i++){
-    if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  int max;
+  for(max=2;max<20;max++){
+    if(topHit[max].simpleScore<topHit[0].simpleScore) break;
   }
-  if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
-    pep=db.getPeptide(topHit[0].pep2);
-    for (i = 0; i<pep.map->size(); i++){
-      if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
-    }
-  }
-  if(!bDecoy) return;
 
-  //Now check each tie until we find one that is only targets
-  int j;
-  for(j=1;j<20;j++){
-    if(topHit[j].simpleScore<topHit[0].simpleScore) return; //stop when we are past ties
-    bDecoy=false;
-    pep = db.getPeptide(topHit[j].pep1);
-    for (i = 0; i<pep.map->size(); i++){
-      if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
-    }
-    if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
-      pep = db.getPeptide(topHit[j].pep2);
-      for (i = 0; i<pep.map->size(); i++){
-        if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  //sort from 0 to max
+  string pep1, pep2;
+  int lType1,lType2;
+  bool decoy1,decoy2;
+  for(int a=0;a<max-1;a++){
+    for(int b=a+1;b<max;b++){
+
+      //sort according to decoy state, linker type (single, loop, cross), peptide sequence, link pos, second peptide, second link pos
+      decoy1=checkDecoy(db,dStr,topHit[a]);
+      decoy2=checkDecoy(db,dStr,topHit[b]);
+      if(decoy2<decoy1) goto swap_hit;  //check decoy status first
+      else if(decoy1<decoy2) continue;
+
+      //check link type next
+      lType1=0;
+      if(topHit[a].k1>=0 && topHit[a].k2>=0) lType1=1;
+      if(topHit[a].pep2>=0) lType1=2;
+      lType2 = 0;
+      if (topHit[b].k1 >= 0 && topHit[b].k2 >= 0) lType2 = 1;
+      if (topHit[b].pep2 >= 0) lType2 = 2;
+      if(lType2<lType1) goto swap_hit;
+      else if(lType1<lType2) continue;
+
+      //check peptide sequence (first only)
+      db.getPeptideSeq(topHit[a].pep1,pep1);
+      db.getPeptideSeq(topHit[b].pep1,pep2);
+      int c=pep2.compare(pep1);
+      if (c<0) goto swap_hit;
+      else if(c>0) continue;
+
+      //Check modifications
+      if(topHit[b].mods1->size()<topHit[a].mods1->size()) goto swap_hit;
+      if(topHit[a].mods1->size()<topHit[b].mods1->size()) continue;
+      for(size_t d=0;d<topHit[a].mods1->size();d++){
+        if(topHit[b].mods1->at(d).pos<topHit[a].mods1->at(d).pos) goto swap_hit;
+        if(topHit[b].mods1->at(d).mass<topHit[a].mods1->at(d).mass) goto swap_hit;
       }
-    }
-    if(bDecoy) continue; //if a decoy, onward to next peptide
 
-    //otherwise, swap top listing and this one, and we're done
-    kScoreCard tmp=topHit[0];
-    topHit[0]=topHit[j];
-    topHit[j]=tmp;
-    return;
+      //check link position (first peptide)
+      if(topHit[b].k1<topHit[a].k1) goto swap_hit;
+      else if(lType1==1 && lType2==1 && topHit[a].k1==topHit[b].k1){
+        if (topHit[b].k2<topHit[a].k2) goto swap_hit; //check 2nd pos on loop links
+        continue;
+      }
+
+      //check second peptide (cross-links only)
+      if(lType1==2 && lType2==2){
+        db.getPeptideSeq(topHit[a].pep2, pep1);
+        db.getPeptideSeq(topHit[b].pep2, pep2);
+        int c = pep2.compare(pep1);
+        if (c<0) goto swap_hit;
+        else if(c==0){
+
+          //check modifications
+          if (topHit[b].mods2->size()<topHit[a].mods2->size()) goto swap_hit;
+          if (topHit[a].mods2->size()<topHit[b].mods2->size()) continue;
+          for (size_t d = 0; d<topHit[a].mods2->size(); d++){
+            if (topHit[b].mods2->at(d).pos<topHit[a].mods2->at(d).pos) goto swap_hit;
+            if (topHit[b].mods2->at(d).mass<topHit[a].mods2->at(d).mass) goto swap_hit;
+          }
+
+          //check link position
+          if (topHit[b].k2<topHit[a].k2) goto swap_hit;
+        }
+      }
+
+      continue; //already in order
+
+      //the swap code
+      swap_hit:
+      kScoreCard tmp = topHit[a];
+      topHit[a] = topHit[b];
+      topHit[b] = tmp;
+    }
   }
+
+  //cruft past this point.
+
+  //if we have a tie, but top hit has only targets, we're done now.
+  //bool bDecoy=false;
+  //size_t i;
+  //kPeptide pep;
+  //pep=db.getPeptide(topHit[0].pep1);
+  //for(i=0;i<pep.map->size();i++){
+  //  if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  //}
+  //if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
+  //  pep=db.getPeptide(topHit[0].pep2);
+  //  for (i = 0; i<pep.map->size(); i++){
+  //    if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  //  }
+  //}
+  //if(!bDecoy) return;
+
+  ////Now check each tie until we find one that is only targets
+  //int j;
+  //for(j=1;j<20;j++){
+  //  if(topHit[j].simpleScore<topHit[0].simpleScore) return; //stop when we are past ties
+  //  bDecoy=false;
+  //  pep = db.getPeptide(topHit[j].pep1);
+  //  for (i = 0; i<pep.map->size(); i++){
+  //    if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  //  }
+  //  if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
+  //    pep = db.getPeptide(topHit[j].pep2);
+  //    for (i = 0; i<pep.map->size(); i++){
+  //      if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
+  //    }
+  //  }
+  //  if(bDecoy) continue; //if a decoy, onward to next peptide
+
+  //  //otherwise, swap top listing and this one, and we're done
+  //  kScoreCard tmp=topHit[0];
+  //  topHit[0]=topHit[j];
+  //  topHit[j]=tmp;
+  //  return;
+  //}
 }
 
 void KSpectrum::resetSingletList(){

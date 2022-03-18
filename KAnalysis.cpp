@@ -328,7 +328,7 @@ void KAnalysis::analyzePeptideProc(kAnalysisStruct* s){
 }
 
 void KAnalysis::analyzeEValueProc(KSpectrum* s){
-  s->calcEValue(&params, decoys);
+  s->calcEValue(&params, decoys,*db);
   s = NULL;
 }
 

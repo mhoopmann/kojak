@@ -647,6 +647,7 @@ typedef struct kResults{
   int     charge;
   int     link1;
   int     link2;
+  int     linkerID;
   int     matches1;
   int     matches2;
   int     conFrag1;

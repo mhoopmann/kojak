@@ -125,8 +125,9 @@ public:
   void setScanNumber          (int i);
 
   //Functions
-  bool  calcEValue          (kParams* params, KDecoys& decoys);
+  bool  calcEValue          (kParams* params, KDecoys& decoys, KDatabase& db);
   void  clearPrecursors     ();
+  bool  checkDecoy          (KDatabase& db, std::string& dStr, kScoreCard& hit);  //To be run AFTER analysis completes.
   void  checkScore          (kScoreCard& s);
   void  checkSingletScore   (kSingletScoreCard& s);
   //bool  generateSingletDecoys(kParams* params, KDecoys& decoys);
@@ -138,7 +139,7 @@ public:
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression3   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression4   (int* histo, int decoySz, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
-  void  refreshScore        (KDatabase& db, std::string dStr);  //To be run AFTER analysis completes. Looks at top scores, if a tie, make sure decoys are listed second (to help TPP analysis)
+  void  refreshScore        (KDatabase& db, std::string& dStr);  //To be run AFTER analysis completes. Looks at top scores, if a tie, make sure decoys are listed second (to help TPP analysis)
   void  resetSingletList    ();
   void  sortMZ              ();
   void  sortIntensityRev    () { sort(spec->begin(),spec->end(),compareIntensityRev); }
