@@ -1667,7 +1667,8 @@ void KSpectrum::refreshScore(KDatabase& db, string& dStr){
       if(lType1==2 && lType2==2){
         db.getPeptideSeq(topHit[a].pep2, pep1);
         db.getPeptideSeq(topHit[b].pep2, pep2);
-        int c = pep2.compare(pep1);
+        int c; 
+        c = pep2.compare(pep1);
         if (c<0) goto swap_hit;
         else if(c==0){
 
