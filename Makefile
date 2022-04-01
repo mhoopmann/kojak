@@ -15,7 +15,7 @@ INCLUDE = -I$(MSTOOLKITPATH)/include -I$(HARDKLORPATH) -I$(NEOPEPXMLPATH)
 
 
 #Do not touch these variables
-KOJAK = KojakManager.o KParams.o KAnalysis.o KData.o KDB.o KPrecursor.o KSpectrum.o KIons.o KIonSet.o KLog.o KTopPeps.o Threading.o CometDecoys.o
+KOJAK = KojakManager.o KParams.o KAnalysis.o KData.o KDB.o KSpectrum.o KIons.o KIonSet.o KLog.o KTopPeps.o Threading.o CometDecoys.o
 
 
 #Make statements
@@ -44,9 +44,6 @@ KData.o : KData.cpp
 
 KDB.o : KDB.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KDB.cpp -c
-
-KPrecursor.o : KPrecursor.cpp
-	$(CC) $(FLAGS) $(INCLUDE) KPrecursor.cpp -c
 
 KSpectrum.o : KSpectrum.cpp
 	$(CC) $(FLAGS) $(INCLUDE) KSpectrum.cpp -c
