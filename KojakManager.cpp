@@ -111,7 +111,7 @@ int KojakManager::run(){
     log.addMessage("Using Kojak modified XCorr scores.", true);
     cout << "\n Using Kojak modified XCorr scores." << endl;
     log.addMessage("Reading and processing spectra data file: " + files[i].input,true);
-    cout << " Reading and processingspectra data file: " << files[i].input.c_str() << " ... ";
+    cout << " Reading and processing spectra data file: " << files[i].input.c_str() << " ... ";
     if (!spec.readSpectra()){
       log.addError("Error reading MS_data_file: " + files[i].input);
       return -2;

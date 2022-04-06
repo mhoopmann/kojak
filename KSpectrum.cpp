@@ -570,6 +570,7 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
       topHit[i].eVal = pow(10.0, dSlope * topHit[i].simpleScore + dIntercept);
       if (topHit[i].eVal>1e12) topHit[i].eVal = 1e12;
     }
+
     //score individual peptides
     if(topHit[i].score2>0){
       if(topHit[i].simpleScore==topScore){ //only do this for top hits right now: it is slow...
@@ -596,6 +597,7 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
       topHit[i].eVal2 = 1e12;
     }
   }
+
   return true;
 }
 
@@ -844,6 +846,8 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   preMass = precursor->at(preIndex).monoMass;
   diffMass=preMass-mass;
 
+  //cout << "GSD2: " << seed << "\t" << maxZ << "\t" << preMass << "\t" << diffMass << endl;
+
   //Does this function need as many DECOY_SIZE as the other? Can this be shortened?
   for (i = 0; i<decoys.decoySize - 1; i++) { // iterate through required # decoys
     dXcorr = 0.0;
@@ -853,13 +857,16 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
     for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
       if (decoys.decoyIons[decoyIndex].pdIonsN[j]>mass) break;
     }
+    //cout << "GSD2-b: " << i << "\t" << decoyIndex << "\t" << j << endl;
     if(j<1) return 1e12;
 
     xlSite++;
     if(xlSite>=(j-1)) xlSite=0;
-    xlLen = j - 1;
+    xlLen = j;
 
+    //if (i<5) cout << "GSD2-c: " << xlSite << "\t" << xlLen << endl;
     for (n = 0; n<decoyIonSz; n++) { //iterate over each ion series
+      //if (i<5) cout << "GSD2-d: " << n << "\t" << decoyIonSz << endl;
       for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
       
         if (decoyIons[n].b) {
@@ -869,24 +876,32 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
           dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsC[j] + decoyIons[n].mass;
           if (j >= xlLen - xlSite) dFragmentIonMass += diffMass;
         }
+        //if(i<5) cout << "GSD2-e: " << j << "\t" << decoyIons[n].b << "\t" << dFragmentIonMass << "\t" << preMass << "\t" << endl;
         if (dFragmentIonMass>preMass) break;
 
         for (z = 1; z<maxZ; z++) {
           mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
           mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
           key = (int)mz;
+          //cout << "GSD2-f: " << z << "\t" << maxZ << "\t" << mz << "\t" << key << "\t" << kojakBins << endl;
           if (key >= kojakBins) break;
+          //cout << "GSD2-f2: " << &(kojakSparseArray[key]) << endl;
           if (kojakSparseArray[key] == NULL) continue;
           pos = (int)((mz - key)*invBinSize);
+          //cout << "GSD2-g: " << pos << "\t" << (double)kojakSparseArray[key][pos] << endl;
+          //cout << "xcorr before: " << dXcorr << endl;
           dXcorr += kojakSparseArray[key][pos];
+          //cout << "GSD2-g2: " << dXcorr << endl;
         }
       }
     }
 
+    //cout << "GSD2-h: " <<dXcorr << endl;
     if (dXcorr <= 0.0) dXcorr = 0.0;
     k = (int)(dXcorr*0.05+score2*10 + 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
     if (k < 0) k = 0;
     else if (k >= HISTOSZ) k = HISTOSZ - 1;
+    //cout << "GSD2-i: " << k << endl;
     tempHistogram[k]++;
   }
 
@@ -895,6 +910,10 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   if (k < 0) k = 0;
   else if (k >= HISTOSZ) k = HISTOSZ - 1;
   tempHistogram[k]++;
+  //cout << "Original histogram: " << endl;
+  //for(int a=0;a<HISTOSZ;a++){
+  //  cout << a << "\t" << tempHistogram[a] << endl;
+  //}
 
   //Do linear regression and compute e-value
   double dSlope,dIntercept,dRSquare;
@@ -1493,6 +1512,10 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
   for (i = HISTOSZ - 2; i >= 0; i--) {
     if (histo[i] > 0)  break;
   }
+  //cout << "LinReg4: " << i << endl;
+  //if(i<0){
+  //  cout << "lin4 error: " << i << endl;
+  //}
   iMaxCorr = i;
 
   //bail now if there is no width to the distribution
@@ -1511,6 +1534,22 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
   for (i = iMaxCorr - 2; i >= 0; i--) {
     dCummulative[i] = dCummulative[i + 1] + histo[i];
   }
+  if(dCummulative[0]<1){ //edge case where all decoys are the top score (essentially the other peptide score)
+    slope = 0;
+    intercept = 0;
+    iMaxXcorr = 0;
+    iStartXcorr = 0;
+    iNextXcorr = 0;
+    rSquared = 0;
+    //cout << "No regression" << endl;
+    return;
+  } /*else {
+    cout << "Cumulative histogram: " << endl;
+    for (int a = 0; a<iMaxCorr; a++){
+      cout << a << "\t" << dCummulative[a] << endl;
+    }
+    cout << "WTF: " << dCummulative[0] << "\t" << (dCummulative[0]<1) << endl;
+  }*/
 
   //get middle-ish datapoint as seed. Using count/10.
   for (i = 0; i<iMaxCorr; i++){
@@ -1518,6 +1557,9 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
   }
   if (i >= (iMaxCorr - 1)) iNextCorr = iMaxCorr - 2;
   else iNextCorr = i;
+  //cout << "First iMaxCorr: " << iMaxCorr << "\t" << "iNextCorr: " << iNextCorr << endl;
+  //if(iMaxCorr>=HISTOSZ || iMaxCorr<0) cout << "iMaxCorr error: " << iMaxCorr << endl;
+  //if(iNextCorr>=HISTOSZ || iNextCorr<0) cout << "iNextCorr error: " << iNextCorr << endl;
 
   // log10...and stomp all over the original...hard to troubleshoot later
   for (i = iMaxCorr - 1; i >= 0; i--)  {
@@ -1527,6 +1569,16 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
 
   iStartCorr = iNextCorr - 1;
   iNextCorr++;
+
+  //if (iMaxCorr >= HISTOSZ || iMaxCorr<0) cout << "iMaxCorr error: " << iMaxCorr << endl;
+  //if (iNextCorr >= HISTOSZ || iNextCorr<0) cout << "iNextCorr error: " << iNextCorr << endl;
+  //if (iStartCorr>=HISTOSZ || iStartCorr<0) {
+  //  cout << "iStartCorr error: " << iStartCorr << endl;
+  //  cout << "iMaxCorr: " << iMaxCorr << "\t" << "iNextCorr: " << iNextCorr << endl;
+  //  for(int a=0;a<HISTOSZ; a++){
+  //    cout << a << "\t" << histo[i] << "\t" << dCummulative[i] << endl;
+  //  }
+  //}
 
   bool bRight = false; // which direction to add datapoint from
   bestRSQ = 0;
@@ -1606,7 +1658,6 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
 
 //TODO: improve this function to account for modifications when checking peptide sequence...
 void KSpectrum::refreshScore(KDatabase& db, string& dStr){
-
   //skip any lists that are empty
   if(topHit[0].simpleScore==0) return;
 
