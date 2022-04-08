@@ -131,7 +131,7 @@ public:
   void  checkScore          (kScoreCard& s);
   void  checkSingletScore   (kSingletScoreCard& s);
   //bool  generateSingletDecoys(kParams* params, KDecoys& decoys);
-  double  generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex,double score2);
+  double  generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex);
   //bool generateXLDecoys      (kParams* params, KDecoys& decoys);
   bool  generateXcorrDecoys (kParams* params, KDecoys& decoys);
   //bool  generateXcorrDecoysXL(kParams* params, KDecoys& decoys);

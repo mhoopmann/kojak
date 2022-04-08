@@ -5,7 +5,7 @@
 //MaxLen is 60 for decoy sets of 10k and 20k
 
 #define MAX_DECOY_PEP_LEN 70
-//#define DECOY_SIZE        10000
+#define DECOY_SIZE        50000
 
 typedef struct DecoysStruct {
   const char* szPeptide; //this is never used (in Kojak) and can probably be omitted for savings.

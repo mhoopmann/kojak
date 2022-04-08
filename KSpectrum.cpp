@@ -519,26 +519,25 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
   tmpHistCount = histogramCount;
   if (topHit[0].simpleScore == 0) return true; //no need to do any of this if there are no PSMs...
 
-  if (histogramCount < decoys.decoySize) {
-
-    //precompute which ion series to use
-    decoyIonSz=0;
-    for (i = 0; i<6; i++){
-      if (params->ionSeries[i]) {
-        if (i<3) {
-          decoyIons[decoyIonSz].b = true;
-          if (i == 0) decoyIons[decoyIonSz++].mass = -27.9949141;
-          else if (i == 1) decoyIons[decoyIonSz++].mass = 0;
-          else decoyIons[decoyIonSz++].mass = 17.026547;
-        } else {
-          decoyIons[decoyIonSz].b = false;
-          if (i == 3) decoyIons[decoyIonSz++].mass = 25.9792649;
-          else if (i == 4) decoyIons[decoyIonSz++].mass = 0;
-          else decoyIons[decoyIonSz++].mass = -16.0187224;
-        }
+  //precompute which ion series to use
+  decoyIonSz=0;
+  for (i = 0; i<6; i++){
+    if (params->ionSeries[i]) {
+      if (i<3) {
+        decoyIons[decoyIonSz].b = true;
+        if (i == 0) decoyIons[decoyIonSz++].mass = -27.9949141;
+        else if (i == 1) decoyIons[decoyIonSz++].mass = 0;
+        else decoyIons[decoyIonSz++].mass = 17.026547;
+      } else {
+        decoyIons[decoyIonSz].b = false;
+        if (i == 3) decoyIons[decoyIonSz++].mass = 25.9792649;
+        else if (i == 4) decoyIons[decoyIonSz++].mass = 0;
+        else decoyIons[decoyIonSz++].mass = -16.0187224;
       }
     }
+  }
 
+  if (histogramCount < decoys.decoySize) {
     if (!generateXcorrDecoys(params, decoys)) return false;
   }
 
@@ -579,12 +578,12 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
           //Note: there are slight differences if the alternate peptide in a tie score has a slightly different mass, resulting in a different decoy
           //distribution should the order of peptides change in the next run.
           if(topHit[i].score1==topHit[i-1].score1) topHit[i].eVal1=topHit[i-1].eVal1;
-          else topHit[i].eVal1 = generateSingletDecoys2(params, decoys, topHit[i].score1, topHit[i].mass1, (int)topHit[i].precursor, topHit[i].score2);
+          else topHit[i].eVal1 = generateSingletDecoys2(params, decoys, topHit[i].score1, topHit[i].mass1, (int)topHit[i].precursor);
           if(topHit[i].score2==topHit[i-1].score2) topHit[i].eVal2=topHit[i-1].eVal2;
-          else topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor, topHit[i].score1);
+          else topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor);
         } else {
-          topHit[i].eVal1 = generateSingletDecoys2(params,decoys,topHit[i].score1,topHit[i].mass1,(int)topHit[i].precursor,topHit[i].score2);
-          topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor,topHit[i].score1);
+          topHit[i].eVal1 = generateSingletDecoys2(params,decoys,topHit[i].score1,topHit[i].mass1,(int)topHit[i].precursor);
+          topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor);
         }
       }
     } else {
@@ -816,7 +815,7 @@ void KSpectrum::checkSingletScore(kSingletScoreCard& s){
 
 //Rethink the need to have score2 as a parameter...
 //TODO: Get rid of rand(). Possible options, simply rotate link site to next position.
-double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex,double score2) {
+double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex) {
   int i;
   int n;
   int j;
@@ -835,9 +834,9 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   int tempHistogram[HISTOSZ];
   for(i=0;i<HISTOSZ;i++) tempHistogram[i]=0;
 
-  int seed = (scanNumber*histogramCount); //note: histogramCount is always decoySize for singlets...why not use score2?
+  int seed = (int)(scanNumber*mass); 
   if (seed<0) seed = -seed;
-  seed = seed % decoys.decoySize; //don't always start at the top, but not random either; remains reproducible across threads
+  seed = seed % DECOY_SIZE; //don't always start at the top, but not random either; remains reproducible across threads
   int decoyIndex;
 
   //compute modification mass
@@ -846,27 +845,22 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   preMass = precursor->at(preIndex).monoMass;
   diffMass=preMass-mass;
 
-  //cout << "GSD2: " << seed << "\t" << maxZ << "\t" << preMass << "\t" << diffMass << endl;
-
   //Does this function need as many DECOY_SIZE as the other? Can this be shortened?
-  for (i = 0; i<decoys.decoySize - 1; i++) { // iterate through required # decoys
+  for (i = 0; i<decoys.decoySize; i++) { // iterate through required # decoys
     dXcorr = 0.0;
-    decoyIndex = (seed + i) % decoys.decoySize;
+    decoyIndex = (seed + i) % DECOY_SIZE;
  
     //find link site - somewhat wasted cycles
     for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {
       if (decoys.decoyIons[decoyIndex].pdIonsN[j]>mass) break;
     }
-    //cout << "GSD2-b: " << i << "\t" << decoyIndex << "\t" << j << endl;
     if(j<1) return 1e12;
 
     xlSite++;
     if(xlSite>=(j-1)) xlSite=0;
     xlLen = j;
 
-    //if (i<5) cout << "GSD2-c: " << xlSite << "\t" << xlLen << endl;
     for (n = 0; n<decoyIonSz; n++) { //iterate over each ion series
-      //if (i<5) cout << "GSD2-d: " << n << "\t" << decoyIonSz << endl;
       for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
       
         if (decoyIons[n].b) {
@@ -876,50 +870,32 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
           dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsC[j] + decoyIons[n].mass;
           if (j >= xlLen - xlSite) dFragmentIonMass += diffMass;
         }
-        //if(i<5) cout << "GSD2-e: " << j << "\t" << decoyIons[n].b << "\t" << dFragmentIonMass << "\t" << preMass << "\t" << endl;
         if (dFragmentIonMass>preMass) break;
 
         for (z = 1; z<maxZ; z++) {
           mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
           mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
           key = (int)mz;
-          //cout << "GSD2-f: " << z << "\t" << maxZ << "\t" << mz << "\t" << key << "\t" << kojakBins << endl;
           if (key >= kojakBins) break;
-          //cout << "GSD2-f2: " << &(kojakSparseArray[key]) << endl;
           if (kojakSparseArray[key] == NULL) continue;
           pos = (int)((mz - key)*invBinSize);
-          //cout << "GSD2-g: " << pos << "\t" << (double)kojakSparseArray[key][pos] << endl;
-          //cout << "xcorr before: " << dXcorr << endl;
           dXcorr += kojakSparseArray[key][pos];
-          //cout << "GSD2-g2: " << dXcorr << endl;
         }
       }
     }
 
-    //cout << "GSD2-h: " <<dXcorr << endl;
     if (dXcorr <= 0.0) dXcorr = 0.0;
-    k = (int)(dXcorr*0.05+score2*10 + 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
+    k = (int)(dXcorr*0.05+ 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
     if (k < 0) k = 0;
     else if (k >= HISTOSZ) k = HISTOSZ - 1;
-    //cout << "GSD2-i: " << k << endl;
     tempHistogram[k]++;
   }
-
-  //add this peptide's xcorr? is this necessary?
-  k = (int)((xcorr+score2)*10 + 0.5);
-  if (k < 0) k = 0;
-  else if (k >= HISTOSZ) k = HISTOSZ - 1;
-  tempHistogram[k]++;
-  //cout << "Original histogram: " << endl;
-  //for(int a=0;a<HISTOSZ;a++){
-  //  cout << a << "\t" << tempHistogram[a] << endl;
-  //}
 
   //Do linear regression and compute e-value
   double dSlope,dIntercept,dRSquare;
   int iMaxCorr,iStartCorr,iNextCorr;
   linearRegression4(tempHistogram, decoys.decoySize, dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr, dRSquare);
-  double eVal = pow(10.0, dSlope * 10 * (xcorr+score2) + dIntercept);
+  double eVal = pow(10.0, dSlope * 10 * xcorr + dIntercept);
   if(eVal>1e12) eVal=1e12;
 
   return eVal;
@@ -1512,14 +1488,10 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
   for (i = HISTOSZ - 2; i >= 0; i--) {
     if (histo[i] > 0)  break;
   }
-  //cout << "LinReg4: " << i << endl;
-  //if(i<0){
-  //  cout << "lin4 error: " << i << endl;
-  //}
   iMaxCorr = i;
 
   //bail now if there is no width to the distribution
-  if (iMaxCorr<3) {
+  if (iMaxCorr<2) {
     slope = 0;
     intercept = 0;
     iMaxXcorr = 0;
@@ -1529,56 +1501,34 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
     return;
   }
 
-  //More aggressive version summing everything below the max
-  dCummulative[iMaxCorr - 1] = histo[iMaxCorr - 1];
-  for (i = iMaxCorr - 2; i >= 0; i--) {
+  //More aggressive version summing everything starting at the max score
+  dCummulative[iMaxCorr] = histo[iMaxCorr];
+  for (i = iMaxCorr - 1; i >= 0; i--) {
     dCummulative[i] = dCummulative[i + 1] + histo[i];
   }
-  if(dCummulative[0]<1){ //edge case where all decoys are the top score (essentially the other peptide score)
+  //edge case where all decoys are the top score (essentially the other peptide score)
+  //This should no longer occur with the 2.0.0alpha15 fixes.
+  if(dCummulative[0]<1){ 
     slope = 0;
     intercept = 0;
     iMaxXcorr = 0;
     iStartXcorr = 0;
     iNextXcorr = 0;
     rSquared = 0;
-    //cout << "No regression" << endl;
     return;
-  } /*else {
-    cout << "Cumulative histogram: " << endl;
-    for (int a = 0; a<iMaxCorr; a++){
-      cout << a << "\t" << dCummulative[a] << endl;
-    }
-    cout << "WTF: " << dCummulative[0] << "\t" << (dCummulative[0]<1) << endl;
-  }*/
-
-  //get middle-ish datapoint as seed. Using count/10.
-  for (i = 0; i<iMaxCorr; i++){
-    if (dCummulative[i] < decoySz / 10) break;
   }
-  if (i >= (iMaxCorr - 1)) iNextCorr = iMaxCorr - 2;
-  else iNextCorr = i;
-  //cout << "First iMaxCorr: " << iMaxCorr << "\t" << "iNextCorr: " << iNextCorr << endl;
-  //if(iMaxCorr>=HISTOSZ || iMaxCorr<0) cout << "iMaxCorr error: " << iMaxCorr << endl;
-  //if(iNextCorr>=HISTOSZ || iNextCorr<0) cout << "iNextCorr error: " << iNextCorr << endl;
 
   // log10...and stomp all over the original...hard to troubleshoot later
-  for (i = iMaxCorr - 1; i >= 0; i--)  {
+  for (i = iMaxCorr; i >= 0; i--)  {
     histo[i] = (int)dCummulative[i];
     dCummulative[i] = log10(dCummulative[i]);
   }
 
-  iStartCorr = iNextCorr - 1;
-  iNextCorr++;
-
-  //if (iMaxCorr >= HISTOSZ || iMaxCorr<0) cout << "iMaxCorr error: " << iMaxCorr << endl;
-  //if (iNextCorr >= HISTOSZ || iNextCorr<0) cout << "iNextCorr error: " << iNextCorr << endl;
-  //if (iStartCorr>=HISTOSZ || iStartCorr<0) {
-  //  cout << "iStartCorr error: " << iStartCorr << endl;
-  //  cout << "iMaxCorr: " << iMaxCorr << "\t" << "iNextCorr: " << iNextCorr << endl;
-  //  for(int a=0;a<HISTOSZ; a++){
-  //    cout << a << "\t" << histo[i] << "\t" << dCummulative[i] << endl;
-  //  }
-  //}
+  //avoid edge effects from sampling one really high decoy score.
+  while(iMaxCorr>2 && dCummulative[iMaxCorr]<0.01) iMaxCorr--;
+  iNextCorr=iMaxCorr;
+  iStartCorr = iNextCorr/2;
+  if(iNextCorr-iStartCorr<2) iStartCorr=iNextCorr-2;
 
   bool bRight = false; // which direction to add datapoint from
   bestRSQ = 0;
@@ -1626,7 +1576,7 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
     rsq = 1 - SSR / SST;
 
     if (rsq>0.95 || rsq>bestRSQ){
-      if (rsq>bestRSQ || iNextCorr - iStartCorr + 1<8){ //keep better RSQ only if more than 8 datapoints, otherwise keep every RSQ below 8 datapoints
+      if (rsq>bestRSQ || iNextCorr - iStartCorr + 1<4){ //keep better RSQ only if more than 4 datapoints, otherwise keep every RSQ below 8 datapoints
         bestRSQ = rsq;
         bestNC = iNextCorr;
         bestSlope = b;
@@ -1634,12 +1584,12 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
         bestStart = iStartCorr;
       }
       if (bRight){
-        if (iNextCorr<(iMaxCorr - 1)) iNextCorr++;
+        if (iNextCorr<iMaxCorr) iNextCorr++;
         else if (iStartCorr>0) iStartCorr--;
         else break;
       } else {
         if (iStartCorr>0) iStartCorr--;
-        else if (iNextCorr<(iMaxCorr - 1)) iNextCorr++;
+        else if (iNextCorr<iMaxCorr) iNextCorr++;
         else break;
       }
       bRight = !bRight;
@@ -1654,6 +1604,7 @@ void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double
   iStartXcorr = bestStart;
   iNextXcorr = bestNC;
   rSquared = bestRSQ;
+
 }
 
 //TODO: improve this function to account for modifications when checking peptide sequence...
@@ -1747,47 +1698,6 @@ void KSpectrum::refreshScore(KDatabase& db, string& dStr){
     }
   }
 
-  //cruft past this point.
-
-  //if we have a tie, but top hit has only targets, we're done now.
-  //bool bDecoy=false;
-  //size_t i;
-  //kPeptide pep;
-  //pep=db.getPeptide(topHit[0].pep1);
-  //for(i=0;i<pep.map->size();i++){
-  //  if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
-  //}
-  //if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
-  //  pep=db.getPeptide(topHit[0].pep2);
-  //  for (i = 0; i<pep.map->size(); i++){
-  //    if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
-  //  }
-  //}
-  //if(!bDecoy) return;
-
-  ////Now check each tie until we find one that is only targets
-  //int j;
-  //for(j=1;j<20;j++){
-  //  if(topHit[j].simpleScore<topHit[0].simpleScore) return; //stop when we are past ties
-  //  bDecoy=false;
-  //  pep = db.getPeptide(topHit[j].pep1);
-  //  for (i = 0; i<pep.map->size(); i++){
-  //    if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
-  //  }
-  //  if (!bDecoy && topHit[0].pep2>-1){ //only check second peptide if necessary
-  //    pep = db.getPeptide(topHit[j].pep2);
-  //    for (i = 0; i<pep.map->size(); i++){
-  //      if (db[pep.map->at(i).index].name.find(dStr) != string::npos) bDecoy = true;
-  //    }
-  //  }
-  //  if(bDecoy) continue; //if a decoy, onward to next peptide
-
-  //  //otherwise, swap top listing and this one, and we're done
-  //  kScoreCard tmp=topHit[0];
-  //  topHit[0]=topHit[j];
-  //  topHit[j]=tmp;
-  //  return;
-  //}
 }
 
 void KSpectrum::resetSingletList(){
