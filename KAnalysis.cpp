@@ -922,12 +922,12 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       
       score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
       bScored = true;
-      y = (int)(score * 10.0 + 0.5);
-      if (y >= HISTOSZ) y = HISTOSZ - 1;
-      Threading::LockMutex(mutexSpecScore[index]);
-      s->histogramSinglet[y]++;
-      s->histogramSingletCount++;
-      Threading::UnlockMutex(mutexSpecScore[index]);
+      //y = (int)(score * 10.0 + 0.5);
+      //if (y >= HISTOSZ) y = HISTOSZ - 1;
+      //Threading::LockMutex(mutexSpecScore[index]);
+      //s->histogramSinglet[y]++;
+      //s->histogramSingletCount++;
+      //Threading::UnlockMutex(mutexSpecScore[index]);
       if(score<params.minPepScore || score<=0) continue;
       //if(conFrag<2) continue; //FOR TESTING ONLY
 

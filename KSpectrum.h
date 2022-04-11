@@ -73,7 +73,7 @@ public:
   float tmpSingletINextCorr;
   double tmpSingletRSquare;
   int tmpSingletIMaxCorr;
-  int tmpSingCount;
+  //int tmpSingCount;
   int tmpHistCount;
   int peakCounts;
 
@@ -104,8 +104,8 @@ public:
   int histogram[HISTOSZ];
   int histogramCount;
   int histoMaxIndex;
-  int histogramSinglet[HISTOSZ];
-  int histogramSingletCount;
+  double dCummulative[HISTOSZ];
+  int tempHistogram[HISTOSZ];
 
   //For diagnostics only
   int histogramO[HISTOSZ];
@@ -129,15 +129,9 @@ public:
   void  clearPrecursors     ();
   bool  checkDecoy          (KDatabase& db, std::string& dStr, kScoreCard& hit);  //To be run AFTER analysis completes.
   void  checkScore          (kScoreCard& s);
-  void  checkSingletScore   (kSingletScoreCard& s);
-  //bool  generateSingletDecoys(kParams* params, KDecoys& decoys);
   double  generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex);
-  //bool generateXLDecoys      (kParams* params, KDecoys& decoys);
   bool  generateXcorrDecoys (kParams* params, KDecoys& decoys);
-  //bool  generateXcorrDecoysXL(kParams* params, KDecoys& decoys);
-  void  linearRegression    (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
-  void  linearRegression3   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression4   (int* histo, int decoySz, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  refreshScore        (KDatabase& db, std::string& dStr);  //To be run AFTER analysis completes. Looks at top scores, if a tie, make sure decoys are listed second (to help TPP analysis)
   void  resetSingletList    ();
