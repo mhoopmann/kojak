@@ -181,6 +181,7 @@ typedef struct kParams {
   char    resPath[1024];
   std::string fullPath;
   std::vector<kMass>*    aaMass;
+  std::vector<double>*   cleavageProducts;
   std::vector<int>*      diag;
   std::vector<kLinker>*  xLink;
   std::vector<kLinker>*  mLink;
@@ -244,6 +245,7 @@ typedef struct kParams {
     resPath[0]='\0';
     fullPath = "";
     aaMass = new std::vector<kMass>;
+    cleavageProducts = new std::vector<double>;
     diag = new std::vector<int>;
     xLink = new std::vector<kLinker>;
     mLink = new std::vector<kLinker>;
@@ -302,6 +304,7 @@ typedef struct kParams {
     strcpy(resPath, p.resPath);
     fullPath = p.fullPath;
     aaMass = new std::vector<kMass>(*p.aaMass);
+    cleavageProducts = new std::vector<double>(*p.cleavageProducts);
     diag = new std::vector<int>(*p.diag);
     xLink = new std::vector<kLinker>(*p.xLink);
     mLink = new std::vector<kLinker>(*p.mLink);
@@ -311,6 +314,7 @@ typedef struct kParams {
   }
   ~kParams(){
     delete aaMass;
+    delete cleavageProducts;
     delete diag;
     delete xLink;
     delete mLink;
@@ -370,12 +374,14 @@ typedef struct kParams {
       strcpy(resPath, p.resPath);
       fullPath = p.fullPath;
       delete aaMass;
+      delete cleavageProducts;
       delete diag;
       delete xLink;
       delete mLink;
       delete mods;
       delete fMods;
       aaMass = new std::vector<kMass>(*p.aaMass);
+      cleavageProducts = new std::vector<double>(*p.cleavageProducts);
       diag = new std::vector<int>(*p.diag);
       xLink = new std::vector<kLinker>(*p.xLink);
       mLink = new std::vector<kLinker>(*p.mLink);
@@ -427,6 +433,8 @@ typedef struct kScoreCard{
   double  mass2;
   float  score1;
   float  score2;
+  float  cpScore1;
+  float  cpScore2;
   std::vector<kPepMod>* mods1;
   std::vector<kPepMod>* mods2;
   kScoreCard(){
@@ -449,6 +457,8 @@ typedef struct kScoreCard{
     mass2=0;
     score1=0;
     score2=0;
+    cpScore1=0;
+    cpScore2=0;
     matches1=0;
     matches2=0;
     conFrag1=0;
@@ -476,6 +486,8 @@ typedef struct kScoreCard{
     mass2=p.mass2;
     score1=p.score1;
     score2=p.score2;
+    cpScore1=p.cpScore1;
+    cpScore2=p.cpScore2;
     matches1=p.matches1;
     matches2=p.matches2;
     conFrag1=p.conFrag1;
@@ -508,6 +520,8 @@ typedef struct kScoreCard{
       mass2=p.mass2;
       score1=p.score1;
       score2=p.score2;
+      cpScore1 = p.cpScore1;
+      cpScore2 = p.cpScore2;
       matches1 = p.matches1;
       matches2 = p.matches2;
       conFrag1 = p.conFrag1;
@@ -530,6 +544,7 @@ typedef struct kSingletScoreCard{
   int                 pep1;
   char                pre;
   float               simpleScore;
+  float               cpScore;
   double              mass;
   char                modLen;
   char                site;
@@ -543,6 +558,7 @@ typedef struct kSingletScoreCard{
     pep1=0;
     pre=0;
     simpleScore=0;
+    cpScore=0;
     mass=0;
     modLen=0;
     site=0;
@@ -559,6 +575,7 @@ typedef struct kSingletScoreCard{
     pep1=k.pep1;
     pre=k.pre;
     simpleScore=k.simpleScore;
+    cpScore=k.cpScore;
     mass=k.mass;
     modLen=k.modLen;
     site=k.site;
@@ -585,6 +602,7 @@ typedef struct kSingletScoreCard{
       pep1=k.pep1;
       pre=k.pre;
       simpleScore=k.simpleScore;
+      cpScore=k.cpScore;
       mass=k.mass;
       modLen=k.modLen;
       site=k.site;

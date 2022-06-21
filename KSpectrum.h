@@ -132,7 +132,7 @@ public:
   double  generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex);
   bool  generateXcorrDecoys (kParams* params, KDecoys& decoys);
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
-  void  linearRegression4   (int* histo, int decoySz, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
+  void  linearRegression4   (int* histo, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  refreshScore        (KDatabase& db, std::string& dStr);  //To be run AFTER analysis completes. Looks at top scores, if a tie, make sure decoys are listed second (to help TPP analysis)
   void  resetSingletList    ();
   void  sortMZ              ();

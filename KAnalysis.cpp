@@ -205,7 +205,6 @@ bool KAnalysis::doPeptideAnalysis(){
   printf("\b\b\b100%%");
   cout << endl;
 
-
   //Perform the second pass
   firstPass=false;
   if(klog!=NULL) klog->addMessage("Scoring peptides (second pass).",true);
@@ -733,6 +732,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   KIonSet* iset;
   kPepMod mod;
   float score = 0;
+  double cpScore=0;
+  bool bCPScore=false;
   int matches;
   int conFrag;
   int i,j,y;
@@ -759,6 +760,11 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
 
     if(!firstPass && (p->monoMass-spec->getLink(linkIndex).mass+0.2)/2>mass){
 
+      if(!bCPScore && params.cleavageProducts->size()>0){
+        cpScore=kojakScoringCleavable(index,sIndex,iIndex);
+        bCPScore=true;
+      }
+
       //Threading::LockMutex(mutexSingletScore[index][i]);
       tp = s->getTopPeps(i);
       int ind=(int)((p->monoMass-xlMass-mass)/10);
@@ -780,6 +786,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           continue;
         }
         score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
+        score+=(float)cpScore;
         protSC.simpleScore = tsc->simpleScore + score;
         y = (int)(protSC.simpleScore * 10.0 + 0.5);
         if (y >= HISTOSZ) y = HISTOSZ - 1;
@@ -816,6 +823,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.pep2 = tsc->pep1;
           protSC.score1 = score;
           protSC.score2 = tsc->simpleScore;
+          protSC.cpScore1 = (float)cpScore;
+          protSC.cpScore2 = tsc->cpScore;
           protSC.mass1 = mass;
           protSC.mass2 = tsc->mass;
           protSC.matches1 = matches;
@@ -833,6 +842,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.pep2 = pep;
           protSC.score1 = tsc->simpleScore;
           protSC.score2 = score;
+          protSC.cpScore1 = tsc->cpScore;
+          protSC.cpScore2 = (float)cpScore;
           protSC.mass1 = tsc->mass;
           protSC.mass2 = mass;
           protSC.matches1 = tsc->matches;
@@ -919,8 +930,14 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         lowI++;
       }
       if (lowI >= highI) continue;
+
+      if (!bCPScore && params.cleavageProducts->size()>0){
+        cpScore = kojakScoringCleavable(index, sIndex, iIndex);
+        bCPScore = true;
+      }
       
       score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
+      score+=(float)cpScore;
       bScored = true;
       //y = (int)(score * 10.0 + 0.5);
       //if (y >= HISTOSZ) y = HISTOSZ - 1;
@@ -946,6 +963,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
 
       sc.len = len;
       sc.simpleScore = score;
+      sc.cpScore = (float)cpScore;
       sc.k1 = k;
       sc.linkable = false;
       sc.pep1 = pep;
@@ -1040,6 +1058,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     sc.mods1->clear();
     sc.mods2->clear();
     sc.score1=sc.simpleScore;
+    sc.cpScore1 = 0;
     sc.matches1=matches;
     sc.conFrag1=conFrag;
     sc.k1=k1;
@@ -1088,8 +1107,8 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
 
 //An alternative score uses the XCorr metric from the Comet algorithm
 //This version allows for fast scoring when the cross-linked mass is added.
-float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z) { 
-
+float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, /*double& cpScore,*/ int z) { 
+  
   KSpectrum* s=spec->getSpectrum(specIndex);
   KIonSet* ki=ions[iIndex].at(sIndex);
   if (!ki->index) {
@@ -1097,10 +1116,12 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   }
 
   double dXcorr=0.0;
+  //cpScore = 0;
   double invBinSize=s->getInvBinSize();
   double binOffset=params.binOffset;
   double dif;
   double mz;
+  bool bLinkSite=false;
 
   int ionCount=ions[iIndex].getIonCount();
   int maxCharge=z;
@@ -1141,6 +1162,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
         //get key -- see if this can be precomputed for the half that doesn't contain the linked peptide
         if(ionSeries[j][k][i].mz<0) {
+          bLinkSite=true;
           mz = params.binSize * (int)((dif-ionSeries[j][k][i].mz)*invBinSize+binOffset);
           key = (int)mz;
           if(key>=s->kojakBins) {
@@ -1162,6 +1184,7 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
             if(con>conFrag) conFrag=con;
             con=0;
           }
+
         } else {
           key=ionSeries[j][k][i].key;
           if (key >= s->kojakBins) {
@@ -1189,9 +1212,96 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
   }
 
+  ////TODO: Add cleavable crosslinker product ions
+  ////Iterate through pfFastXcorrData
+  //if (bLinkSite && params.cleavageProducts->size()>0){
+  //  for (j = 0; j<numIonSeries; j++){
+  //    for (i = 0; i<ionCount; i++){
+  //      if (ionSeries[j][1][i].mz<0) {
+  //        for (size_t a = 0; a<params.cleavageProducts->size(); a++){
+  //          mz = params.binSize * (int)((params.cleavageProducts->at(a) - ionSeries[j][1][i].mz)*invBinSize + binOffset);
+  //          key = (int)mz;
+  //          if (key >= s->kojakBins) break;
+  //          if (s->kojakSparseArray[key] == NULL) continue;
+  //          pos = (int)((mz - key)*invBinSize);
+  //          dXcorr += s->kojakSparseArray[key][pos];
+
+  //          //TODO: Keep record of cleavage product matches?
+  //          cpScore += s->kojakSparseArray[key][pos];
+  //        }
+  //      }
+  //    }
+  //  }
+  //}
+
   //Scale score appropriately
   if(dXcorr <= 0.0) dXcorr=0.0;
   else dXcorr *= 0.005;
+
+  //Clean up memory
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = NULL;
+  if (params.ionSeries[1]) ionSeries[k++] = NULL;
+  if (params.ionSeries[2]) ionSeries[k++] = NULL;
+  if (params.ionSeries[3]) ionSeries[k++] = NULL;
+  if (params.ionSeries[4]) ionSeries[k++] = NULL;
+  if (params.ionSeries[5]) ionSeries[k++] = NULL;
+
+  delete[] ionSeries;
+  return float(dXcorr);
+}
+
+//An alternative score uses the XCorr metric from the Comet algorithm
+//This version allows for fast scoring when the cross-linked mass is added.
+float KAnalysis::kojakScoringCleavable(int specIndex, int sIndex, int iIndex) {
+
+  KSpectrum* s = spec->getSpectrum(specIndex);
+  KIonSet* ki = ions[iIndex].at(sIndex);
+  if (!ki->index) {
+    ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
+  }
+
+  double dXcorr = 0.0;
+  double invBinSize = s->getInvBinSize();
+  double binOffset = params.binOffset;
+  double mz;
+
+  int ionCount = ions[iIndex].getIonCount();
+
+  int i, j, k;
+  int key;
+  int pos;
+
+  //Assign ion series
+  kISValue***  ionSeries;
+  ionSeries = new kISValue**[numIonSeries];
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = ki->aIons;
+  if (params.ionSeries[1]) ionSeries[k++] = ki->bIons;
+  if (params.ionSeries[2]) ionSeries[k++] = ki->cIons;
+  if (params.ionSeries[3]) ionSeries[k++] = ki->xIons;
+  if (params.ionSeries[4]) ionSeries[k++] = ki->yIons;
+  if (params.ionSeries[5]) ionSeries[k++] = ki->zIons;
+
+  //Score the cleavable crosslinker product ions
+  //Iterate through pfFastXcorrData
+  for (j = 0; j<numIonSeries; j++){
+    for (i = 0; i<ionCount; i++){
+      if (ionSeries[j][1][i].mz<0) {
+        for (size_t a = 0; a<params.cleavageProducts->size(); a++){
+          mz = params.binSize * (int)((params.cleavageProducts->at(a) - ionSeries[j][1][i].mz)*invBinSize + binOffset);
+          key = (int)mz;
+          if (key >= s->kojakBins) break;
+          if (s->kojakSparseArray[key] == NULL) continue;
+          pos = (int)((mz - key)*invBinSize);
+          dXcorr += s->kojakSparseArray[key][pos];
+        }
+      }
+    }
+  }
+
+  //Scale score appropriately - negatives are allowed
+  dXcorr *= 0.005;
 
   //Clean up memory
   k = 0;

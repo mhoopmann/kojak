@@ -75,6 +75,18 @@ int KojakManager::run(){
   for (i = 0; i<params.xLink->size(); i++) spec.setLinker(params.xLink->at(i));
   spec.buildXLTable();
 
+  if(params.cleavageProducts->size()>1){ //sort cleavage products (if any) by mass
+    for (size_t a = 0; a<params.cleavageProducts->size()-1;a++){
+      for (size_t b = a + 1; b<params.cleavageProducts->size();b++){
+        if (params.cleavageProducts->at(b)<params.cleavageProducts->at(a)){
+          double tmp = params.cleavageProducts->at(a);
+          params.cleavageProducts->at(a) = params.cleavageProducts->at(b);
+          params.cleavageProducts->at(b)=tmp;
+        }
+      }
+    }
+  }
+
   //Step #2: Read in database and generate peptide lists
   KDatabase db;
   db.setLog(&log);

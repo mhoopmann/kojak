@@ -697,6 +697,12 @@ void KParams::parse(const char* cmd) {
   } else if(strcmp(param,"use_comet_xcorr")==0){
     warn(param, 2);
 
+  } else if (strcmp(param, "xl_cleavage_product_mass") == 0){
+    params->cleavageProducts->push_back(atof(&values[0][0]));
+    xml.name = "xl_cleavage_product_mass";
+    xml.value = values[0];
+    logParam(xml);
+
 	} else {
 		warn(param,1);
 	}

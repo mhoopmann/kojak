@@ -724,6 +724,37 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
       }
     }
 
+    //score the cleavage product ions
+    if(params->cleavageProducts->size()>0){
+      for (n = 0; n<decoyIonSz; n++) { //iterate over each ion series
+        for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
+
+          if (decoyIons[n].b) {
+            if (j < xlSite) continue;
+          } else {
+            if (j < xlLen - xlSite) continue;
+          }
+
+          for (size_t a = 0; a<params->cleavageProducts->size();a++){
+            if (decoyIons[n].b) {
+              dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsN[j] + decoyIons[n].mass + params->cleavageProducts->at(a);
+            } else {
+              dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsC[j] + decoyIons[n].mass + params->cleavageProducts->at(a);
+            }
+            if (dFragmentIonMass>preMass) break;
+
+            mz = dFragmentIonMass + 1.007276466; //only check 1+ ions
+            mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
+            key = (int)mz;
+            if (key >= kojakBins) break;
+            if (kojakSparseArray[key] == NULL) continue;
+            pos = (int)((mz - key)*invBinSize);
+            dXcorr += kojakSparseArray[key][pos];
+          }
+        }
+      }
+    }
+
     if (dXcorr <= 0.0) dXcorr = 0.0;
     k = (int)(dXcorr*0.05+ 0.5);  // 0.05=0.005*10; see KAnalysis::kojakScoring
     if (k < 0) k = 0;
@@ -734,7 +765,7 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
   //Do linear regression and compute e-value
   double dSlope,dIntercept,dRSquare;
   int iMaxCorr,iStartCorr,iNextCorr;
-  linearRegression4(tempHistogram, decoys.decoySize, dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr, dRSquare);
+  linearRegression4(tempHistogram, dSlope, dIntercept, iMaxCorr, iStartCorr, iNextCorr, dRSquare);
   double eVal = pow(10.0, dSlope * 10 * xcorr + dIntercept);
   if(eVal>1e12) eVal=1e12;
 
@@ -956,7 +987,7 @@ void KSpectrum::linearRegression2(double& slope, double& intercept, int&  iMaxXc
 }
 
 //from Comet. THIS IS TEMPORARY! for testing singlets only...
-void KSpectrum::linearRegression4(int* histo, int decoySz, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
+void KSpectrum::linearRegression4(int* histo, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared) {
   double Sx, Sxy;      // Sum of square distances.
   double Mx, My;       // means
   double dx, dy;

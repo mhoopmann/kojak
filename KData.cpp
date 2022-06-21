@@ -1007,7 +1007,7 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     sc = tp->singletFirst;
     k=1;
     while (sc != NULL){
-      fprintf(f,"    <peptide rank=\"%d\" sequence=\"",k++);
+      fprintf(f,"    <peptide rank=\"%d\" index=\"%d\", sequence=\"",k++,sc->pep1);
       db.getPeptideSeq(db.getPeptideList()->at(sc->pep1).map->at(0).index, db.getPeptideList()->at(sc->pep1).map->at(0).start, db.getPeptideList()->at(sc->pep1).map->at(0).stop, strs);
       for (i = 0; i<strlen(strs); i++){
         fprintf(f, "%c", strs[i]);
@@ -1016,7 +1016,7 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
         }
         if (char(i) == sc->k1) fprintf(f, "[x]");
       }
-      fprintf(f, "\" link_site=\"%d\" score=\"%.4lf\" matches=\"%d\" longest_run=\"%d\" mass=\"%.4lf\"/>\n", (int)sc->k1+1, sc->simpleScore, sc->matches, sc->conFrag, sc->mass);
+      fprintf(f, "\" link_site=\"%d\" score=\"%.4f\" cpScore=\"%.4f\" matches=\"%d\" longest_run=\"%d\" mass=\"%.4lf\"/>\n", (int)sc->k1+1, sc->simpleScore, sc->cpScore, sc->matches, sc->conFrag, sc->mass);
       sc = sc->next;
     }
     fprintf(f,"   </precursor>\n");
@@ -1089,7 +1089,7 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     if (psm.link == -2) pep1+="+";
     else if(pep2.size()>0) pep1+="--";
     pep1+=pep2;
-    fprintf(f, "sequence=\"%s\" score=\"%.4lf\" evalue=\"%.3e\" mass=\"%.4lf\"",&pep1[0], psm.simpleScore, psm.eVal, psm.mass);
+    fprintf(f, "sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\", evalue=\"%.3e\" mass=\"%.4lf\"",&pep1[0], psm.simpleScore, psm.cpScore1+psm.cpScore2, psm.eVal, psm.mass);
     if (psm.link<0) fprintf(f, " crosslinker_mass=\"0\"/>\n"); 
     else fprintf(f, " crosslinker_mass=\"%.4lf\"/>\n", link[psm.link].mass);
   }
