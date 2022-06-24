@@ -124,6 +124,7 @@ void KData::addProteins(void* sh, KDatabase& db, int pIndex, bool xl, int linkA,
     string protein = "";
     for (size_t i = 0; i<db[pep.map->at(j).index].name.size(); i++){
       if (params->truncate>0 && i == params->truncate) break;
+      if (db[pep.map->at(j).index].name[i]==' ') break;
       protein += db[pep.map->at(j).index].name[i];
     }
     
