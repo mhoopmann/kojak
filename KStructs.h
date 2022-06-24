@@ -30,6 +30,7 @@ limitations under the License.
 typedef struct kDB{
   bool decoy;
   std::string name;      //FASTA header
+  std::string short_name;
   std::string sequence;  //FASTA sequence
 } kDB;
 

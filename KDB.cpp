@@ -135,6 +135,7 @@ bool  KDatabase::buildDB(const char* fname, string decoyStr) {
         }
       }
       d.name=&str[1];
+      d.short_name=d.name.substr(0,d.name.find_first_of(' '));
       d.sequence="";
     } else {
       for(unsigned int i=0;i<strlen(str);i++){

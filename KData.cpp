@@ -1632,6 +1632,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
     protein="";
     for(i=0;i<db[pep.map->at(j).index].name.size();i++){
       if(params->truncate>0 && i==params->truncate) break;
+      if (db[pep.map->at(j).index].name[i]==' ') break;
       protein+=db[pep.map->at(j).index].name[i];
     }
     if(pep.map->at(j).start<1) n='-';
@@ -1662,6 +1663,7 @@ bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
       protein="";
       for(i=0;i<db[pep.map->at(j).index].name.size();i++){
         if(params->truncate>0 && i==params->truncate) break;
+        if(db[pep.map->at(j).index].name[i]==' ') break;
         protein+=db[pep.map->at(j).index].name[i];
       }
       if(pep.map->at(j).start<1) n='-';
