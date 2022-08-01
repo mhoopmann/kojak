@@ -463,7 +463,6 @@ void KData::formatMS2(MSToolkit::Spectrum* s, KSpectrum* pls){
   }
 
   //If user limits number of peaks to analyze, sort by intensity and take top N
-  int j;
   if (params->maxPeaks>0 && pls->size()>params->maxPeaks){
     if (pls->size()>1) pls->sortIntensityRev();
     vector<kSpecPoint> v;
@@ -474,7 +473,7 @@ void KData::formatMS2(MSToolkit::Spectrum* s, KSpectrum* pls){
     pls->setMaxIntensity(v[0].intensity);
   } else {
     float max=0;
-    for (size_t i = 0; i<pls->size(); i++){
+    for (int i = 0; i<pls->size(); i++){
       if((*pls)[i].intensity>max) max=(*pls)[i].intensity;
     }
     pls->setMaxIntensity(max);
@@ -1824,7 +1823,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
   bool bBadFiles;
   bool bInter;
-  bool bTarget1;
+  //bool bTarget1;
   bool bDupe;
   bool bDiag;
 
@@ -1874,20 +1873,20 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     CSpectrumIdentification* si = mzID.addSpectrumIdentification(m_sd->id, m_db->id, m_sip->id, m_sil);
   }
   if(params->exportPercolator) {
-    sprintf(fName,"%s.perc.intra.txt",params->outFile);
+    sprintf(fName,"%s.perc.intra.pin",params->outFile);
     fIntra=fopen(fName,"wt");
     if(fIntra==NULL) bBadFiles=true;
-    sprintf(fName,"%s.perc.inter.txt",params->outFile);
+    sprintf(fName,"%s.perc.inter.pin",params->outFile);
     fInter=fopen(fName,"wt");
     if(fInter==NULL) bBadFiles=true;
-    sprintf(fName,"%s.perc.loop.txt",params->outFile);
+    sprintf(fName,"%s.perc.loop.pin",params->outFile);
     fLoop=fopen(fName,"wt");
     if(fLoop==NULL) bBadFiles=true;
-    sprintf(fName,"%s.perc.single.txt",params->outFile);
+    sprintf(fName,"%s.perc.single.pin",params->outFile);
     fSingle=fopen(fName,"wt");
     if(fSingle==NULL) bBadFiles=true;
     if (params->dimers){
-      sprintf(fName, "%s.perc.dimer.txt", params->outFile);
+      sprintf(fName, "%s.perc.dimer.pin", params->outFile);
       fDimer = fopen(fName, "wt");
       if (fDimer == NULL) bBadFiles = true;
     }
@@ -2919,7 +2918,7 @@ bool KData::readSpectra(){
   int iPercent = 0;
   int iTmp;
 
-  size_t index;
+  //size_t index;
 
   deque<kMS2struct*> dMS2;
   vMS1Buffer.reserve(2000);
@@ -3726,7 +3725,7 @@ void KData::writeMzIDDatabase(CMzIdentML& m, KDatabase& db){
   string sDB = outPath;
   CSearchDatabase* m_db = m.dataCollection.inputs.addSearchDatabase(sDB);
 
-  for(size_t a=0;a<db.getProteinDBSize();a++){
+  for(int a=0;a<db.getProteinDBSize();a++){
     CDBSequence m_dbs;
     sCvParam cv;
 
@@ -3881,8 +3880,8 @@ std::string KData::writeMzIDSIP(CMzIdentML& m, string& sRef, KParams& par){
   vector<string> tokens;
   char str[1024];
   char* tok;
-  bool nTerm;
-  bool cTerm;
+  //bool nTerm;
+  //bool cTerm;
   for (i = 0; i<par.xmlParams.size(); i++){ //figure out how to write all parameters
     sUserParam u;
     u.name = par.xmlParams[i].name;

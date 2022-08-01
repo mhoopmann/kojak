@@ -29,7 +29,16 @@ int main(int argc, char* argv[]){
   cout << "Visit http://kojak-ms.org for full documentation." << endl;
   if(argc<2){
     cout << "Usage: Kojak <Config File> [<Data File>...]" << endl;
+    cout << "\nNote: To create a default configuration file for Kojak, run the following command:" << endl;
+    cout << "        Kojak --config" << endl;
     return 1;
+  }
+
+  if (strcmp(argv[1], "--config") == 0) {
+    KParams p;
+    p.exportDefault(VERSION);
+    cout << "\nkojak_default_params.conf file created." << endl;
+    return 2;
   }
 
   cout << "\n****** Begin Kojak Analysis ******" << endl;

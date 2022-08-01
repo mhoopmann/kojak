@@ -40,6 +40,7 @@ public:
   std::vector<pxwBasicXMLTag> xmlParams;
 
   bool buildOutput(char* in, char* base, char* ext);
+  void exportDefault(std::string ver);
   void parse(const char* cmd);
   bool parseConfig(const char* fname);
   void setLog(KLog* c);
