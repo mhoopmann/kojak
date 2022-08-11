@@ -1,5 +1,7 @@
 #include "KIonSet.h"
 #include <iostream>
+
+//TODO: add another dimension? or separate arrays? for cleavage product ions
 KIonSet::KIonSet(){
   int i,j;
   len=0;  //zero length arrays

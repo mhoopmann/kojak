@@ -122,6 +122,7 @@ private:
   static void  scoreSpectra            (std::vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex, char linkSite1, char linkSite2);
   static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, /*double& cpScore,*/ int z = 0);
   static float kojakScoringCleavable   (int specIndex, int sIndex, int iIndex);
+  //static float kojakScoringMonoCleavable (int specIndex, int sIndex, int iIndex, int post, double mass);
   static void  setBinList              (kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen);
 
   //Data Members

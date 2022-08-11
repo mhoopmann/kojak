@@ -213,7 +213,7 @@ typedef struct kParams {
     dimers=false;
     dimersXL=true;
     exportMzID=false;
-    exportPepXML=false;
+    exportPepXML=true;
     exportPercolator=false;
     ionSeries[0]=false; //a-ions
     ionSeries[1]=true;  //b-ions

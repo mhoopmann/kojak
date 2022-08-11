@@ -40,7 +40,7 @@ KParams::~KParams(){
 //==============================
 bool KParams::parseConfig(const char* fname){
   FILE* f;
-  char str[512];
+  char str[4096];
 
   if(params==NULL){
     printf("kParams structure not set in KParams object. No parameters read.\n");
@@ -54,19 +54,83 @@ bool KParams::parseConfig(const char* fname){
     return false;
   }
 
+  vector<string> vParamLines;
+  bool bReadXLTable=false;;
   while(!feof(f)) {
-    if(!fgets(str,512,f)) continue;
+    if(!fgets(str,4096,f)) continue;
     if(strlen(str)==0) continue;
     if(str[0]=='#') continue;
-    if(strlen(str)>4096) {
-      if(log!=NULL) log->addError("Parameter line too long!");
-      else printf("Parameter line too long!\n");
-      return false;
+    //if(strlen(str)>4096) {
+    //  if(log!=NULL) log->addError("Parameter line too long!");
+    //  else printf("Parameter line too long!\n");
+    //  return false;
+    //}
+    string s=str;
+
+    if(s.find("[XL_PARAMS]")==0){
+      bReadXLTable=true;
+      continue;
     }
+    if (s.find("[END_XL_PARAMS]") == 0){
+      bReadXLTable = false;
+      continue;
+    }
+
+    if(bReadXLTable){
+      char* tok=strtok(str," \t\n\r");
+      kPXLTable x;
+      x.id=atoi(tok);
+      size_t a;
+      for(a=0;a<pXLTable.size();a++) if(pXLTable[a].id==x.id) break;
+      if(a<pXLTable.size()){
+        if (log != NULL) log->addError("Duplicate ID number in [XL_PARAMS]");
+        else printf("Duplicate ID number in [XL_PARAMS]\n");
+        return false;
+      }
+
+      tok = strtok(NULL, " \t\n\r");
+      if (checkToken(tok)) x.xlName = tok;
+      else return false;
+
+      tok = strtok(NULL, " \t\n\r");
+      if (checkToken(tok)) x.xlQuench = tok;
+      else return false;
+
+      tok = strtok(NULL, " \t\n\r");
+      if(checkToken(tok)) x.targetA=tok;
+      else return false;
+
+      tok = strtok(NULL, " \t\n\r");
+      if (checkToken(tok)) x.targetB = tok;
+      else return false;
+
+      tok = strtok(NULL, " \t\n\r");
+      if (checkToken(tok)) x.linkMass = atof(tok);
+      else return false;
+
+      tok = strtok(NULL, " \t\n\r");
+      if (checkToken(tok)) splitMasses(tok,x.monoA);
+      else return false;
+
+      tok = strtok(NULL, " \t\n\r");
+      if (checkToken(tok)) splitMasses(tok, x.monoB);
+      else return false;
+
+      tok = strtok(NULL, " \t\n\r");
+      if (checkToken(tok)) splitMasses(tok, x.cleavageMass);
+      else return false;
+
+      pXLTable.push_back(x);
+      continue;
+    }
+
+    vParamLines.push_back(s);
     parse(str);
   }
 
   fclose(f);
+
+  cout << pXLTable.size() << " preconfigured crosslinkers." << endl;
   return true;
 }
 
@@ -162,6 +226,24 @@ void KParams::exportDefault(string ver){
   fprintf(f, "# Please see online documentation at:\n");
   fprintf(f, "# http://www.kojak-ms.org/param");
 
+  fprintf(f, "\n\n#\n");
+  fprintf(f, "# XL_PARAMS defines pre - configured crosslinker settings.The table can be expanded to suit new crosslinkers.\n");
+  fprintf(f, "# This table MUST precede the predefined_crosslink parameter.\n");
+  fprintf(f, "# Columns are : [ID Num] [Name] [Quenching Reagent] [Target A] [Target B] [XL Mass] [MonoMasses A] [MonoMasses B] [Cleavage_Product_Masses]\n");
+  fprintf(f, "#\n");
+  fprintf(f, "[XL_PARAMS]\n");
+  fprintf(f, "1   BS3/DSS  NH2       nK  nK  138.068074  155.094629             x	 x\n");
+  fprintf(f, "2   BS3/DSS  NH2+H2O   nK  nK  138.068074  155.094629,156.078644  x  x\n");
+  fprintf(f, "3   BS3/DSS  Tris      nK  nK  138.068074  259.141973             x  x\n");
+  fprintf(f, "4   BS3/DSS  Tris+H2O  nK  nK  138.068074  259.141973,156.078644  x  x\n");
+  fprintf(f, "5   DSSO     NH2       nK  nK  158.003765  175.030314             x  54.010565,85.982635,103.993200\n");
+  fprintf(f, "6   DSSO     NH2+H2O   nK  nK  158.003765  175.030314,176.014330  x  54.010565,85.982635,103.993200\n");
+  fprintf(f, "7   DSSO     Tris      nK  nK  158.003765  279.077658             x  54.010565,85.982635,103.993200\n");
+  fprintf(f, "8   DSSO     Tris+H2O  nK  nK  158.003765  279.077658,176.014330  x  54.010565,85.982635,103.993200\n");
+  fprintf(f, "9   PhoX     NH2       nK  nK  209.972     226.998                x  x\n");
+  fprintf(f, "10  PhoX     NH2+H2O   nK  nK  209.972     226.998,227.982        x  x\n");
+  fprintf(f, "[END_XL_PARAMS]\n");
+
   fprintf(f, "\n\n#\n# Computational Settings\n#\n");
   fprintf(f, "threads = %d\n", def.threads);
   
@@ -176,7 +258,7 @@ void KParams::exportDefault(string ver){
   fprintf(f, "truncate_prot_names = %d                 #shorten protein names in output to this number of characters, 0 = off\n", def.truncate);
   
   fprintf(f, "\n\n#\n# Parameters describing data analyzed by Kojak\n#\n");
-  fprintf(f, "enrichment = 0       	  #Values between 0 and 1 to describe 18O APE. For example, 0.25 equals 25 APE.\n");
+  fprintf(f, "enrichment = 0            #Values between 0 and 1 to describe 18O APE. For example, 0.25 equals 25 APE.\n");
   fprintf(f, "instrument = %d            #0=Orbitrap, 1=FTICR\n", def.instrument);
   fprintf(f, "MS1_centroid = %d          #0=no, 1=yes\n", def.ms1Centroid);
   fprintf(f, "MS2_centroid = %d          #0=no, 1=yes\n", def.ms2Centroid);
@@ -184,16 +266,22 @@ void KParams::exportDefault(string ver){
   fprintf(f, "MS2_resolution = %d    #resolution at 400 m/z, value ignored if data are centroided\n", def.ms2Resolution);
   
   fprintf(f, "\n\n#\n# Crosslinker information\n#\n");
+  fprintf(f, "predefined_crosslink = 1      #Value chosen from the XL_PARAMS table above.\n");
+  fprintf(f, "mono_links_on_xl = %d          #allow monolinks to be combined with a crosslink. 0=no, 1=yes\n",(int)def.monoLinksOnXL);
+
+  fprintf(f, "\n# Alternatively, a custom crosslinker can be specified using the parameters below.\n");
   fprintf(f, "# Format for cross_link is[amino acids][amino acids][mass mod][identifier]\n");
   fprintf(f, "# Format for mono_link is[amino acids][mass mod]\n");
   fprintf(f, "# One or more amino acids(uppercase only!!) can be specified for each linkage moiety\n");
   fprintf(f, "# Use lowercase 'n' or 'c' to indicate protein N - terminus or C - terminus\n");
-  fprintf(f, "# Each parameter can be used multiple times for multiple crosslinkers or chemistries in the analysis\n#\n");
-  fprintf(f, "cross_link = nK nK 138.0680742 DSS    #Typical DSS crosslinker settings\n");
-  fprintf(f, "mono_link = nK 156.0786442515         #DSS_H20_monolink\n");
-  fprintf(f, "mono_link = nK 155.0946286667         #DSS_NH2_monolink\n");
-  fprintf(f, "#xl_cleavage_product_mass = 54.01056   #DSSO cleavage product mass\n"); 
-  fprintf(f, "mono_links_on_xl = %d                  #allow monolinks to be combined with a crosslink. 0=no, 1=yes\n",(int)def.monoLinksOnXL);
+  fprintf(f, "# Each parameter can be used multiple times for multiple crosslinkers or chemistries in the analysis\n");
+  fprintf(f, "# Below is an example of how to replicate DSSO quenched with AmBic and H2O\n#\n");
+  fprintf(f, "#cross_link = nK nK 158.003765 DSSO     #Typical DSSO crosslinker settings\n");
+  fprintf(f, "#mono_link = nK 176.014330              #DSSO_H20_monolink\n");
+  fprintf(f, "#mono_link = nK 175.030314              #DSSO_NH2_monolink\n");
+  fprintf(f, "#xl_cleavage_product_mass = 54.010565   #DSSO cleavage product mass #1\n"); 
+  fprintf(f, "#xl_cleavage_product_mass = 85.982635   #DSSO cleavage product mass #2\n");
+  fprintf(f, "#xl_cleavage_product_mass = 103.993200  #DSSO cleavage product mass #3\n");
   
   fprintf(f, "\n\n#\n# Amino acid search modification. Use uppercase amino acid letters. n=peptide N-terminus, c=peptide C-terminus\n");
   fprintf(f, "# These parameters can be used multiple times to accomodate many possible modifications.\n#\n");
@@ -701,6 +789,66 @@ void KParams::parse(const char* cmd) {
     xml.value = values[0];
     logParam(xml);
 
+  } else if (strcmp(param, "predefined_crosslink") == 0){
+    int iID=atoi(values[0].c_str());
+    size_t a;
+    for(a=0;a<pXLTable.size();a++) if(pXLTable[a].id==iID) break;
+    if(a==pXLTable.size()){
+      warn("ERROR: predifined_crosslink ID number not found in XL_PARAMS table. Please make sure XL_PARAMS precedes the predifined_crosslink parameter and contains desired ID number.", 3);
+      exit(-5);
+    }
+    xml.name = "predefined_crosslink";
+    xml.value = values[0];
+    logParam(xml);
+
+    //expand predefinition to add a crosslink
+    x.motifA = pXLTable[a].targetA;
+    x.motifB = pXLTable[a].targetB;
+    x.mass = pXLTable[a].linkMass;
+    x.mono = 0;
+    x.label = pXLTable[a].xlName;
+    params->xLink->push_back(x);
+    logParam("predefined_crosslink:cross_link", x.motifA + " " + x.motifB + " " + to_string(x.mass) + " " + x.label);
+
+    //monolinks from the first half of the crosslinker
+    for(size_t b=0;b<pXLTable[a].monoA.size();b++){
+      m.xl = true;
+      m.mass = pXLTable[a].monoA[b];
+      for (i = 0; i < pXLTable[a].targetA.size(); i++){
+        if (values[0][i] == 'c') m.index = (int)'%';
+        else if (values[0][i] == 'n') m.index = (int)'$';
+        else m.index = (int)values[0][i];
+        if (!checkMod(m)) params->mods->push_back(m);
+      }
+      xml.name = "predefined_crosslink:mono_link";
+      xml.value = pXLTable[a].targetA + " " + to_string(m.mass);
+      logParam(xml);
+    }
+
+    //monolinks from the second half of the crosslinker (heterobifunctional)
+    for (size_t b = 0; b<pXLTable[a].monoB.size(); b++){
+      m.xl = true;
+      m.mass = pXLTable[a].monoB[b];
+      for (i = 0; i < pXLTable[a].targetB.size(); i++){
+        if (values[0][i] == 'c') m.index = (int)'%';
+        else if (values[0][i] == 'n') m.index = (int)'$';
+        else m.index = (int)values[0][i];
+        if (!checkMod(m)) params->mods->push_back(m);
+      }
+      xml.name = "predefined_crosslink:mono_link";
+      xml.value = pXLTable[a].targetB + " " + to_string(m.mass);
+      logParam(xml);
+    }
+
+    //cleavage products if cleavable crosslinker
+    for(size_t b=0;b<pXLTable[a].cleavageMass.size();b++){
+      params->cleavageProducts->push_back(pXLTable[a].cleavageMass[b]);
+      xml.name = "predefined_crosslink:xl_cleavage_product_mass";
+      xml.value = to_string(pXLTable[a].cleavageMass[b]);
+      logParam(xml);
+    }
+    
+
   } else if(strcmp(param,"prefer_precursor_pred")==0){
     params->preferPrecursor=atoi(&values[0][0]);
     xml.name = "prefer_precursor_pred";
@@ -812,6 +960,19 @@ void KParams::parse(const char* cmd) {
 		warn(param,1);
 	}
 
+}
+
+void KParams::splitMasses(char*& c, std::vector<double>& v){
+  string s;
+  v.clear();
+  if(c[0]=='x') return;
+  for(size_t a=0;a<strlen(c);a++){
+    if(c[a]==','){
+      v.push_back(atof(s.c_str()));
+      s.clear();
+    } else s+=c[a];
+  }
+  v.push_back(atof(s.c_str()));
 }
 
 void KParams::setLog(KLog* c){

@@ -31,6 +31,18 @@ limitations under the License.
 #define slashdir '/'
 #endif
 
+typedef struct kPXLTable{
+  int id;
+  std::string xlName;
+  std::string xlQuench;
+  std::string targetA;
+  std::string targetB;
+  double linkMass;
+  std::vector<double> monoA;
+  std::vector<double> monoB;
+  std::vector<double> cleavageMass;
+} kPXLTable;
+
 class KParams {
 public:
   KParams();
@@ -52,11 +64,21 @@ private:
 
   KLog* log;
   kParams* params;
+  std::vector<kPXLTable> pXLTable;
   
   bool checkMod(kMass m);
+  bool checkToken(char* tok){
+    if (tok == NULL) {
+      if (log != NULL) log->addError("Error in [XL_PARAMS]");
+      else printf("Error in [XL_PARAMS]\n");
+      return false;
+    }
+    return true;
+  }
   void logParam(std::string name, std::string value);
   void logParam(pxwBasicXMLTag& t);
   bool processPath(const char* cwd, const char* in_path, char* out_path);
+  void splitMasses(char*& c, std::vector<double>& v);
   void warn(const char* c, int i);
   void warn(std::string c, int i);
 

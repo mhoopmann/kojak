@@ -3701,7 +3701,7 @@ void KData::processProtein(int pepIndex, int site, char linkSite, string& prot, 
     if (linkSite == 'c' && pep.map->at(j).stop < db[pep.map->at(j).index].sequence.size()-1) continue;
 
     if(prot.size()>0) prot+=";"; //add spacer if appending a prior protein
-    prot+=db[pep.map->at(j).index].name;
+    prot+=db[pep.map->at(j).index].short_name;
 
     if(site>-1){//add the protein site location
       if(sites.size()>0) sites+=";";
@@ -3711,7 +3711,7 @@ void KData::processProtein(int pepIndex, int site, char linkSite, string& prot, 
 
     //determine if target (if it is currently still decoy)
     if(decoy){
-      if (db[pep.map->at(j).index].name.find(params->decoy) == string::npos) decoy=false;
+      if (db[pep.map->at(j).index].short_name.find(params->decoy) == string::npos) decoy=false;
     }
 
   }
