@@ -92,13 +92,10 @@ public:
   int                 getScanNumber         ();
   kScoreCard&         getScoreCard          (int i);
   int                 getSingletCount       ();
-  kSingletScoreCard&  getSingletScoreCard   (int i);
   KTopPeps*           getTopPeps            (int index);
   int                 size                  ();
   int                 sizePrecursor         ();
   
-  kSingletScoreCard*    singletFirst;   //pointer to start of linked list
-  kSingletScoreCard*    singletLast;    //pointer to end of linked list
   int                   singletMax;
 
   int histogram[HISTOSZ];

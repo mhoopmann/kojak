@@ -40,8 +40,6 @@ KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
   xCorrSparseArray=NULL;
   
   singletCount=0;
-  singletFirst=NULL;
-  singletLast=NULL;
   singletMax=i;
 
   kojakSparseArray=NULL;
@@ -137,22 +135,6 @@ KSpectrum::KSpectrum(const KSpectrum& p){
 
   singletCount=p.singletCount;
   singletMax=p.singletMax;
-  singletFirst=NULL;
-  singletLast=NULL;
-  kSingletScoreCard* sc=NULL;
-  kSingletScoreCard* tmp=p.singletFirst;
-  if(tmp!=NULL) {
-    singletFirst=new kSingletScoreCard(*tmp);
-    sc=singletFirst;
-    tmp=tmp->next;
-    while(tmp!=NULL){
-      sc->next=new kSingletScoreCard(*tmp);
-      sc->next->prev=sc;
-      sc=sc->next;
-      tmp=tmp->next;
-    }
-    singletLast=sc;
-  }
 
   if(p.xCorrSparseArray==NULL){
     xCorrSparseArray=NULL;
@@ -200,13 +182,6 @@ KSpectrum::~KSpectrum(){
   delete precursor;
   delete singlets;
   if(xCorrSparseArray!=NULL) free(xCorrSparseArray);
-
-  while(singletFirst!=NULL){
-    kSingletScoreCard* tmp=singletFirst;
-    singletFirst=singletFirst->next;
-    delete tmp;
-  }
-  singletLast=NULL;
 
   int j;
   if(kojakSparseArray!=NULL){
@@ -285,22 +260,6 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
 
     singletCount=p.singletCount;
     singletMax=p.singletMax;
-    singletFirst=NULL;
-    singletLast=NULL;
-    kSingletScoreCard* sc=NULL;
-    kSingletScoreCard* tmp=p.singletFirst;
-    if(tmp!=NULL) {
-      singletFirst=new kSingletScoreCard(*tmp);
-      sc=singletFirst;
-      tmp=tmp->next;
-      while(tmp!=NULL){
-        sc->next=new kSingletScoreCard(*tmp);
-        sc->next->prev=sc;
-        sc=sc->next;
-        tmp=tmp->next;
-      }
-      singletLast=sc;
-    }
 
     if(xCorrSparseArray!=NULL) free(xCorrSparseArray);
     if(p.xCorrSparseArray==NULL){
@@ -414,18 +373,6 @@ kScoreCard& KSpectrum::getScoreCard(int i){
 
 int KSpectrum::getSingletCount(){
   return singletCount;
-}
-
-kSingletScoreCard& KSpectrum::getSingletScoreCard(int i){
-  if(i>=singletCount) return *singletLast;
-  kSingletScoreCard* sc=singletFirst;
-  int j=0;
-  while(j<i){
-    if(sc->next==NULL) break;
-    sc=sc->next;
-    j++;
-  }
-  return *sc;
 }
 
 KTopPeps* KSpectrum::getTopPeps(int i){

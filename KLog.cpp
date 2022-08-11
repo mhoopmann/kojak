@@ -91,7 +91,7 @@ void KLog::exportLog(){
     fprintf(f,"%s\n", strError.c_str());
   }
 
-  if(vWarnings.size()>0 || vParamWarnings.size()>0){
+  if(vWarnings.size()>0 || vParamWarnings.size()>0 || vDBWarnings.size()>0){
     fprintf(f, "\n\n***** WARNINGS *****\n");
     for (i = 0; i<vWarnings.size(); i++) fprintf(f, "(%d instances) %s\n", vWarnings[i].count,vWarnings[i].msg.c_str());
     if(vParamWarnings.size()>0) fprintf(f,"Check Parameter log above for warnings originating in configuration file.\n");
