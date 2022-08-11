@@ -815,9 +815,9 @@ void KParams::parse(const char* cmd) {
       m.xl = true;
       m.mass = pXLTable[a].monoA[b];
       for (i = 0; i < pXLTable[a].targetA.size(); i++){
-        if (values[0][i] == 'c') m.index = (int)'%';
-        else if (values[0][i] == 'n') m.index = (int)'$';
-        else m.index = (int)values[0][i];
+        if (pXLTable[a].targetA[i] == 'c') m.index = (int)'%';
+        else if (pXLTable[a].targetA[i] == 'n') m.index = (int)'$';
+        else m.index = (int)pXLTable[a].targetA[i];
         if (!checkMod(m)) params->mods->push_back(m);
       }
       xml.name = "predefined_crosslink:mono_link";
@@ -830,9 +830,9 @@ void KParams::parse(const char* cmd) {
       m.xl = true;
       m.mass = pXLTable[a].monoB[b];
       for (i = 0; i < pXLTable[a].targetB.size(); i++){
-        if (values[0][i] == 'c') m.index = (int)'%';
-        else if (values[0][i] == 'n') m.index = (int)'$';
-        else m.index = (int)values[0][i];
+        if (pXLTable[a].targetB[i] == 'c') m.index = (int)'%';
+        else if (pXLTable[a].targetB[i] == 'n') m.index = (int)'$';
+        else m.index = (int)pXLTable[a].targetB[i];
         if (!checkMod(m)) params->mods->push_back(m);
       }
       xml.name = "predefined_crosslink:mono_link";
