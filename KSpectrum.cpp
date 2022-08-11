@@ -85,13 +85,10 @@ KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
 KSpectrum::KSpectrum(const KSpectrum& p){
   unsigned int i;
   int j;
-  spec = new vector<kSpecPoint>;
-  for(i=0;i<p.spec->size();i++) spec->push_back(p.spec->at(i));
+  spec = new vector<kSpecPoint>(*p.spec);
   for(i=0;i<20;i++) topHit[i]=p.topHit[i];
-  precursor = new vector<kPrecursor>;
-  for(i=0;i<p.precursor->size();i++) precursor->push_back(p.precursor->at(i));
-  singlets = new vector<KTopPeps>;
-  for (i = 0; i<p.singlets->size(); i++) singlets->push_back(p.singlets->at(i));
+  precursor = new vector<kPrecursor>(*p.precursor);
+  singlets = new vector<KTopPeps>(*p.singlets);
 
   binOffset = p.binOffset;
   binSize = p.binSize;
@@ -163,14 +160,7 @@ KSpectrum::KSpectrum(const KSpectrum& p){
     singletList = new list<kSingletScoreCard*>*[singletBins];
     for(j=0;j<singletBins;j++){
       if(p.singletList[j]==NULL) singletList[j]=NULL;
-      else {
-        singletList[j] = new list<kSingletScoreCard*>;
-        list<kSingletScoreCard*>::iterator it = p.singletList[j]->begin();
-        while(it!=p.singletList[j]->end()){
-          singletList[j]->emplace_back(*it);
-          it++;
-        }
-      }
+      else singletList[j] = new list<kSingletScoreCard*>(*p.singletList[j]);
     }
   }
 
@@ -208,15 +198,14 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
     unsigned int i;
     int j;
     delete spec;
-    spec = new vector<kSpecPoint>;
-    for(i=0;i<p.spec->size();i++) spec->push_back(p.spec->at(i));
+    spec = new vector<kSpecPoint>(*p.spec);
+
     for(i=0;i<20;i++) topHit[i]=p.topHit[i];
     delete precursor;
-    precursor = new vector<kPrecursor>;
-    for(i=0;i<p.precursor->size();i++) precursor->push_back(p.precursor->at(i));
+    precursor = new vector<kPrecursor>(*p.precursor);
+
     delete singlets;
-    singlets = new vector<KTopPeps>;
-    for (i = 0; i<p.singlets->size(); i++) singlets->push_back(p.singlets->at(i));
+    singlets = new vector<KTopPeps>(*p.singlets);
 
     binOffset = p.binOffset;
     binSize = p.binSize;
@@ -301,14 +290,7 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
       singletList = new list<kSingletScoreCard*>*[singletBins];
       for (j = 0; j<singletBins; j++){
         if (p.singletList[j] == NULL) singletList[j] = NULL;
-        else {
-          singletList[j] = new list<kSingletScoreCard*>;
-          list<kSingletScoreCard*>::iterator it = p.singletList[j]->begin();
-          while (it != p.singletList[j]->end()){
-            singletList[j]->emplace_back(*it);
-            it++;
-          }
-        }
+        else singletList[j] = new list<kSingletScoreCard*>(*p.singletList[j]);
       }
     }
   }
