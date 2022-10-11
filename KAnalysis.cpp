@@ -788,6 +788,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
         score+=(float)cpScore;
         protSC.simpleScore = tsc->simpleScore + score;
+        //if (pep == tsc->pep1 && linkSite == tsc->site) protSC.simpleScore *= 0.75; //apply some modifier for same peptide links.
         y = (int)(protSC.simpleScore * 10.0 + 0.5);
         if (y >= HISTOSZ) y = HISTOSZ - 1;
         Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
@@ -945,7 +946,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       //s->histogramSinglet[y]++;
       //s->histogramSingletCount++;
       //Threading::UnlockMutex(mutexSpecScore[index]);
-      if(score<params.minPepScore || score<=0) continue;
+      if(score<params.minPepScore || score<=0 ) continue;
       //if(conFrag<2) continue; //FOR TESTING ONLY
 
       //boost score...FOR TESTING ONLY

@@ -182,6 +182,7 @@ void KDatabase::buildDecoy(string decoy_label) {
   clips c;
 
   sz = vDB.size();
+  char alter='0';
   for (i = 0; i < sz; i++) {
 
     cut.clear();
@@ -207,7 +208,10 @@ void KDatabase::buildDecoy(string decoy_label) {
     //reverse the sequences
     string rev;
     kDB decoy = vDB[i];
-    decoy.name = decoy_label + "_" + decoy.name;
+    decoy.name = decoy_label +alter+ "_" + decoy.name;
+    decoy.short_name=decoy_label+alter+"_"+decoy.short_name;
+    if(alter=='0') alter='1';
+    else alter='0';
     for (j = 0; j < cut.size(); j++) {
       rev.clear();
 
@@ -228,6 +232,11 @@ void KDatabase::buildDecoy(string decoy_label) {
       for (size_t k = cut[j].stop; k >= cut[j].start; k--) {
         rev += decoy.sequence[k];
         if (k == 0) break;
+      }
+      if (rev.size()>2 && rev.compare(decoy.sequence.substr(cut[j].start, (size_t)cut[j].stop - (size_t)cut[j].start + 1))==0){ //edge case of palindrome sequence
+        char c=rev[0];
+        rev[0]=rev[rev.size()/2];
+        rev[rev.size() / 2] = c; //just swap the first and middle characters, see if that breaks up the palindrome
       }
       decoy.sequence.replace(cut[j].start, (size_t)cut[j].stop - (size_t)cut[j].start + 1, rev);
     }

@@ -632,12 +632,19 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
     for (n = 0; n<decoyIonSz; n++) { //iterate over each ion series
       for (j = 0; j<MAX_DECOY_PEP_LEN; j++) {  // iterate through decoy fragment ions
       
+        bool bCleave=false;
         if (decoyIons[n].b) {
           dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsN[j] + decoyIons[n].mass;
-          if (j >= xlSite) dFragmentIonMass+=diffMass;
+          if (j >= xlSite) {
+            dFragmentIonMass+=diffMass;
+            bCleave=true;
+          }
         } else {
           dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsC[j] + decoyIons[n].mass;
-          if (j >= xlLen - xlSite) dFragmentIonMass += diffMass;
+          if (j >= xlLen - xlSite) {
+            dFragmentIonMass += diffMass;
+            bCleave=true;
+          }
         }
         if (dFragmentIonMass>preMass) break;
 
@@ -650,6 +657,27 @@ double KSpectrum::generateSingletDecoys2(kParams* params, KDecoys& decoys, doubl
           pos = (int)((mz - key)*invBinSize);
           dXcorr += kojakSparseArray[key][pos];
         }
+
+        //iterate over cleavage products (if any)
+        if(bCleave){
+          for (size_t a = 0; a<params->cleavageProducts->size(); a++){
+            if (decoyIons[n].b) dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsN[j] + decoyIons[n].mass;
+            else dFragmentIonMass = decoys.decoyIons[decoyIndex].pdIonsC[j] + decoyIons[n].mass;
+            dFragmentIonMass += params->cleavageProducts->at(a);
+            if (dFragmentIonMass>preMass) break;
+
+            for (z = 1; z<maxZ; z++) {
+              mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
+              mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
+              key = (int)mz;
+              if (key >= kojakBins) break;
+              if (kojakSparseArray[key] == NULL) continue;
+              pos = (int)((mz - key)*invBinSize);
+              dXcorr += kojakSparseArray[key][pos];
+            }
+          }
+        }
+
       }
     }
 
@@ -758,6 +786,24 @@ bool KSpectrum::generateXcorrDecoys(kParams* params, KDecoys& decoys) {
           pos = (int)((mz - key)*invBinSize);
           dXcorr += kojakSparseArray[key][pos];
         }
+
+        //iterate over cleavage products (if any)
+        if(dFragmentIonMass<1000){ //just assume every mass under this value can have a cleavage product on it
+          for (size_t a = 0; a<params->cleavageProducts->size(); a++){
+            dFragmentIonMass += params->cleavageProducts->at(a);
+
+            for (z = 1; z<maxZ; z++) {
+              mz = (dFragmentIonMass + (z - 1)*1.007276466) / z;
+              mz = params->binSize * (int)(mz*invBinSize + params->binOffset);
+              key = (int)mz;
+              if (key >= kojakBins) break;
+              if (kojakSparseArray[key] == NULL) continue;
+              pos = (int)((mz - key)*invBinSize);
+              dXcorr += kojakSparseArray[key][pos];
+            }
+          }
+        }
+
       }
     }
     
@@ -1084,8 +1130,8 @@ void KSpectrum::refreshScore(KDatabase& db, string& dStr){
       //sort according to decoy state, linker type (single, loop, cross), peptide sequence, link pos, second peptide, second link pos
       decoy1=checkDecoy(db,dStr,topHit[a]);
       decoy2=checkDecoy(db,dStr,topHit[b]);
-      if(decoy2<decoy1) goto swap_hit;  //check decoy status first
-      else if(decoy1<decoy2) continue;
+      if(decoy2>decoy1) goto swap_hit;  //check decoy status first
+      else if(decoy1>decoy2) continue;  //decoys before targets
 
       //check link type next
       lType1=0;
