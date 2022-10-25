@@ -49,6 +49,9 @@ int KAnalysis::nonSkipCount;
 KDecoys KAnalysis::decoys;
 KLog*   KAnalysis::klog;
 
+pair<int, int>** KAnalysis::peakMatches;
+int* KAnalysis::peakMatchCount;
+
 /*============================
   Constructors & Destructors
 ============================*/
@@ -647,11 +650,14 @@ bool KAnalysis::allocateMemory(int threads){
   bKIonsManager = new bool[threads];
   ions = new KIons[threads];
   scanBuffer = new bool*[threads];
+  peakMatches = new pair<int,int>*[threads];
+  peakMatchCount = new int[threads];
   for(int i=0;i<threads;i++) {
     bKIonsManager[i]=false;
     ions[i].setModFlags(params.monoLinksOnXL,params.diffModsOnXL);
     ions[i].setSeries(params.ionSeries[0],params.ionSeries[1],params.ionSeries[2],params.ionSeries[3],params.ionSeries[4], params.ionSeries[5]);
     scanBuffer[i] = new bool[spec->size()];
+    peakMatches[i] = new pair<int,int>[1000];
     for(j=0;j<params.xLink->size();j++){
       for(k=0;k<params.xLink->at(j).motifA.size();k++){
         ions[i].site[params.xLink->at(j).motifA[k]]=true;
@@ -686,8 +692,11 @@ void KAnalysis::deallocateMemory(int threads){
   delete [] ions;
   for (int i = 0; i < threads; i++){
     delete[] scanBuffer[i];
+    delete[] peakMatches[i];
   }
   delete[] scanBuffer;
+  delete[] peakMatches;
+  delete[] peakMatchCount;
 }
 
 int KAnalysis::findMass(kSingletScoreCardPlus* s, int sz, double mass){
@@ -728,7 +737,6 @@ int KAnalysis::findMass(kSingletScoreCardPlus* s, int sz, double mass){
 // linkIndex = motif index of linked amino acid or terminus
 bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex){ 
   kSingletScoreCard sc;
-  kSingletScoreCard* tsc;
   KIonSet* iset;
   kPepMod mod;
   float score = 0;
@@ -755,51 +763,76 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
 
   string seq1,seq2;
 
+  int matchStart=0;
+
   for (i = 0; i<sz; i++){
     p = s->getPrecursor2(i);
 
     if(!firstPass && (p->monoMass-spec->getLink(linkIndex).mass+0.2)/2>mass){
 
-      if(!bCPScore && params.cleavageProducts->size()>0){
-        cpScore=kojakScoringCleavable(index,sIndex,iIndex);
-        bCPScore=true;
-      }
+      /*if (!bCPScore && params.cleavageProducts->size()>0){
+        cpScore = kojakScoringCleavable(index, sIndex, iIndex);
+        bCPScore = true;
+      }*/
 
+      //TODO: Overhaul the entire KTopPeps class
       //Threading::LockMutex(mutexSingletScore[index][i]);
       tp = s->getTopPeps(i);
-      int ind=(int)((p->monoMass-xlMass-mass)/10);
-      if(tp->singletList[ind]==NULL) {
+      //int ind=(int)((p->monoMass-xlMass-mass)/10);
+      //if(tp->singletList[ind]==NULL) {
         //Threading::UnlockMutex(mutexSingletScore[index][i]);
-        continue;
-      }
+      //  continue;
+      //}
 
       //TODO: this could be made faster by checking the peptide only once for every partner of the same mass!!!
-      list<kSingletScoreCard*>::iterator it = tp->singletList[ind]->begin();
-      while(it!=tp->singletList[ind]->end()){
-        tsc=*it;
+      list<kSingletScoreCard>::iterator tsc = tp->singletList.begin();
+      while(tsc!=tp->singletList.end()){
         if(fabs((p->monoMass-tsc->mass-spec->getLink(linkIndex).mass-mass)/p->monoMass*1e6)>params.ppmPrecursor){
-          it++;
+          tsc++;
           continue;
         }
         if(!spec->checkLink(linkSite,tsc->site,linkIndex)){
-          it++;
+          tsc++;
           continue;
         }
-        score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
-        score+=(float)cpScore;
-        protSC.simpleScore = tsc->simpleScore + score;
-        //if (pep == tsc->pep1 && linkSite == tsc->site) protSC.simpleScore *= 0.75; //apply some modifier for same peptide links.
-        y = (int)(protSC.simpleScore * 10.0 + 0.5);
-        if (y >= HISTOSZ) y = HISTOSZ - 1;
-        Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
-        s->histogram[y]++;
-        s->histogramCount++;
-        if (score<params.minPepScore || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
+
+        //TODO: Insert scoring mask here. Mask identifies peaks already scored by the alpha peptide in the first pass
+        //and those peaks are not counted twice for the beta peptide. Special case is where alpha and beta peptide are the same.
+        //Same peptides defined as pep==pep, k==k. For that special case, maybe not even bother scoring the beta peptide?
+
+        //This is inefficient because it must be recalculated for each alpha peptide; each alpha peptide has a different set of already scored peaks
+        if(params.cleavageProducts->size()>0){
+          cpScore = kojakScoringCleavableBeta(index, sIndex, iIndex,tsc->peakMatches);
+        }
+
+        if (tsc->pep1!=pep || tsc->k1!=k){
+          score = kojakScoringBeta(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, tsc->peakMatches, p->charge);
+          score+=(float)cpScore;
+          protSC.simpleScore = tsc->simpleScore + score;
+          //if (pep == tsc->pep1 && linkSite == tsc->site) protSC.simpleScore *= 0.75; //apply some modifier for same peptide links.
+          y = (int)(protSC.simpleScore * 10.0 + 0.5);
+          if (y >= HISTOSZ) y = HISTOSZ - 1;
+          Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
+          s->histogram[y]++;
+          s->histogramCount++;
+          if (score<params.minPepScore || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
+            Threading::UnlockMutex(mutexSpecScore[index]);
+            tsc++;
+            continue;
+          }
           Threading::UnlockMutex(mutexSpecScore[index]);
-          it++;
-          continue;
+        } else {
+          //if we got here, it is because the alpha and beta peptides are the same and linked in the same place. Warning: I'm not checking modifications...
+          protSC.simpleScore = tsc->simpleScore;
+          score=0;
+          cpScore=0;
+          y = (int)(protSC.simpleScore * 10.0 + 0.5);
+          if (y >= HISTOSZ) y = HISTOSZ - 1;
+          Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
+          s->histogram[y]++;
+          s->histogramCount++;
+          Threading::UnlockMutex(mutexSpecScore[index]);
         }
-        Threading::UnlockMutex(mutexSpecScore[index]);
        
 
         protSC.mods1->clear();
@@ -862,13 +895,13 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         protSC.precursor = (char)i;
 
         //special case for identical peptides
-        //if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){ 
-        //  protSC.score1/=2;
-        //  protSC.score2/=2;
-        //  protSC.simpleScore/=2;
-        //  it++;
-        //  continue; //WARNING...JUST SKIPPING THESE...
-        //}
+        if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){ 
+          protSC.score1=protSC.score2 = tsc->simpleScore/2;
+          protSC.cpScore1=protSC.cpScore2=tsc->cpScore/2;
+          protSC.matches1=protSC.matches2=tsc->matches;
+          protSC.conFrag1=protSC.conFrag2=tsc->conFrag;
+          //continue; //WARNING...JUST SKIPPING THESE...
+        }
 
         //index the mods for pep2
         iset = ions[iIndex].at(sIndex);
@@ -906,7 +939,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         Threading::LockMutex(mutexSpecScore[index]);
         s->checkScore(protSC);
         Threading::UnlockMutex(mutexSpecScore[index]);
-        it++;
+        tsc++;
       }
     //Threading::UnlockMutex(mutexSingletScore[index][i]);
     }
@@ -922,7 +955,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       high -= m;
       lowI = (int)(low/0.015);
       highI = (int)(high/0.015)+1;
-
       if (lowI<0) lowI=0;
       if (highI>max) highI=max;
 
@@ -933,11 +965,14 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       if (lowI >= highI) continue;
 
       if (!bCPScore && params.cleavageProducts->size()>0){
-        cpScore = kojakScoringCleavable(index, sIndex, iIndex);
+        peakMatchCount[iIndex]=matchStart;
+        cpScore = kojakScoringCleavableAlpha(index, sIndex, iIndex);
         bCPScore = true;
+        matchStart=peakMatchCount[iIndex];
       }
       
-      score = kojakScoring(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
+      peakMatchCount[iIndex] = matchStart;
+      score = kojakScoringAlpha(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
       score+=(float)cpScore;
       bScored = true;
       //y = (int)(score * 10.0 + 0.5);
@@ -956,7 +991,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
 
       Threading::LockMutex(mutexSingletScore[index][i]);
       tp = s->getTopPeps(i);
-      if(tp->singletCount>=tp->singletMax && score<tp->singletLast->simpleScore) {
+      if(tp->singletList.size()>=tp->singletMax && score<=tp->singletList.rbegin()->simpleScore) {
         Threading::UnlockMutex(mutexSingletScore[index][i]);
         continue; //don't bother with the singlet overhead if it won't make the list
       }
@@ -1009,7 +1044,12 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         }
         sc.modLen = (char)v.size();
         sc.mods = new kPepMod[sc.modLen];
-        for (j = 0; j<(int)sc.modLen; j++) sc.mods[j] = v[j];
+        for (j = 0; j<(int)sc.modLen; j++) sc.mods[j] = v[j];  
+      }
+      sc.peakMatches.clear();
+      for(int pm=0;pm<peakMatchCount[iIndex];pm++){
+        sc.peakMatches.insert(pair<pair<int,int>,bool>(peakMatches[iIndex][pm],true));
+        //if (s->getScanNumber() == 38538 && pep == 11925) cout << pm << ": " << peakMatches[iIndex][pm].first << "," << peakMatches[iIndex][pm].second << endl;
       }
 
       Threading::LockMutex(mutexSingletScore[index][i]);
@@ -1108,7 +1148,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
 
 //An alternative score uses the XCorr metric from the Comet algorithm
 //This version allows for fast scoring when the cross-linked mass is added.
-float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, /*double& cpScore,*/ int z) { 
+float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z) { 
   
   KSpectrum* s=spec->getSpectrum(specIndex);
   KIonSet* ki=ions[iIndex].at(sIndex);
@@ -1117,7 +1157,6 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
   }
 
   double dXcorr=0.0;
-  //cpScore = 0;
   double invBinSize=s->getInvBinSize();
   double binOffset=params.binOffset;
   double dif;
@@ -1213,30 +1252,255 @@ float KAnalysis::kojakScoring(int specIndex, double modMass, int sIndex, int iIn
 
   }
 
-  ////TODO: Add cleavable crosslinker product ions
-  ////Iterate through pfFastXcorrData
-  //if (bLinkSite && params.cleavageProducts->size()>0){
-  //  for (j = 0; j<numIonSeries; j++){
-  //    for (i = 0; i<ionCount; i++){
-  //      if (ionSeries[j][1][i].mz<0) {
-  //        for (size_t a = 0; a<params.cleavageProducts->size(); a++){
-  //          mz = params.binSize * (int)((params.cleavageProducts->at(a) - ionSeries[j][1][i].mz)*invBinSize + binOffset);
-  //          key = (int)mz;
-  //          if (key >= s->kojakBins) break;
-  //          if (s->kojakSparseArray[key] == NULL) continue;
-  //          pos = (int)((mz - key)*invBinSize);
-  //          dXcorr += s->kojakSparseArray[key][pos];
-
-  //          //TODO: Keep record of cleavage product matches?
-  //          cpScore += s->kojakSparseArray[key][pos];
-  //        }
-  //      }
-  //    }
-  //  }
-  //}
-
   //Scale score appropriately
   if(dXcorr <= 0.0) dXcorr=0.0;
+  else dXcorr *= 0.005;
+
+  //Clean up memory
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = NULL;
+  if (params.ionSeries[1]) ionSeries[k++] = NULL;
+  if (params.ionSeries[2]) ionSeries[k++] = NULL;
+  if (params.ionSeries[3]) ionSeries[k++] = NULL;
+  if (params.ionSeries[4]) ionSeries[k++] = NULL;
+  if (params.ionSeries[5]) ionSeries[k++] = NULL;
+
+  delete[] ionSeries;
+  return float(dXcorr);
+}
+
+float KAnalysis::kojakScoringAlpha(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z) {
+
+  KSpectrum* s = spec->getSpectrum(specIndex);
+  KIonSet* ki = ions[iIndex].at(sIndex);
+  if (!ki->index) {
+    ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
+  }
+
+  double dXcorr = 0.0;
+  double invBinSize = s->getInvBinSize();
+  double binOffset = params.binOffset;
+  double dif;
+  double mz;
+  bool bLinkSite = false;
+
+  int ionCount = ions[iIndex].getIonCount();
+  int maxCharge = z;
+  if (maxCharge<1) maxCharge = s->getCharge();
+
+  int i, j, k;
+  int key;
+  int pos;
+  int con;
+  match = 0;
+  conFrag = 0;
+  //peakMatchCount[iIndex]=0; //this is set outside the function
+
+  //Assign ion series
+  kISValue***  ionSeries;
+  ionSeries = new kISValue**[numIonSeries];
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = ki->aIons;
+  if (params.ionSeries[1]) ionSeries[k++] = ki->bIons;
+  if (params.ionSeries[2]) ionSeries[k++] = ki->cIons;
+  if (params.ionSeries[3]) ionSeries[k++] = ki->xIons;
+  if (params.ionSeries[4]) ionSeries[k++] = ki->yIons;
+  if (params.ionSeries[5]) ionSeries[k++] = ki->zIons;
+
+  //The number of fragment ion series to analyze is PrecursorCharge-1
+  //However, don't analyze past the 3+ series
+  if (maxCharge>4) maxCharge = 4;
+
+  //Iterate all series
+  for (k = 1; k<maxCharge; k++){
+
+    dif = modMass / k;
+
+    //Iterate through pfFastXcorrData
+    for (j = 0; j<numIonSeries; j++){
+      con = 0;
+
+      for (i = 0; i<ionCount; i++){
+
+        //get key -- see if this can be precomputed for the half that doesn't contain the linked peptide
+        if (ionSeries[j][k][i].mz<0) {
+          bLinkSite = true;
+          mz = params.binSize * (int)((dif - ionSeries[j][k][i].mz)*invBinSize + binOffset);
+          key = (int)mz;
+          if (key >= s->kojakBins) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            break;
+          }
+          if (s->kojakSparseArray[key] == NULL) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            continue;
+          }
+          pos = (int)((mz - key)*invBinSize);
+          peakMatches[iIndex][peakMatchCount[iIndex]].first=key;
+          peakMatches[iIndex][peakMatchCount[iIndex]++].second = pos;
+          dXcorr += s->kojakSparseArray[key][pos];
+          if (s->kojakSparseArray[key][pos]>5) {
+            match++;
+            con++;
+          } else {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+          }
+
+        } else {
+          key = ionSeries[j][k][i].key;
+          if (key >= s->kojakBins) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            break;
+          }
+          if (s->kojakSparseArray[key] == NULL) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            continue;
+          }
+          pos = ionSeries[j][k][i].pos;
+          peakMatches[iIndex][peakMatchCount[iIndex]].first = key;
+          peakMatches[iIndex][peakMatchCount[iIndex]++].second = pos;
+          dXcorr += s->kojakSparseArray[key][pos];
+          if (s->kojakSparseArray[key][pos]>5) {
+            match++;
+            con++;
+          } else {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+          }
+        }
+      }
+    }
+
+  }
+
+  //Scale score appropriately
+  if (dXcorr <= 0.0) dXcorr = 0.0;
+  else dXcorr *= 0.005;
+
+  //Clean up memory
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = NULL;
+  if (params.ionSeries[1]) ionSeries[k++] = NULL;
+  if (params.ionSeries[2]) ionSeries[k++] = NULL;
+  if (params.ionSeries[3]) ionSeries[k++] = NULL;
+  if (params.ionSeries[4]) ionSeries[k++] = NULL;
+  if (params.ionSeries[5]) ionSeries[k++] = NULL;
+
+  delete[] ionSeries;
+  return float(dXcorr);
+}
+
+float KAnalysis::kojakScoringBeta(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, map<pair<int, int>, bool>& alpha, int z) {
+
+  KSpectrum* s = spec->getSpectrum(specIndex);
+  KIonSet* ki = ions[iIndex].at(sIndex);
+  if (!ki->index) {
+    ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
+  }
+
+  double dXcorr = 0.0;
+  double invBinSize = s->getInvBinSize();
+  double binOffset = params.binOffset;
+  double dif;
+  double mz;
+  bool bLinkSite = false;
+
+  int ionCount = ions[iIndex].getIonCount();
+  int maxCharge = z;
+  if (maxCharge<1) maxCharge = s->getCharge();
+
+  int i, j, k;
+  int key;
+  int pos;
+  int con;
+  match = 0;
+  conFrag = 0;
+
+  //Assign ion series
+  kISValue***  ionSeries;
+  ionSeries = new kISValue**[numIonSeries];
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = ki->aIons;
+  if (params.ionSeries[1]) ionSeries[k++] = ki->bIons;
+  if (params.ionSeries[2]) ionSeries[k++] = ki->cIons;
+  if (params.ionSeries[3]) ionSeries[k++] = ki->xIons;
+  if (params.ionSeries[4]) ionSeries[k++] = ki->yIons;
+  if (params.ionSeries[5]) ionSeries[k++] = ki->zIons;
+
+  //The number of fragment ion series to analyze is PrecursorCharge-1
+  //However, don't analyze past the 3+ series
+  if (maxCharge>4) maxCharge = 4;
+
+  //Iterate all series
+  for (k = 1; k<maxCharge; k++){
+
+    dif = modMass / k;
+
+    //Iterate through pfFastXcorrData
+    for (j = 0; j<numIonSeries; j++){
+      con = 0;
+
+      for (i = 0; i<ionCount; i++){
+
+        //get key -- see if this can be precomputed for the half that doesn't contain the linked peptide
+        if (ionSeries[j][k][i].mz<0) {
+          bLinkSite = true;
+          mz = params.binSize * (int)((dif - ionSeries[j][k][i].mz)*invBinSize + binOffset);
+          key = (int)mz;
+          if (key >= s->kojakBins) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            break;
+          }
+          if (s->kojakSparseArray[key] == NULL) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            continue;
+          }
+          pos = (int)((mz - key)*invBinSize);
+          if(alpha.find(pair<int,int>(key,pos))==alpha.end()) dXcorr += s->kojakSparseArray[key][pos];
+          if (s->kojakSparseArray[key][pos]>5) {
+            match++;
+            con++;
+          } else {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+          }
+
+        } else {
+          key = ionSeries[j][k][i].key;
+          if (key >= s->kojakBins) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            break;
+          }
+          if (s->kojakSparseArray[key] == NULL) {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+            continue;
+          }
+          pos = ionSeries[j][k][i].pos;
+          if (alpha.find(pair<int, int>(key, pos)) == alpha.end()) dXcorr += s->kojakSparseArray[key][pos];
+          if (s->kojakSparseArray[key][pos]>5) {
+            match++;
+            con++;
+          } else {
+            if (con>conFrag) conFrag = con;
+            con = 0;
+          }
+        }
+      }
+    }
+
+  }
+
+  //Scale score appropriately
+  if (dXcorr <= 0.0) dXcorr = 0.0;
   else dXcorr *= 0.005;
 
   //Clean up memory
@@ -1296,6 +1560,134 @@ float KAnalysis::kojakScoringCleavable(int specIndex, int sIndex, int iIndex) {
           if (s->kojakSparseArray[key] == NULL) continue;
           pos = (int)((mz - key)*invBinSize);
           dXcorr += s->kojakSparseArray[key][pos];
+        }
+      }
+    }
+  }
+
+  //Scale score appropriately - negatives are allowed
+  dXcorr *= 0.005;
+
+  //Clean up memory
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = NULL;
+  if (params.ionSeries[1]) ionSeries[k++] = NULL;
+  if (params.ionSeries[2]) ionSeries[k++] = NULL;
+  if (params.ionSeries[3]) ionSeries[k++] = NULL;
+  if (params.ionSeries[4]) ionSeries[k++] = NULL;
+  if (params.ionSeries[5]) ionSeries[k++] = NULL;
+
+  delete[] ionSeries;
+  return float(dXcorr);
+}
+
+float KAnalysis::kojakScoringCleavableAlpha(int specIndex, int sIndex, int iIndex) {
+
+  KSpectrum* s = spec->getSpectrum(specIndex);
+  KIonSet* ki = ions[iIndex].at(sIndex);
+  if (!ki->index) {
+    ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
+  }
+
+  double dXcorr = 0.0;
+  double invBinSize = s->getInvBinSize();
+  double binOffset = params.binOffset;
+  double mz;
+
+  int ionCount = ions[iIndex].getIonCount();
+
+  int i, j, k;
+  int key;
+  int pos;
+
+  //Assign ion series
+  kISValue***  ionSeries;
+  ionSeries = new kISValue**[numIonSeries];
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = ki->aIons;
+  if (params.ionSeries[1]) ionSeries[k++] = ki->bIons;
+  if (params.ionSeries[2]) ionSeries[k++] = ki->cIons;
+  if (params.ionSeries[3]) ionSeries[k++] = ki->xIons;
+  if (params.ionSeries[4]) ionSeries[k++] = ki->yIons;
+  if (params.ionSeries[5]) ionSeries[k++] = ki->zIons;
+
+  //Score the cleavable crosslinker product ions
+  //Iterate through pfFastXcorrData
+  for (j = 0; j<numIonSeries; j++){
+    for (i = 0; i<ionCount; i++){
+      if (ionSeries[j][1][i].mz<0) {
+        for (size_t a = 0; a<params.cleavageProducts->size(); a++){
+          mz = params.binSize * (int)((params.cleavageProducts->at(a) - ionSeries[j][1][i].mz)*invBinSize + binOffset);
+          key = (int)mz;
+          if (key >= s->kojakBins) break;
+          if (s->kojakSparseArray[key] == NULL) continue;
+          pos = (int)((mz - key)*invBinSize);
+          peakMatches[iIndex][peakMatchCount[iIndex]].first = key;
+          peakMatches[iIndex][peakMatchCount[iIndex]++].second = pos;
+          dXcorr += s->kojakSparseArray[key][pos];
+        }
+      }
+    }
+  }
+
+  //Scale score appropriately - negatives are allowed
+  dXcorr *= 0.005;
+
+  //Clean up memory
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = NULL;
+  if (params.ionSeries[1]) ionSeries[k++] = NULL;
+  if (params.ionSeries[2]) ionSeries[k++] = NULL;
+  if (params.ionSeries[3]) ionSeries[k++] = NULL;
+  if (params.ionSeries[4]) ionSeries[k++] = NULL;
+  if (params.ionSeries[5]) ionSeries[k++] = NULL;
+
+  delete[] ionSeries;
+  return float(dXcorr);
+}
+
+float KAnalysis::kojakScoringCleavableBeta(int specIndex, int sIndex, int iIndex, map<pair<int, int>, bool>& alpha) {
+
+  KSpectrum* s = spec->getSpectrum(specIndex);
+  KIonSet* ki = ions[iIndex].at(sIndex);
+  if (!ki->index) {
+    ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
+  }
+
+  double dXcorr = 0.0;
+  double invBinSize = s->getInvBinSize();
+  double binOffset = params.binOffset;
+  double mz;
+
+  int ionCount = ions[iIndex].getIonCount();
+
+  int i, j, k;
+  int key;
+  int pos;
+
+  //Assign ion series
+  kISValue***  ionSeries;
+  ionSeries = new kISValue**[numIonSeries];
+  k = 0;
+  if (params.ionSeries[0]) ionSeries[k++] = ki->aIons;
+  if (params.ionSeries[1]) ionSeries[k++] = ki->bIons;
+  if (params.ionSeries[2]) ionSeries[k++] = ki->cIons;
+  if (params.ionSeries[3]) ionSeries[k++] = ki->xIons;
+  if (params.ionSeries[4]) ionSeries[k++] = ki->yIons;
+  if (params.ionSeries[5]) ionSeries[k++] = ki->zIons;
+
+  //Score the cleavable crosslinker product ions
+  //Iterate through pfFastXcorrData
+  for (j = 0; j<numIonSeries; j++){
+    for (i = 0; i<ionCount; i++){
+      if (ionSeries[j][1][i].mz<0) {
+        for (size_t a = 0; a<params.cleavageProducts->size(); a++){
+          mz = params.binSize * (int)((params.cleavageProducts->at(a) - ionSeries[j][1][i].mz)*invBinSize + binOffset);
+          key = (int)mz;
+          if (key >= s->kojakBins) break;
+          if (s->kojakSparseArray[key] == NULL) continue;
+          pos = (int)((mz - key)*invBinSize);
+          if (alpha.find(pair<int, int>(key, pos)) == alpha.end()) dXcorr += s->kojakSparseArray[key][pos];
         }
       }
     }

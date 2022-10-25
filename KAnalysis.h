@@ -120,8 +120,12 @@ private:
   void         deallocateMemory        (int threads);
   static int   findMass                (kSingletScoreCardPlus* s, int sz, double mass);
   static void  scoreSpectra            (std::vector<int>& index, int sIndex, double modMass, int pep1, int pep2, int k1, int k2, int link, int iIndex, char linkSite1, char linkSite2);
-  static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, /*double& cpScore,*/ int z = 0);
+  static float kojakScoring            (int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z = 0);
+  static float kojakScoringAlpha       (int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, int z = 0); //additional features for alpha peptide
+  static float kojakScoringBeta        (int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, std::map<std::pair<int,int>,bool>& alpha,int z = 0); //separate beta score from peaks matched in alpha
   static float kojakScoringCleavable   (int specIndex, int sIndex, int iIndex);
+  static float kojakScoringCleavableAlpha (int specIndex, int sIndex, int iIndex);
+  static float kojakScoringCleavableBeta  (int specIndex, int sIndex, int iIndex, std::map<std::pair<int, int>, bool>& alpha);
   //static float kojakScoringMonoCleavable (int specIndex, int sIndex, int iIndex, int post, double mass);
   static void  setBinList              (kMatchSet* m, int iIndex, int charge, double preMass, kPepMod* mods, char modLen);
 
@@ -154,6 +158,9 @@ private:
 
   static KDecoys decoys;
   static KLog* klog;
+
+  static std::pair<int,int>** peakMatches;
+  static int* peakMatchCount;
 
   static bool scoreSingletSpectra2(int index, int sIndex, double mass, double xlMass, int counterMotif, int len, int pep, char k, double minMass, int iIndex, char linkSite, int linkIndex);
 

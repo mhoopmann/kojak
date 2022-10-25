@@ -21,6 +21,7 @@ limitations under the License.
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <map>
 #include <vector>
 
 #include <iostream>
@@ -549,9 +550,8 @@ typedef struct kSingletScoreCard{
   double              mass;
   char                modLen;
   char                site;
+  std::map<std::pair<int,int>,bool> peakMatches;
   kPepMod*            mods;
-  kSingletScoreCard*  next;
-  kSingletScoreCard*  prev;
   kSingletScoreCard(){
     len=0;
     linkable=false;
@@ -566,8 +566,6 @@ typedef struct kSingletScoreCard{
     matches=0;
     conFrag=0;
     mods=NULL;
-    next=NULL;
-    prev=NULL;
   }
   kSingletScoreCard(const kSingletScoreCard& k){
     len=k.len;
@@ -582,18 +580,15 @@ typedef struct kSingletScoreCard{
     site=k.site;
     matches=k.matches;
     conFrag=k.conFrag;
+    peakMatches=k.peakMatches;
     mods=NULL;
     if(modLen>0){
       mods=new kPepMod[modLen];
       for(char i=0;i<modLen;i++) mods[i]=k.mods[i];
     }
-    next=NULL;
-    prev=NULL;
   }
   ~kSingletScoreCard(){
     if(mods!=NULL) delete [] mods;
-    next=NULL;
-    prev=NULL;
   }
   kSingletScoreCard& operator=(const kSingletScoreCard& k){
     if(this!=&k){
@@ -609,6 +604,7 @@ typedef struct kSingletScoreCard{
       site=k.site;
       matches = k.matches;
       conFrag = k.conFrag;
+      peakMatches=k.peakMatches;
       if(mods!=NULL) {
         delete [] mods;
         mods=NULL;
@@ -617,8 +613,6 @@ typedef struct kSingletScoreCard{
         mods=new kPepMod[modLen];
         for(char i=0;i<modLen;i++) mods[i]=k.mods[i];
       }
-      next=NULL;
-      prev=NULL;
     }
     return *this;
   }

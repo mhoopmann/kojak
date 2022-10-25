@@ -618,11 +618,12 @@ void KData::diagSinglet(){
     maxScore = 0;
     unknownMass = 0;
     for (int q = 0; q<spec[b]->sizePrecursor(); q++){
-      if (spec[b]->getTopPeps(q)->singletCount == 0) continue;
-      if (spec[b]->getTopPeps(q)->singletFirst->simpleScore>spec[b]->getScoreCard(0).simpleScore){
-        if (spec[b]->getTopPeps(q)->singletFirst->simpleScore>maxScore) {
-          maxScore = spec[b]->getTopPeps(q)->singletFirst->simpleScore;
-          unknownMass = spec[b]->getPrecursor(q).monoMass - spec[b]->getTopPeps(q)->singletFirst->mass;
+      if (spec[b]->getTopPeps(q)->singletList.size() == 0) continue;
+      list<kSingletScoreCard>::iterator it = spec[b]->getTopPeps(q)->singletList.begin();
+      if (it->simpleScore>spec[b]->getScoreCard(0).simpleScore){
+        if (it->simpleScore>maxScore) {
+          maxScore = it->simpleScore;
+          unknownMass = spec[b]->getPrecursor(q).monoMass - it->mass;
         }
       }
     }
@@ -989,7 +990,7 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
   kPeptide pep;
   kPrecursor* p;
   KTopPeps* tp;
-  kSingletScoreCard* sc;
+  //kSingletScoreCard* sc;
   kScoreCard psm;
   
   fprintf(f, " <scan id=\"%d\">\n", s.getScanNumber());
@@ -1004,20 +1005,20 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     fprintf(f, "   <precursor mass=\"%.4lf\" charge=\"%d\" type=\"%d\" hk_corr=\"%.4lf\">\n", p->monoMass, p->charge, code, p->corr);
 
     tp = s.getTopPeps(j);
-    sc = tp->singletFirst;
+    list<kSingletScoreCard>::iterator it=tp->singletList.begin();
     k=1;
-    while (sc != NULL){
-      fprintf(f,"    <peptide rank=\"%d\" index=\"%d\", sequence=\"",k++,sc->pep1);
-      db.getPeptideSeq(db.getPeptideList()->at(sc->pep1).map->at(0).index, db.getPeptideList()->at(sc->pep1).map->at(0).start, db.getPeptideList()->at(sc->pep1).map->at(0).stop, strs);
+    while (it != tp->singletList.end()){
+      fprintf(f,"    <peptide rank=\"%d\" index=\"%d\", sequence=\"",k++,it->pep1);
+      db.getPeptideSeq(db.getPeptideList()->at(it->pep1).map->at(0).index, db.getPeptideList()->at(it->pep1).map->at(0).start, db.getPeptideList()->at(it->pep1).map->at(0).stop, strs);
       for (i = 0; i<strlen(strs); i++){
         fprintf(f, "%c", strs[i]);
-        for (x = 0; x<sc->modLen; x++){
-          if (sc->mods[x].pos == char(i)) fprintf(f, "[%.2lf]", sc->mods[x].mass);
+        for (x = 0; x<it->modLen; x++){
+          if (it->mods[x].pos == char(i)) fprintf(f, "[%.2lf]", it->mods[x].mass);
         }
-        if (char(i) == sc->k1) fprintf(f, "[x]");
+        if (char(i) == it->k1) fprintf(f, "[x]");
       }
-      fprintf(f, "\" link_site=\"%d\" score=\"%.4f\" cpScore=\"%.4f\" matches=\"%d\" longest_run=\"%d\" mass=\"%.4lf\"/>\n", (int)sc->k1+1, sc->simpleScore, sc->cpScore, sc->matches, sc->conFrag, sc->mass);
-      sc = sc->next;
+      fprintf(f, "\" link_site=\"%d\" score=\"%.4f\" cpScore=\"%.4f\" matches=\"%d\" longest_run=\"%d\" mass=\"%.4lf\"/>\n", (int)it->k1+1, it->simpleScore, it->cpScore, it->matches, it->conFrag, it->mass);
+      it++;
     }
     fprintf(f,"   </precursor>\n");
   }
@@ -2192,16 +2193,15 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       else res.scorePepDif = tmpSC.score2;
       
       KTopPeps* tp = spec[i]->getTopPeps((int)tmpSC.precursor);
-      kSingletScoreCard* grr;
-      grr = tp->singletFirst;
+      list<kSingletScoreCard>::iterator grr=tp->singletList.begin();
       int rank=1;
       res.rankA=0;
       res.rankB=0;
-      while(grr!=NULL){
+      while(grr!=tp->singletList.end()){
         if(res.rankA==0 && tmpSC.pep1==grr->pep1 && tmpSC.score1==grr->simpleScore) res.rankA=rank;
         if(res.rankB==0 && tmpSC.score2>grr->simpleScore) res.rankB=rank;
         rank++;
-        grr = grr->next;
+        grr++;
       }
       if(res.rankB==0) res.rankB=params->topCount;
       res.rank        = res.rankA+res.rankB;
@@ -2627,7 +2627,7 @@ void KData::processMS2(kMS2struct* s){
 
   if (s->pls->sizePrecursor()>0){
     //build singletList
-    s->pls->resetSingletList();
+    //s->pls->resetSingletList();
     s->pls->peakCounts = s->pls->size();
 
   } else {

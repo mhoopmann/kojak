@@ -45,7 +45,7 @@ KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
   kojakSparseArray=NULL;
   kojakBins=0;
 
-  singletList=NULL;
+  //singletList=NULL;
   singletBins=0;
 
   lowScore=0;
@@ -154,15 +154,15 @@ KSpectrum::KSpectrum(const KSpectrum& p){
     }
   }
 
-  singletBins=p.singletBins;
-  if(singletBins==0) singletList=NULL;
-  else {
-    singletList = new list<kSingletScoreCard*>*[singletBins];
-    for(j=0;j<singletBins;j++){
-      if(p.singletList[j]==NULL) singletList[j]=NULL;
-      else singletList[j] = new list<kSingletScoreCard*>(*p.singletList[j]);
-    }
-  }
+  //singletBins=p.singletBins;
+  //if(singletBins==0) singletList=NULL;
+  //else {
+  //  singletList = new list<kSingletScoreCard*>*[singletBins];
+  //  for(j=0;j<singletBins;j++){
+  //    if(p.singletList[j]==NULL) singletList[j]=NULL;
+  //    else singletList[j] = new list<kSingletScoreCard*>(*p.singletList[j]);
+  //  }
+  //}
 
 
 }
@@ -181,12 +181,12 @@ KSpectrum::~KSpectrum(){
     delete [] kojakSparseArray;
   }
 
-  if (singletList != NULL){
-    for (j = 0; j<singletBins; j++){
-      if (singletList[j] != NULL) delete singletList[j];
-    }
-    delete[] singletList;
-  }
+  //if (singletList != NULL){
+  //  for (j = 0; j<singletBins; j++){
+  //    if (singletList[j] != NULL) delete singletList[j];
+  //  }
+  //  delete[] singletList;
+  //}
 }
 
 
@@ -278,7 +278,7 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
       }
     }
 
-    if (singletList != NULL){
+    /*if (singletList != NULL){
       for (j = 0; j<singletBins; j++){
         if (singletList[j] != NULL) delete singletList[j];
       }
@@ -292,7 +292,7 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
         if (p.singletList[j] == NULL) singletList[j] = NULL;
         else singletList[j] = new list<kSingletScoreCard*>(*p.singletList[j]);
       }
-    }
+    }*/
   }
   return *this;
 }
@@ -381,7 +381,7 @@ void KSpectrum::addPrecursor(kPrecursor& p, int sz){
   precursor->push_back(p);
   KTopPeps tp;
   tp.singletMax=sz;
-  tp.resetSingletList(p.monoMass);
+  //tp.resetSingletList(p.monoMass);
   singlets->push_back(tp);
 }
 
@@ -1200,23 +1200,23 @@ void KSpectrum::refreshScore(KDatabase& db, string& dStr){
 
 }
 
-void KSpectrum::resetSingletList(){
-  size_t j;
-  double max;
-  if (singletList != NULL){
-    for (j = 0; j<singletBins; j++){
-      if (singletList[j] != NULL) delete singletList[j];
-    }
-    delete[] singletList;
-  }
-  max=precursor->at(0).monoMass;
-  for(j=1;j<precursor->size();j++){
-    if (precursor->at(j).monoMass>max) max = precursor->at(j).monoMass;
-  }
-  singletBins=(int)(max/10+1);
-  singletList = new list<kSingletScoreCard*>*[singletBins];
-  for (j = 0; j<singletBins; j++) singletList[j] = NULL;
-}
+//void KSpectrum::resetSingletList(){
+//  size_t j;
+//  double max;
+//  if (singletList != NULL){
+//    for (j = 0; j<singletBins; j++){
+//      if (singletList[j] != NULL) delete singletList[j];
+//    }
+//    delete[] singletList;
+//  }
+//  max=precursor->at(0).monoMass;
+//  for(j=1;j<precursor->size();j++){
+//    if (precursor->at(j).monoMass>max) max = precursor->at(j).monoMass;
+//  }
+//  singletBins=(int)(max/10+1);
+//  singletList = new list<kSingletScoreCard*>*[singletBins];
+//  for (j = 0; j<singletBins; j++) singletList[j] = NULL;
+//}
 
 void KSpectrum::sortMZ(){
   qsort(&spec->at(0),spec->size(),sizeof(kSpecPoint),compareMZ);
