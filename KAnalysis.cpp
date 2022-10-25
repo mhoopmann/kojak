@@ -740,6 +740,11 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   KIonSet* iset;
   kPepMod mod;
   float score = 0;
+  float sharedScore,tss;
+  float alphaScore, betaScore;
+  //float alphaUnique,betaUnique;
+  float alphaCP=0;
+  float betaCP=0;
   double cpScore=0;
   bool bCPScore=false;
   int matches;
@@ -770,21 +775,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
 
     if(!firstPass && (p->monoMass-spec->getLink(linkIndex).mass+0.2)/2>mass){
 
-      /*if (!bCPScore && params.cleavageProducts->size()>0){
-        cpScore = kojakScoringCleavable(index, sIndex, iIndex);
-        bCPScore = true;
-      }*/
-
-      //TODO: Overhaul the entire KTopPeps class
-      //Threading::LockMutex(mutexSingletScore[index][i]);
       tp = s->getTopPeps(i);
-      //int ind=(int)((p->monoMass-xlMass-mass)/10);
-      //if(tp->singletList[ind]==NULL) {
-        //Threading::UnlockMutex(mutexSingletScore[index][i]);
-      //  continue;
-      //}
 
-      //TODO: this could be made faster by checking the peptide only once for every partner of the same mass!!!
       list<kSingletScoreCard>::iterator tsc = tp->singletList.begin();
       while(tsc!=tp->singletList.end()){
         if(fabs((p->monoMass-tsc->mass-spec->getLink(linkIndex).mass-mass)/p->monoMass*1e6)>params.ppmPrecursor){
@@ -796,43 +788,57 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           continue;
         }
 
-        //TODO: Insert scoring mask here. Mask identifies peaks already scored by the alpha peptide in the first pass
-        //and those peaks are not counted twice for the beta peptide. Special case is where alpha and beta peptide are the same.
-        //Same peptides defined as pep==pep, k==k. For that special case, maybe not even bother scoring the beta peptide?
-
         //This is inefficient because it must be recalculated for each alpha peptide; each alpha peptide has a different set of already scored peaks
+        sharedScore=0;
         if(params.cleavageProducts->size()>0){
-          cpScore = kojakScoringCleavableBeta(index, sIndex, iIndex,tsc->peakMatches);
+          cpScore = kojakScoringCleavableBeta(index, sIndex, iIndex,tsc->peakMatches,tss);
+          sharedScore+=tss;
+          betaCP=(float)cpScore+tss/2;
+          alphaCP=tsc->cpScore-tss/2;
         }
 
-        if (tsc->pep1!=pep || tsc->k1!=k){
-          score = kojakScoringBeta(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, tsc->peakMatches, p->charge);
+        //if (tsc->pep1!=pep || tsc->k1!=k){ //Not doing special case for same peptide. This way, it still works with modifications.
+          score = kojakScoringBeta(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, tsc->peakMatches, tss,p->charge);
           score+=(float)cpScore;
+          sharedScore+=tss;
           protSC.simpleScore = tsc->simpleScore + score;
-          //if (pep == tsc->pep1 && linkSite == tsc->site) protSC.simpleScore *= 0.75; //apply some modifier for same peptide links.
+          //split the shared score between alpha and beta
+          alphaScore=tsc->simpleScore-sharedScore/2;
+          betaScore=score+sharedScore/2;
+
+          /* Keep this for now. Unique scoring for each peptide (not shared with the other) is an interesting metric that needs further exploration.
+          if (tsc->pep1 != pep || tsc->k1 != k){
+            alphaUnique=tsc->simpleScore-sharedScore;
+            betaUnique=score-sharedScore;
+          } else {
+            alphaUnique=betaUnique=tsc->simpleScore;      
+          }
+          */
+
           y = (int)(protSC.simpleScore * 10.0 + 0.5);
           if (y >= HISTOSZ) y = HISTOSZ - 1;
           Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
           s->histogram[y]++;
           s->histogramCount++;
-          if (score<params.minPepScore || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
+          //if (alphaUnique<params.minPepScore || betaUnique<params.minPepScore || protSC.simpleScore <= s->lowScore) { //maybe use unique scoring instead? Needs special case for self-peptides
+          if (alphaScore<params.minPepScore || betaScore<params.minPepScore || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
             Threading::UnlockMutex(mutexSpecScore[index]);
             tsc++;
             continue;
           }
           Threading::UnlockMutex(mutexSpecScore[index]);
-        } else {
-          //if we got here, it is because the alpha and beta peptides are the same and linked in the same place. Warning: I'm not checking modifications...
-          protSC.simpleScore = tsc->simpleScore;
-          score=0;
-          cpScore=0;
-          y = (int)(protSC.simpleScore * 10.0 + 0.5);
-          if (y >= HISTOSZ) y = HISTOSZ - 1;
-          Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
-          s->histogram[y]++;
-          s->histogramCount++;
-          Threading::UnlockMutex(mutexSpecScore[index]);
-        }
+        //} else {
+        //  //if we got here, it is because the alpha and beta peptides are the same and linked in the same place. Warning: I'm not checking modifications...
+        //  protSC.simpleScore = tsc->simpleScore;
+        //  score=0;
+        //  cpScore=0;
+        //  y = (int)(protSC.simpleScore * 10.0 + 0.5);
+        //  if (y >= HISTOSZ) y = HISTOSZ - 1;
+        //  Threading::LockMutex(mutexSpecScore[index]);  //no matter how low the score, put this test in our histogram.
+        //  s->histogram[y]++;
+        //  s->histogramCount++;
+        //  Threading::UnlockMutex(mutexSpecScore[index]);
+        //}
        
 
         protSC.mods1->clear();
@@ -855,10 +861,10 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.site2 = tsc->site;
           protSC.pep1 = pep;
           protSC.pep2 = tsc->pep1;
-          protSC.score1 = score;
-          protSC.score2 = tsc->simpleScore;
-          protSC.cpScore1 = (float)cpScore;
-          protSC.cpScore2 = tsc->cpScore;
+          protSC.score1 = betaScore;  //score;
+          protSC.score2 = alphaScore; //tsc->simpleScore;
+          protSC.cpScore1 = betaCP;   //(float)cpScore;
+          protSC.cpScore2 = alphaCP;  //tsc->cpScore;
           protSC.mass1 = mass;
           protSC.mass2 = tsc->mass;
           protSC.matches1 = matches;
@@ -874,10 +880,10 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.site2 = linkSite;
           protSC.pep1 = tsc->pep1;
           protSC.pep2 = pep;
-          protSC.score1 = tsc->simpleScore;
-          protSC.score2 = score;
-          protSC.cpScore1 = tsc->cpScore;
-          protSC.cpScore2 = (float)cpScore;
+          protSC.score1 = alphaScore; //tsc->simpleScore;
+          protSC.score2 = betaScore;  //score;
+          protSC.cpScore1 = alphaCP;  //tsc->cpScore;
+          protSC.cpScore2 = betaCP;   //(float)cpScore;
           protSC.mass1 = tsc->mass;
           protSC.mass2 = mass;
           protSC.matches1 = tsc->matches;
@@ -941,7 +947,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         Threading::UnlockMutex(mutexSpecScore[index]);
         tsc++;
       }
-    //Threading::UnlockMutex(mutexSingletScore[index][i]);
     }
 
     if (firstPass && mass>(p->monoMass - spec->getLink(linkIndex).mass) / 2-0.2){
@@ -975,19 +980,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       score = kojakScoringAlpha(index, p->monoMass - mass, sIndex, iIndex, matches, conFrag, p->charge);
       score+=(float)cpScore;
       bScored = true;
-      //y = (int)(score * 10.0 + 0.5);
-      //if (y >= HISTOSZ) y = HISTOSZ - 1;
-      //Threading::LockMutex(mutexSpecScore[index]);
-      //s->histogramSinglet[y]++;
-      //s->histogramSingletCount++;
-      //Threading::UnlockMutex(mutexSpecScore[index]);
       if(score<params.minPepScore || score<=0 ) continue;
-      //if(conFrag<2) continue; //FOR TESTING ONLY
-
-      //boost score...FOR TESTING ONLY
-      //if(conFrag>2){
-      //  score*=(1.0+(double)conFrag/10);
-      //}
 
       Threading::LockMutex(mutexSingletScore[index][i]);
       tp = s->getTopPeps(i);
@@ -1034,9 +1027,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
               }
               if (fabs(iset->mods[j] - iset->cTermMass)<0.0001) continue;
             }
-            //if (j == 0 && iset->modNTerm) mod.term = true;
-            //else if (j == ions[iIndex].getIonCount() - 1 && iset->modCTerm) mod.term = true;
-            //else mod.term = false;
             mod.pos = (char)j;
             mod.mass = iset->mods[j];
             v.push_back(mod);
@@ -1049,7 +1039,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       sc.peakMatches.clear();
       for(int pm=0;pm<peakMatchCount[iIndex];pm++){
         sc.peakMatches.insert(pair<pair<int,int>,bool>(peakMatches[iIndex][pm],true));
-        //if (s->getScanNumber() == 38538 && pep == 11925) cout << pm << ": " << peakMatches[iIndex][pm].first << "," << peakMatches[iIndex][pm].second << endl;
       }
 
       Threading::LockMutex(mutexSingletScore[index][i]);
@@ -1057,7 +1046,6 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
       tp->checkSingletScore(sc);
       Threading::UnlockMutex(mutexSingletScore[index][i]);
 
-      //bScored=true;
     }
   }
 
@@ -1395,7 +1383,7 @@ float KAnalysis::kojakScoringAlpha(int specIndex, double modMass, int sIndex, in
   return float(dXcorr);
 }
 
-float KAnalysis::kojakScoringBeta(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, map<pair<int, int>, bool>& alpha, int z) {
+float KAnalysis::kojakScoringBeta(int specIndex, double modMass, int sIndex, int iIndex, int& match, int& conFrag, map<pair<int, int>, bool>& alpha, float& sharedScore, int z) {
 
   KSpectrum* s = spec->getSpectrum(specIndex);
   KIonSet* ki = ions[iIndex].at(sIndex);
@@ -1403,6 +1391,7 @@ float KAnalysis::kojakScoringBeta(int specIndex, double modMass, int sIndex, int
     ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
   }
 
+  double dShXcorr=0.0;
   double dXcorr = 0.0;
   double invBinSize = s->getInvBinSize();
   double binOffset = params.binOffset;
@@ -1464,6 +1453,7 @@ float KAnalysis::kojakScoringBeta(int specIndex, double modMass, int sIndex, int
           }
           pos = (int)((mz - key)*invBinSize);
           if(alpha.find(pair<int,int>(key,pos))==alpha.end()) dXcorr += s->kojakSparseArray[key][pos];
+          else dShXcorr += s->kojakSparseArray[key][pos];
           if (s->kojakSparseArray[key][pos]>5) {
             match++;
             con++;
@@ -1486,6 +1476,7 @@ float KAnalysis::kojakScoringBeta(int specIndex, double modMass, int sIndex, int
           }
           pos = ionSeries[j][k][i].pos;
           if (alpha.find(pair<int, int>(key, pos)) == alpha.end()) dXcorr += s->kojakSparseArray[key][pos];
+          else dShXcorr += s->kojakSparseArray[key][pos];
           if (s->kojakSparseArray[key][pos]>5) {
             match++;
             con++;
@@ -1502,6 +1493,9 @@ float KAnalysis::kojakScoringBeta(int specIndex, double modMass, int sIndex, int
   //Scale score appropriately
   if (dXcorr <= 0.0) dXcorr = 0.0;
   else dXcorr *= 0.005;
+  if (dShXcorr <= 0.0) dShXcorr = 0.0;
+  else dShXcorr *= 0.005;
+  sharedScore=(float)dShXcorr;
 
   //Clean up memory
   k = 0;
@@ -1646,7 +1640,7 @@ float KAnalysis::kojakScoringCleavableAlpha(int specIndex, int sIndex, int iInde
   return float(dXcorr);
 }
 
-float KAnalysis::kojakScoringCleavableBeta(int specIndex, int sIndex, int iIndex, map<pair<int, int>, bool>& alpha) {
+float KAnalysis::kojakScoringCleavableBeta(int specIndex, int sIndex, int iIndex, map<pair<int, int>, bool>& alpha, float& sharedScore) {
 
   KSpectrum* s = spec->getSpectrum(specIndex);
   KIonSet* ki = ions[iIndex].at(sIndex);
@@ -1654,6 +1648,7 @@ float KAnalysis::kojakScoringCleavableBeta(int specIndex, int sIndex, int iIndex
     ki->makeIndex(params.binSize, params.binOffset, params.ionSeries[0], params.ionSeries[1], params.ionSeries[2], params.ionSeries[3], params.ionSeries[4], params.ionSeries[5]);
   }
 
+  double dShXcorr=0.0;
   double dXcorr = 0.0;
   double invBinSize = s->getInvBinSize();
   double binOffset = params.binOffset;
@@ -1688,6 +1683,7 @@ float KAnalysis::kojakScoringCleavableBeta(int specIndex, int sIndex, int iIndex
           if (s->kojakSparseArray[key] == NULL) continue;
           pos = (int)((mz - key)*invBinSize);
           if (alpha.find(pair<int, int>(key, pos)) == alpha.end()) dXcorr += s->kojakSparseArray[key][pos];
+          else dShXcorr += s->kojakSparseArray[key][pos];
         }
       }
     }
@@ -1695,6 +1691,8 @@ float KAnalysis::kojakScoringCleavableBeta(int specIndex, int sIndex, int iIndex
 
   //Scale score appropriately - negatives are allowed
   dXcorr *= 0.005;
+  dShXcorr *=0.005;
+  sharedScore=(float)dShXcorr;
 
   //Clean up memory
   k = 0;

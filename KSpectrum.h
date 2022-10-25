@@ -54,7 +54,6 @@ public:
   int             kojakBins;
   
   int singletBins;
-  //std::list<kSingletScoreCard*>**  singletList;
   float lowScore;
 
   int cc;
@@ -131,7 +130,6 @@ public:
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  linearRegression4   (int* histo, double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
   void  refreshScore        (KDatabase& db, std::string& dStr);  //To be run AFTER analysis completes. Looks at top scores, if a tie, make sure decoys are listed second (to help TPP analysis)
-  //void  resetSingletList    ();
   void  sortMZ              ();
   void  sortIntensityRev    () { sort(spec->begin(),spec->end(),compareIntensityRev); }
   void  kojakXCorr          (double* pdTempRawData, double* pdTmpFastXcorrData, float* pfFastXcorrData, kPreprocessStruct*& pPre);

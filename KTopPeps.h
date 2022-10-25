@@ -24,22 +24,11 @@ class KTopPeps{
 public:
 
   KTopPeps();
-  //KTopPeps(const KTopPeps& c);
-  //~KTopPeps();
 
-  //KTopPeps& operator=(const KTopPeps& c);
-
-  //int singletBins;
-  //int singletCount;
   int singletMax;
-  
-  //kSingletScoreCard*    singletFirst;   //pointer to start of linked list
-  //kSingletScoreCard*    singletLast;    //pointer to end of linked list
-  //std::list<kSingletScoreCard*>**  singletList;
   std::list<kSingletScoreCard>  singletList;
 
   void  checkSingletScore(kSingletScoreCard& s);
-  //void  resetSingletList(double mass);
 
 };
 
