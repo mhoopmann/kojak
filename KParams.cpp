@@ -644,6 +644,12 @@ void KParams::parse(const char* cmd) {
     xml.value = values[0];
     logParam(xml);
 
+  } else if (strcmp(param, "min_peptide_contribution") == 0){
+    params->minPepUnique = atof(&values[0][0]);
+    xml.name = "min_peptide_contribution";
+    xml.value = values[0];
+    logParam(xml);
+
 	} else if(strcmp(param,"min_peptide_mass")==0){
     params->minPepMass=atof(&values[0][0]);
     xml.name = "min_peptide_mass";

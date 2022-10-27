@@ -742,7 +742,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
   float score = 0;
   float sharedScore,tss;
   float alphaScore, betaScore;
-  //float alphaUnique,betaUnique;
+  float alphaUnique,betaUnique;
   float alphaCP=0;
   float betaCP=0;
   double cpScore=0;
@@ -806,14 +806,13 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           alphaScore=tsc->simpleScore-sharedScore/2;
           betaScore=score+sharedScore/2;
 
-          /* Keep this for now. Unique scoring for each peptide (not shared with the other) is an interesting metric that needs further exploration.
+          //Keep this for now. Unique scoring for each peptide (not shared with the other) is an interesting metric that needs further exploration.
           if (tsc->pep1 != pep || tsc->k1 != k){
             alphaUnique=tsc->simpleScore-sharedScore;
             betaUnique=score-sharedScore;
           } else {
             alphaUnique=betaUnique=tsc->simpleScore;      
           }
-          */
 
           y = (int)(protSC.simpleScore * 10.0 + 0.5);
           if (y >= HISTOSZ) y = HISTOSZ - 1;
@@ -822,6 +821,10 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           s->histogramCount++;
           //if (alphaUnique<params.minPepScore || betaUnique<params.minPepScore || protSC.simpleScore <= s->lowScore) { //maybe use unique scoring instead? Needs special case for self-peptides
           if (alphaScore<params.minPepScore || betaScore<params.minPepScore || protSC.simpleScore <= s->lowScore) { //peptide needs a minimum score, and combined score should exceed bottom of best hits
+            Threading::UnlockMutex(mutexSpecScore[index]);
+            tsc++;
+            continue;
+          } else if(params.minPepUnique>0 && (alphaUnique<params.minPepUnique || betaScore<params.minPepUnique)){
             Threading::UnlockMutex(mutexSpecScore[index]);
             tsc++;
             continue;
@@ -865,6 +868,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.score2 = alphaScore; //tsc->simpleScore;
           protSC.cpScore1 = betaCP;   //(float)cpScore;
           protSC.cpScore2 = alphaCP;  //tsc->cpScore;
+          protSC.uScore1 = betaUnique;
+          protSC.uScore2 = alphaUnique;
           protSC.mass1 = mass;
           protSC.mass2 = tsc->mass;
           protSC.matches1 = matches;
@@ -884,6 +889,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.score2 = betaScore;  //score;
           protSC.cpScore1 = alphaCP;  //tsc->cpScore;
           protSC.cpScore2 = betaCP;   //(float)cpScore;
+          protSC.uScore1 = alphaUnique;
+          protSC.uScore2 = betaUnique;
           protSC.mass1 = tsc->mass;
           protSC.mass2 = mass;
           protSC.matches1 = tsc->matches;
@@ -901,13 +908,13 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         protSC.precursor = (char)i;
 
         //special case for identical peptides
-        if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){ 
-          protSC.score1=protSC.score2 = tsc->simpleScore/2;
-          protSC.cpScore1=protSC.cpScore2=tsc->cpScore/2;
-          protSC.matches1=protSC.matches2=tsc->matches;
-          protSC.conFrag1=protSC.conFrag2=tsc->conFrag;
-          //continue; //WARNING...JUST SKIPPING THESE...
-        }
+        //if(protSC.pep2==protSC.pep1 && protSC.k1==protSC.k2){ 
+        //  protSC.score1=protSC.score2 = tsc->simpleScore/2;
+        //  protSC.cpScore1=protSC.cpScore2=tsc->cpScore/2;
+        //  protSC.matches1=protSC.matches2=tsc->matches;
+        //  protSC.conFrag1=protSC.conFrag2=tsc->conFrag;
+        //  //continue; //WARNING...JUST SKIPPING THESE...
+        //}
 
         //index the mods for pep2
         iset = ions[iIndex].at(sIndex);

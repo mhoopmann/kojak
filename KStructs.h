@@ -168,6 +168,7 @@ typedef struct kParams {
   double  maxPepMass;
   double  minPepMass;
   double  minPepScore;
+  double  minPepUnique;
   double  percVersion;
   double  ppmPrecursor;
   double  removePrecursor;
@@ -232,6 +233,7 @@ typedef struct kParams {
     maxPepMass=4000.0;
     minPepMass=500.0;
     minPepScore=0.1;
+    minPepUnique=0;
     percVersion=3.06;
     ppmPrecursor=20.0;
     removePrecursor=0;
@@ -292,6 +294,7 @@ typedef struct kParams {
     maxPepMass=p.maxPepMass;
     minPepMass=p.minPepMass;
     minPepScore=p.minPepScore;
+    minPepUnique=p.minPepUnique;
     percVersion=p.percVersion;
     ppmPrecursor=p.ppmPrecursor;
     strcpy(decoy,p.decoy);
@@ -362,6 +365,7 @@ typedef struct kParams {
       maxPepMass=p.maxPepMass;
       minPepMass=p.minPepMass;
       minPepScore=p.minPepScore;
+      minPepUnique = p.minPepUnique;
       percVersion=p.percVersion;
       ppmPrecursor=p.ppmPrecursor;
       strcpy(decoy,p.decoy);
@@ -437,6 +441,8 @@ typedef struct kScoreCard{
   float  score2;
   float  cpScore1;
   float  cpScore2;
+  float  uScore1;
+  float  uScore2;
   std::vector<kPepMod>* mods1;
   std::vector<kPepMod>* mods2;
   kScoreCard(){
@@ -461,6 +467,8 @@ typedef struct kScoreCard{
     score2=0;
     cpScore1=0;
     cpScore2=0;
+    uScore1=0;
+    uScore2=0;
     matches1=0;
     matches2=0;
     conFrag1=0;
@@ -490,6 +498,8 @@ typedef struct kScoreCard{
     score2=p.score2;
     cpScore1=p.cpScore1;
     cpScore2=p.cpScore2;
+    uScore1=p.uScore1;
+    uScore2=p.uScore2;
     matches1=p.matches1;
     matches2=p.matches2;
     conFrag1=p.conFrag1;
@@ -524,6 +534,8 @@ typedef struct kScoreCard{
       score2=p.score2;
       cpScore1 = p.cpScore1;
       cpScore2 = p.cpScore2;
+      uScore1 = p.uScore1;
+      uScore2 = p.uScore2;
       matches1 = p.matches1;
       matches2 = p.matches2;
       conFrag1 = p.conFrag1;
@@ -685,6 +697,8 @@ typedef struct kResults{
   double  score;
   double  scoreA;
   double  scoreB;
+  double  scoreUniqueA;
+  double  scoreUniqueB;
   double  scoreDelta;
   double  scorePepDif;
   double  xlMass;
