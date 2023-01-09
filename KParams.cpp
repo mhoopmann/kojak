@@ -328,6 +328,7 @@ void KParams::exportDefault(string ver){
   fprintf(f, "\nspectrum_processing = %d    #0 = no, 1 = collapse MS2 isotope distributions to a single monoisotopic peak.\n", def.specProcess);
   fprintf(f, "min_spectrum_peaks = %d    #minimum peaks in a MS2 scan to be searched.\n", def.minPeaks);
   fprintf(f, "max_spectrum_peaks = %d     #maximum number of MS2 peaks to use during analysis. 0 uses all peaks.\n", def.maxPeaks);
+  //TODO
   //fprintf(f, "\nmin_peptide_length = %d     #minimum number of amino acids per peptide searched.\n", def.minPepLen);
   //fprintf(f, "max_peptide_length = %d    #maximum number of amino acids per peptide searched.\n", def.maxPepLen);
   fprintf(f, "\nmin_peptide_mass = %.1lf   #minimum allowed peptide mass in Daltons.\n", def.minPepMass);
