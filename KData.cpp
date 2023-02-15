@@ -340,6 +340,79 @@ bool KData::checkLink(char p1Site, char p2Site, int linkIndex){
   return xlTargets[p1Site][linkIndex].target[p2Site];
 }
 
+void KData::convertToDiag(kScoreCard& sc, kDiag& d, KDatabase& db){
+  size_t i, x;
+  char strs[256];
+  char st[32];
+  string pep1, pep2, tmp;
+  kPeptide pep;
+
+  pep = db.getPeptide(sc.pep1);
+  db.getPeptideSeq(pep.map->at(0).index, pep.map->at(0).start, pep.map->at(0).stop, strs);
+  pep1.clear();
+  if (pep.nTerm && aa.getFixedModMass('$') != 0) {
+    sprintf(st, "[%.2lf]", aa.getFixedModMass('$'));
+    pep1 += st;
+  }
+  for (i = 0; i < strlen(strs); i++) {
+    pep1 += strs[i];
+    for (x = 0; x < sc.mods1.size(); x++) {
+      if (sc.mods1[x].pos == (char)i) {
+        sprintf(st, "[%.2lf]", sc.mods1[x].mass);
+        pep1 += st;
+      }
+    }
+    if ((int)i == sc.k1 || (sc.pep2 < 0 && (int)i == sc.k2)) pep1 += "[x]";
+  }
+  if (pep.cTerm && aa.getFixedModMass('%') != 0) {
+    sprintf(st, "[%.2lf]", aa.getFixedModMass('%'));
+    pep1 += st;
+  }
+
+  pep2.clear();
+  if (sc.pep2 > -1) {
+    pep = db.getPeptide(sc.pep2);
+    db.getPeptideSeq(pep.map->at(0).index, pep.map->at(0).start, pep.map->at(0).stop, strs);
+    if (pep.nTerm && aa.getFixedModMass('$') != 0) {
+      sprintf(st, "[%.2lf]", aa.getFixedModMass('$'));
+      pep2 += st;
+    }
+    for (i = 0; i < strlen(strs); i++) {
+      pep2 += strs[i];
+      for (x = 0; x < sc.mods2.size(); x++) {
+        if (sc.mods2[x].pos == (char)i) {
+          sprintf(st, "[%.2lf]", sc.mods2[x].mass);
+          pep2 += st;
+        }
+      }
+      if ((int)i == sc.k2) pep2 += "[x]";
+    }
+    if (pep.cTerm && aa.getFixedModMass('%') != 0) {
+      sprintf(st, "[%.2lf]", aa.getFixedModMass('%'));
+      pep2 += st;
+    }
+  } else {
+    //fprintf(f2, "\t(%d)", spec[i].getScoreCard(j).k2);
+  }
+
+  if (pep2.size() > 0 && pep1.compare(pep2) > 0) {
+    tmp = pep1;
+    pep1 = pep2;
+    pep2 = tmp;
+  }
+
+  if (sc.link == -2) pep1 += "+";
+  else if (pep2.size() > 0) pep1 += "--";
+  pep1 += pep2;
+  d.sequence=pep1;
+  d.simpleScore= sc.simpleScore;
+  d.cpScore= sc.cpScore1 + sc.cpScore2;
+  d.evalue= sc.eVal;
+  d.mass= sc.mass;
+  if (sc.link < 0) d.xlMass=0;
+  else d.xlMass=link[sc.link].mass;
+}
+
 //Returns closet mz value to desired point
 int KData::findPeak(Spectrum* s, double mass){
   int sz = s->size();
@@ -1042,9 +1115,9 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     }
     for (i = 0; i<strlen(strs); i++){
       pep1+=strs[i];
-      for (x = 0; x<psm.mods1->size(); x++){
-        if (psm.mods1->at(x).pos == (char)i) {
-          sprintf(st, "[%.2lf]", psm.mods1->at(x).mass);
+      for (x = 0; x<psm.mods1.size(); x++){
+        if (psm.mods1[x].pos == (char)i) {
+          sprintf(st, "[%.2lf]", psm.mods1[x].mass);
           pep1+=st;
         }
       }
@@ -1065,9 +1138,9 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
       }
       for (i = 0; i<strlen(strs); i++){
         pep2+=strs[i];
-        for (x = 0; x<psm.mods2->size(); x++){
-          if (psm.mods2->at(x).pos == (char)i) {
-            sprintf(st, "[%.2lf]", psm.mods2->at(x).mass);
+        for (x = 0; x<psm.mods2.size(); x++){
+          if (psm.mods2[x].pos == (char)i) {
+            sprintf(st, "[%.2lf]", psm.mods2[x].mass);
             pep2+=st;
           }
         }
@@ -1090,11 +1163,52 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
     if (psm.link == -2) pep1+="+";
     else if(pep2.size()>0) pep1+="--";
     pep1+=pep2;
-    fprintf(f, "sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\", evalue=\"%.3e\" mass=\"%.4lf\"",&pep1[0], psm.simpleScore, psm.cpScore1+psm.cpScore2, psm.eVal, psm.mass);
+    fprintf(f, "sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\" evalue=\"%.3e\" mass=\"%.4lf\"",&pep1[0], psm.simpleScore, psm.cpScore1+psm.cpScore2, psm.eVal, psm.mass);
     if (psm.link<0) fprintf(f, " crosslinker_mass=\"0\"/>\n"); 
     else fprintf(f, " crosslinker_mass=\"%.4lf\"/>\n", link[psm.link].mass);
   }
   fprintf(f, "  </results_list>\n");
+
+  kDiag dsc;
+  fprintf(f, "  <top_results>\n");
+  for(size_t pr=0;pr<s.sizePrecursor();pr++){
+    p = s.getPrecursor2(pr);
+    fprintf(f, "   <precursor mass=\"%.4lf\" charge=\"%d\">\n", p->monoMass, p->charge);
+    list<kScoreCard>::iterator it=p->topSingle.begin();
+    while(it!=p->topSingle.end()){
+      convertToDiag(*it, dsc, db);
+      fprintf(f, "    <top_single sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\" evalue=\"%.3e\" mass=\"%.4lf\" crosslinker_mass=\"%.4lf\"/>\n", dsc.sequence.c_str(), dsc.simpleScore, dsc.cpScore, dsc.evalue, dsc.mass, dsc.xlMass);
+      for(size_t z=0;z<it->alternate.size();z++){
+        convertToDiag(it->alternate[z], dsc, db);
+        fprintf(f, "    <top_single sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\" evalue=\"%.3e\" mass=\"%.4lf\" crosslinker_mass=\"%.4lf\"/>\n", dsc.sequence.c_str(), dsc.simpleScore, dsc.cpScore, dsc.evalue, dsc.mass, dsc.xlMass);
+      }
+      it++;
+    }
+
+    it = p->topLoop.begin();
+    while (it != p->topLoop.end()) {
+      convertToDiag(*it, dsc, db);
+      fprintf(f, "    <top_loop sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\" evalue=\"%.3e\" mass=\"%.4lf\" crosslinker_mass=\"%.4lf\"/>\n", dsc.sequence.c_str(), dsc.simpleScore, dsc.cpScore, dsc.evalue, dsc.mass, dsc.xlMass);
+      for (size_t z = 0; z < it->alternate.size(); z++) {
+        convertToDiag(it->alternate[z], dsc, db);
+        fprintf(f, "    <top_loop sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\" evalue=\"%.3e\" mass=\"%.4lf\" crosslinker_mass=\"%.4lf\"/>\n", dsc.sequence.c_str(), dsc.simpleScore, dsc.cpScore, dsc.evalue, dsc.mass, dsc.xlMass);
+      }
+      it++;
+    }
+
+    it=p->topXL.begin();
+    while (it != p->topXL.end()) {
+      convertToDiag(*it, dsc, db);
+      fprintf(f, "    <top_xl sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\" evalue=\"%.3e\" mass=\"%.4lf\" crosslinker_mass=\"%.4lf\"/>\n", dsc.sequence.c_str(), dsc.simpleScore, dsc.cpScore, dsc.evalue, dsc.mass, dsc.xlMass);
+      for (size_t z = 0; z < it->alternate.size(); z++) {
+        convertToDiag(it->alternate[z], dsc, db);
+        fprintf(f, "    <top_xl sequence=\"%s\" score=\"%.4f\" cpScore=\"%.4f\" evalue=\"%.3e\" mass=\"%.4lf\" crosslinker_mass=\"%.4lf\"/>\n", dsc.sequence.c_str(), dsc.simpleScore, dsc.cpScore, dsc.evalue, dsc.mass, dsc.xlMass);
+      }
+      it++;
+    }
+    fprintf(f, "   </precursor>\n");
+  }
+  fprintf(f, "  </top_results>\n");
 
   /*
   fprintf(f, "  <histogramSinglet count=\"%d\" intercept=\"%.4f\" slope=\"%.4f\" rsq=\"%.4lf\" start=\"%.4f\" next=\"%.4f\" max=\"%d\">\n", s.histogramSingletCount, s.tmpSingletIntercept, s.tmpSingletSlope, s.tmpSingletRSquare, s.tmpSingletIStartCorr, s.tmpSingletINextCorr, s.tmpSingletIMaxCorr);
@@ -1104,14 +1218,157 @@ void KData::outputDiagnostics(FILE* f, KSpectrum& s, KDatabase& db){
   fprintf(f, "  </histogramSinglet>\n");
   */
 
-  fprintf(f, "  <histogram count=\"%d\" intercept=\"%.4f\" slope=\"%.4f\" rsq=\"%.4lf\" start=\"%.4f\" next=\"%.4f\" max=\"%d\">\n", s.histogramCount,s.tmpIntercept,s.tmpSlope,s.tmpRSquare,s.tmpIStartCorr,s.tmpINextCorr,s.tmpIMaxCorr);
-  for (j = 0; j<HISTOSZ; j++){
-    fprintf(f, "   <bin id=\"%d\" value=\"%d\" score=\"%.1lf\" count=\"%d\"/>\n", j, s.histogram[j],(double)j/10,s.histogramO[j]);
+  if(params->diagHistogram){
+    fprintf(f, "  <histogram count=\"%d\" intercept=\"%.4f\" slope=\"%.4f\" rsq=\"%.4lf\" start=\"%.4f\" next=\"%.4f\" max=\"%d\">\n", s.histogramCount,s.tmpIntercept,s.tmpSlope,s.tmpRSquare,s.tmpIStartCorr,s.tmpINextCorr,s.tmpIMaxCorr);
+    for (j = 0; j<HISTOSZ; j++){
+      fprintf(f, "   <bin id=\"%d\" value=\"%d\" score=\"%.1lf\" count=\"%d\"/>\n", j, s.histogram[j],(double)j/10,s.histogramO[j]);
+    }
+    fprintf(f, "  </histogram>\n");
   }
-  fprintf(f, "  </histogram>\n");
   
 
   fprintf(f, " </scan>\n");
+}
+
+void KData::convertToResults(kScoreCard& sc, kResults& res, CnpxSpectrumQuery& sq, KDatabase& db, size_t index){
+  int j;//, k, n, d;
+  //char fName[1056];
+  //char outPath[1056];
+  char peptide[256];
+  //char tmp[16];
+  char specID[256];
+
+  kPeptide pep;
+  kPeptide pep2;
+  kPrecursor precursor;
+  //kScoreCard tmpSC2;
+
+  //kEnzymeRules enzyme;
+  //kResults res;
+  res.scanNumber = spec[index]->getScanNumber();
+  res.scanID = spec[index]->getNativeID();
+  res.rTime = spec[index]->getRTime();
+
+  sq.spectrum = res.baseName + "." + to_string(res.scanNumber) + "." + to_string(res.scanNumber) + "." + to_string(spec[index]->getPrecursor(0).charge);
+  sq.start_scan = res.scanNumber;
+  sq.end_scan = res.scanNumber;
+  sq.precursor_neutral_mass = spec[index]->getPrecursor(0).monoMass;
+  sq.assumed_charge = spec[index]->getPrecursor(0).charge;
+  sq.index = 1;
+  sq.retention_time_sec = spec[index]->getRTime() * 60;
+
+  //Get precursor ion for the PSM
+  precursor = spec[index]->getPrecursor((int)sc.precursor);
+  res.obsMass = precursor.monoMass;
+  res.charge = precursor.charge;
+  res.ppm = (sc.mass - precursor.monoMass) / precursor.monoMass * 1e6;
+  res.psmMass = sc.mass;
+  res.hk = precursor.corr;
+
+  sq.assumed_charge = res.charge;
+  sq.precursor_neutral_mass = res.obsMass;
+  //sq.spectrum is added later
+  //sq.spectrum = specID;
+
+  res.score = sc.simpleScore;
+  res.scoreDelta = sc.dScore;
+  res.eVal = sc.eVal;
+  res.eVal1 = sc.eVal1;
+  res.eVal2 = sc.eVal2;
+  res.matches1 = sc.matches1;
+  res.matches2 = sc.matches2;
+  res.conFrag1 = sc.conFrag1;
+  res.conFrag2 = sc.conFrag2;
+  if (sc.score1 < sc.score2) res.scorePepDif = sc.score1;
+  else res.scorePepDif = sc.score2;
+
+  KTopPeps* tp = spec[index]->getTopPeps((int)sc.precursor);
+  list<kSingletScoreCard>::iterator grr = tp->singletList.begin();
+  int rank = 1;
+  res.rankA = 0;
+  res.rankB = 0;
+  while (grr != tp->singletList.end()) {
+    if (res.rankA == 0 && sc.pep1 == grr->pep1 && sc.score1 == grr->simpleScore) res.rankA = rank;
+    if (res.rankB == 0 && sc.score2 > grr->simpleScore) res.rankB = rank;
+    rank++;
+    grr++;
+  }
+  if (res.rankB == 0) res.rankB = params->topCount;
+  res.rank = res.rankA + res.rankB;
+  res.scoreA = sc.score1;
+  res.scoreB = sc.score2;
+  res.massA = sc.mass1;
+  res.massB = sc.mass2;
+
+  //Get the peptide sequence(s)
+  pep = db.getPeptide(sc.pep1);
+  db.getPeptideSeq(pep.map->at(0).index, pep.map->at(0).start, pep.map->at(0).stop, peptide);
+  res.peptide1 = peptide;
+  res.mods1.clear();
+  res.cTerm1 = pep.cTerm;
+  res.nTerm1 = pep.nTerm;
+  res.linkSite1 = sc.site1;
+  if (sc.site2 > -1) res.linkSite2 = sc.site2; //loop-link
+  res.n15Pep1 = pep.n15;
+  for (j = 0; j < sc.mods1.size(); j++) res.mods1.push_back(sc.mods1[j]);
+  res.peptide2 = "";
+  if (sc.pep2 >= 0) {
+    pep2 = db.getPeptide(sc.pep2);
+    db.getPeptideSeq(pep2.map->at(0).index, pep2.map->at(0).start, pep2.map->at(0).stop, peptide);
+    res.peptide2 = peptide;
+    res.mods2.clear();
+    res.cTerm2 = pep2.cTerm;
+    res.nTerm2 = pep2.nTerm;
+    res.linkSite2 = sc.site2;
+    res.n15Pep2 = pep2.n15;
+    for (j = 0; j < sc.mods2.size(); j++) res.mods2.push_back(sc.mods2[j]);
+  }
+
+  //Process the peptide
+  res.modPeptide1 = processPeptide(pep, sc.mods1, db);
+  res.modPeptide2 = "";
+  if (res.peptide2.size() > 0) {
+    res.modPeptide2 = processPeptide(pep2, sc.mods2, db);
+  }
+
+  //Get the link positions - relative to the peptide
+  res.link1 = sc.k1;
+  res.link2 = sc.k2;
+  if (res.link1 >= 0) res.link1++;
+  if (res.link2 >= 0) res.link2++;
+
+  //set link type
+  res.type = 0;
+  if (sc.k1 >= 0 && sc.k2 >= 0) res.type = 1;
+  if (sc.pep1 >= 0 && sc.pep2 >= 0) res.type = 2;
+  if (res.type == 2 && sc.k1 == -1 && sc.k2 == -1) res.type = 3;
+
+  if (res.type > 0 && res.type != 3) {
+    res.xlMass = link[sc.link].mass;
+    res.xlLabel = link[sc.link].label;
+  }
+
+  //Get the peptide indexes
+  res.pep1 = sc.pep1;
+  res.pep2 = sc.pep2;
+  res.linkable1 = sc.linkable1;
+  res.linkable2 = sc.linkable2;
+  res.linkerID = sc.link;
+
+  //Process the protein
+  processProtein(res.pep1, res.link1 - 1, res.linkSite1, res.protein1, res.protPos1, res.decoy1, db);
+  if (res.modPeptide2.size() > 1) {
+    processProtein(res.pep2, res.link2 - 1, res.linkSite2, res.protein2, res.protPos2, res.decoy2, db);
+    if (res.decoy1 || res.decoy2) res.decoy = true;
+    else res.decoy = false;
+  } else if (res.linkSite2 > -1) { //loop link special case.
+    processProtein(res.pep1, res.link2 - 1, res.linkSite2, res.protein2, res.protPos2, res.decoy2, db);
+    if (!res.decoy1 || !res.decoy2) res.decoy = false;
+    else res.decoy = true;
+  } else {
+    res.decoy = res.decoy1;
+  }
+
 }
 
 bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
@@ -1816,7 +2073,13 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   vector<kResults> vRes;
 
   NeoPepXMLParser p;
+  NeoPepXMLParser pSingle;
+  NeoPepXMLParser pLoop;
+  NeoPepXMLParser pXL;
   string pepXML_fileName;
+  string pepXML_fileName_single;
+  string pepXML_fileName_loop;
+  string pepXML_fileName_xl;
 
   CMzIdentML mzID;
   string analysisSoftware_ref;
@@ -2027,8 +2290,31 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     if(ft==NULL) bBadFiles=true;
     else fclose(ft);
     pa.summary_xml = pepXML_fileName;
-    
     p.msms_pipeline_analysis.push_back(pa);
+
+    sprintf(fName, "%s.single.pep.xml", params->outFile);
+    pepXML_fileName_single = fName;
+    ft = fopen(fName, "wt");
+    if (ft == NULL) bBadFiles = true;
+    else fclose(ft);
+    pa.summary_xml = pepXML_fileName_single;
+    pSingle.msms_pipeline_analysis.push_back(pa);
+
+    sprintf(fName, "%s.loop.pep.xml", params->outFile);
+    pepXML_fileName_loop = fName;
+    ft = fopen(fName, "wt");
+    if (ft == NULL) bBadFiles = true;
+    else fclose(ft);
+    pa.summary_xml = pepXML_fileName_loop;
+    pLoop.msms_pipeline_analysis.push_back(pa);
+
+    sprintf(fName, "%s.xl.pep.xml", params->outFile);
+    pepXML_fileName_xl = fName;
+    ft = fopen(fName, "wt");
+    if (ft == NULL) bBadFiles = true;
+    else fclose(ft);
+    pa.summary_xml = pepXML_fileName_xl;
+    pXL.msms_pipeline_analysis.push_back(pa);
   }
   
   if (params->diag->size()>0){ //create diagnostic file if needed
@@ -2220,7 +2506,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       res.linkSite1 = tmpSC.site1;
       if(tmpSC.site2>-1) res.linkSite2=tmpSC.site2; //loop-link
       res.n15Pep1 = pep.n15;
-      for(j=0;j<tmpSC.mods1->size();j++) res.mods1.push_back(tmpSC.mods1->at(j));
+      for(j=0;j<tmpSC.mods1.size();j++) res.mods1.push_back(tmpSC.mods1[j]);
       res.peptide2 = "";
       if(tmpSC.pep2>=0){
         pep2 = db.getPeptide(tmpSC.pep2);
@@ -2231,7 +2517,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         res.nTerm2 = pep2.nTerm;
         res.linkSite2 = tmpSC.site2;
         res.n15Pep2 = pep2.n15;
-        for(j=0;j<tmpSC.mods2->size();j++) res.mods2.push_back(tmpSC.mods2->at(j));
+        for(j=0;j<tmpSC.mods2.size();j++) res.mods2.push_back(tmpSC.mods2[j]);
       }
 
       //Process the peptide
@@ -2318,58 +2604,6 @@ bool KData::outputResults(KDatabase& db, KParams& par){
       sprintf(tmp, "(%d)", res.link2);
       tmpPep2 += tmp;
 
-      //Export Results:
-      //fprintf(fOut,"%d",res.scanNumber);
-      ////fprintf(fOut, "\t%.4lf",res.hk); //this was for diagnostics of hardklor correlation results (or lack of)
-      //fprintf(fOut,"\t%.4f",res.rTime);
-      //fprintf(fOut,"\t%.4lf",res.obsMass);
-      //fprintf(fOut,"\t%d",res.charge);
-      //fprintf(fOut,"\t%.4lf",res.psmMass);
-      //fprintf(fOut,"\t%.4lf",res.ppm);
-      //fprintf(fOut,"\t%.4lf",res.score);
-      //fprintf(fOut,"\t%.4lf",res.scoreDelta);
-      //fprintf(fOut,"\t%.3e",res.eVal);
-      ////fprintf(fOut,"\t%.4lf",res.scorePepDif);
-      //if (res.scoreA == 0)fprintf(fOut, "\t%.4lf", res.score);
-      //else fprintf(fOut,"\t%.4lf",res.scoreA);
-      //fprintf(fOut,"\t%.3e",res.eVal1);
-      //fprintf(fOut,"\t%s",&res.modPeptide1[0]);
-      //if(res.n15Pep1) fprintf(fOut,"-15N");
-      //fprintf(fOut,"\t%d",res.link1);
-
-      ////export protein
-      //fprintf(fOut, "\t%s", res.protein1.c_str());
-      ///* not sure about this anymore - probably breaking something by removing it
-      //if(bDupe){
-      //  pep = db.getPeptide(res.pep2);
-      //  for(j=0;j<pep.map->size();j++){
-      //    fprintf(fOut,"%s;",&db[pep.map->at(j).index].name[0]);
-      //    //if(res.link1>=0) fprintf(fOut,"(%d);",pep.map->at(j).start+res.link1); //only non-linked peptides
-      //  }
-      //}
-      //*/
-      //if(res.link1>-1) fprintf(fOut,"\t%s",res.protPos1.c_str());
-      //else fprintf(fOut,"\t-");
-
-      //if(res.modPeptide2.size()>1) {
-      //  fprintf(fOut, "\t%.4lf", res.scoreB);
-      //  fprintf(fOut, "\t%.3e", res.eVal2);
-      //  fprintf(fOut,"\t%s",&res.modPeptide2[0]);
-      //  if (res.n15Pep2) fprintf(fOut, "-15N");
-      //  fprintf(fOut,"\t%d",res.link2);
-      //  fprintf(fOut,"\t%s",res.protein2.c_str());
-      //  fprintf(fOut, "\t%s", res.protPos2.c_str());
-      //  if(tmpSC.link>-1)fprintf(fOut,"\t%.4lf",link[tmpSC.link].mass);
-      //  else fprintf(fOut,"\t0");
-      //} else if(res.link2>-1){
-      //  fprintf(fOut,"\t0\t999\t-\t%d\t-\t%s",res.link2,res.protPos2.c_str());
-      //  fprintf(fOut,"\t%.4lf",link[tmpSC.link].mass);
-      //} else {
-      //  fprintf(fOut,"\t0\t999\t-\t-1\t-\t-\t0");
-      //}
-      //
-      //fprintf(fOut,"\n");
-
       if(res.type==2){
         bInter=true;
         pep = db.getPeptide(res.pep1);
@@ -2403,6 +2637,39 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
       if(params->exportPepXML){
         outputNeoPepXML(sq,db,res);
+        if(scoreIndex==0){
+          if(spec[i]->topSingle.simpleScore>0) {
+            kResults r;
+            CnpxSpectrumQuery sq2;
+            convertToResults(spec[i]->topSingle,r,sq2,db,i);
+            //cout << sq2.start_scan << " .. " << res.scanNumber << endl;
+            outputNeoPepXML(sq2,db,r);
+            sq2.index = (int)pSingle.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size() + 1;
+            sq2.spectrum=sq.spectrum;
+            pSingle.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.push_back(sq2);
+            //if(sq2.start_scan<1) { cout << "single wtf " << sq2.start_scan << endl;}
+          }
+          if (spec[i]->topLoop.simpleScore > 0) {
+            kResults r;
+            CnpxSpectrumQuery sq2;
+            convertToResults(spec[i]->topLoop, r, sq2, db, i);
+            outputNeoPepXML(sq2, db, r);
+            sq2.index = (int)pLoop.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size() + 1;
+            sq2.spectrum = sq.spectrum;
+            pLoop.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.push_back(sq2);
+            //if (sq2.start_scan < 1) { cout << "loop wtf " << sq2.start_scan << endl; }
+          }
+          if (spec[i]->topXL.simpleScore > 0) {
+            kResults r;
+            CnpxSpectrumQuery sq2;
+            convertToResults(spec[i]->topXL, r, sq2, db, i);
+            outputNeoPepXML(sq2, db, r);
+            sq2.index = (int)pXL.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.size() + 1;
+            sq2.spectrum = sq.spectrum;
+            pXL.msms_pipeline_analysis[0].msms_run_summary[0].spectrum_query.push_back(sq2);
+            //if (sq2.start_scan < 1) { cout << "xl wtf " << sq2.start_scan << endl; }
+          }
+        }
       }
 
       //Get the next entry - it must also be exported if it has the same score
@@ -2432,6 +2699,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   }
   if(params->exportPepXML){
     p.write(pepXML_fileName.c_str(),true);
+    pSingle.write(pepXML_fileName_single.c_str(),true);
+    pLoop.write(pepXML_fileName_loop.c_str(),true);
+    pXL.write(pepXML_fileName_xl.c_str(),true);
     //p.closePepXML();
   }
   if (params->exportMzID){
@@ -3637,7 +3907,7 @@ bool KData::processPath(const char* in_path, char* out_path){
 
 }
 
-string KData::processPeptide(kPeptide& pep, vector<kPepMod>* mod, KDatabase& db){
+string KData::processPeptide(kPeptide& pep, vector<kPepMod>& mod, KDatabase& db){
   char tmp[32];
   size_t j,k;
   string seq = "";
@@ -3649,25 +3919,25 @@ string KData::processPeptide(kPeptide& pep, vector<kPepMod>* mod, KDatabase& db)
     sprintf(tmp, "n[%.2lf]", aa.getFixedModMass('$'));
     seq += tmp;
   }
-  for (k = 0; k<mod->size(); k++){ //check for n-terminal peptide mod
-    if (mod->at(k).pos == -1){
-      sprintf(tmp, "n[%.2lf]", mod->at(k).mass);
+  for (k = 0; k<mod.size(); k++){ //check for n-terminal peptide mod
+    if (mod[k].pos == -1){
+      sprintf(tmp, "n[%.2lf]", mod[k].mass);
       seq += tmp;
     }
   }
   for (j = 0; j<peptide.size(); j++) {
     seq += peptide[j];
-    for (k = 0; k<mod->size(); k++){
-      if(mod->at(k).pos<0) continue;
-      if (j == (size_t)mod->at(k).pos){
-        sprintf(tmp, "[%.2lf]", mod->at(k).mass);
+    for (k = 0; k<mod.size(); k++){
+      if(mod[k].pos<0) continue;
+      if (j == (size_t)mod[k].pos){
+        sprintf(tmp, "[%.2lf]", mod[k].mass);
         seq += tmp;
       }
     }
   }
-  for (k = 0; k<mod->size(); k++){ //check for c-terminal peptide mod
-    if (mod->at(k).pos ==-2){
-      sprintf(tmp, "c[%.2lf]", mod->at(k).mass);
+  for (k = 0; k<mod.size(); k++){ //check for c-terminal peptide mod
+    if (mod[k].pos ==-2){
+      sprintf(tmp, "c[%.2lf]", mod[k].mass);
       seq += tmp;
     }
   }

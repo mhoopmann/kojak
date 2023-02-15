@@ -405,10 +405,45 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
   double dRSquare;
   bool bSkipXL=false;
   bool bSingletFail=false;
+  double topScore=0;
 
   //tmpSingCount = histogramSingletCount;
   tmpHistCount = histogramCount;
-  if (topHit[0].simpleScore == 0) return true; //no need to do any of this if there are no PSMs...
+
+  for(int a=0;a<sizePrecursor();a++){
+    list<kScoreCard>* sc;
+    for (int b = 0; b < 3; b++) {
+      if (b == 0) sc = &getPrecursor2(a)->topSingle;
+      else if (b == 1) sc = &getPrecursor2(a)->topLoop;
+      else sc = &getPrecursor2(a)->topXL;
+
+      if(sc->size()==0) continue;
+      list<kScoreCard>::iterator it = sc->begin();
+      if(b==0){
+        if(it->simpleScore<=topSingle.simpleScore) continue;
+      } else if (b == 1){
+        if(it->simpleScore <= topLoop.simpleScore) continue;
+      } else {
+        if (it->simpleScore <= topXL.simpleScore) continue;
+      }
+
+      //always calculate the delta score of this first hit
+      if(sc->size()>1){
+        list<kScoreCard>::iterator it2=it;
+        it2++;
+        it->dScore=it->simpleScore - it2->simpleScore;
+      } else it->dScore=it->simpleScore;
+        
+      //put this PSM on top
+      if(b==0) topSingle=*it;
+      else if(b==1) topLoop=*it;
+      else topXL=*it;
+
+      //record highest score of all
+      if(it->simpleScore>topScore) topScore=it->simpleScore;
+    }
+  }
+  if (topScore == 0) return true; //no need to do any of this if there are no PSMs...
 
   //precompute which ion series to use
   decoyIonSz=0;
@@ -445,14 +480,40 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
 
   dSlope *= 10.0;
 
+  //Make the tophit list
+  int iTop=0;
+  if(topSingle.simpleScore==topScore) {
+    topHit[iTop++]=topSingle;
+    for(size_t a=0;a<topSingle.alternate.size();a++) {
+      if(iTop==20) break;
+      topHit[iTop]=topSingle.alternate[a];
+      topHit[iTop++].dScore=topSingle.dScore;
+    }
+  }
+  if(iTop<20 && topLoop.simpleScore==topScore) {
+    topHit[iTop++]=topLoop;
+    for (size_t a = 0; a < topLoop.alternate.size(); a++) {
+      if (iTop == 20) break;
+      topHit[iTop] = topLoop.alternate[a];
+      topHit[iTop++].dScore = topLoop.dScore;
+    }
+  }
+  if(iTop<20 && topXL.simpleScore==topScore) {
+    topHit[iTop++]=topXL;
+    for (size_t a = 0; a < topXL.alternate.size(); a++) {
+      if (iTop == 20) break;
+      topHit[iTop] = topXL.alternate[a];
+      topHit[iTop++].dScore = topXL.dScore;
+    }
+  }
+
   //reorder top scoring peptide so that ties always appear in the same order instead
   //of the order in which the search threads finished (which can change from run to run).
   string dStr = params->decoy;
   refreshScore(db,dStr);
 
-  iLoopCount = 20; //score all e-values among top hits?
-  double topScore=topHit[0].simpleScore;
-  for (i = 0; i<iLoopCount; i++) {
+  iLoopCount=20;
+  for (i = 0; i < iLoopCount; i++) {
     if (topHit[i].simpleScore == 0) break; //score all e-values among top hits?
     if (dSlope >= 0.0) {
       topHit[i].eVal = 1e12;
@@ -463,20 +524,24 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
 
     //score individual peptides
     if(topHit[i].score2>0){
-      if(topHit[i].simpleScore==topScore){ //only do this for top hits right now: it is slow...
-        if(i>0){
-          //check if we've computed these already - happens with one of the peptides in ties.
-          //Note: there are slight differences if the alternate peptide in a tie score has a slightly different mass, resulting in a different decoy
-          //distribution should the order of peptides change in the next run.
-          if(topHit[i].score1==topHit[i-1].score1) topHit[i].eVal1=topHit[i-1].eVal1;
-          else topHit[i].eVal1 = generateSingletDecoys2(params, decoys, topHit[i].score1, topHit[i].mass1, (int)topHit[i].precursor);
-          if(topHit[i].score2==topHit[i-1].score2) topHit[i].eVal2=topHit[i-1].eVal2;
-          else topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor);
-        } else {
-          topHit[i].eVal1 = generateSingletDecoys2(params,decoys,topHit[i].score1,topHit[i].mass1,(int)topHit[i].precursor);
-          topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor);
-        }
+      for (size_t c = 0; c < topHit[i].alternate.size(); c++) {
+        topHit[i].alternate[c].eVal= topHit[i].eVal;
       }
+
+      //only generate these histograms for the first peptides
+      topHit[i].eVal1 = generateSingletDecoys2(params, decoys, topHit[i].score1, topHit[i].mass1, (int)topHit[i].precursor);
+      topHit[i].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].score2, topHit[i].mass2, (int)topHit[i].precursor);
+
+      //Use same histogram for alternate peptides (ties)
+      //Note: there are slight differences if the alternate peptide in a tie score has a slightly different mass, resulting in a different decoy
+      //distribution should the order of peptides change in the next run.
+      for(size_t c=0;c< topHit[i].alternate.size();c++){
+        if(topHit[i].alternate[c].score1== topHit[i].score1) topHit[i].alternate[c].eVal1= topHit[i].eVal1;
+        else topHit[i].alternate[c].eVal1 = generateSingletDecoys2(params, decoys, topHit[i].alternate[c].score1, topHit[i].alternate[c].mass1, (int)topHit[i].alternate[c].precursor);
+        if(topHit[i].alternate[c].score2== topHit[i].score2) topHit[i].alternate[c].eVal2= topHit[i].eVal2;
+        else topHit[i].alternate[c].eVal2 = generateSingletDecoys2(params, decoys, topHit[i].alternate[c].score2, topHit[i].alternate[c].mass2, (int)topHit[i].alternate[c].precursor);
+      }
+            
     } else {
       if (dSlope >= 0.0) {
         topHit[i].eVal1 = 1e12;
@@ -487,6 +552,23 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
       topHit[i].eVal2 = 1e12;
     }
   }
+  ////score topSingle,topLoop,topXL
+  //if(topSingle.simpleScore>0){
+  //  topSingle.eVal = pow(10.0, dSlope * topSingle.simpleScore + dIntercept);
+  //  if (topSingle.eVal > 1e12 || dSlope >= 0.0) topSingle.eVal = 1e12;
+  //} else topSingle.eVal=1e12;
+
+  //if (topLoop.simpleScore > 0) {
+  //  topLoop.eVal = pow(10.0, dSlope * topLoop.simpleScore + dIntercept);
+  //  if (topLoop.eVal > 1e12 || dSlope >= 0.0) topLoop.eVal = 1e12;
+  //} else topLoop.eVal = 1e12;
+
+  //if (topXL.simpleScore > 0) {
+  //  topXL.eVal = pow(10.0, dSlope * topXL.simpleScore + dIntercept);
+  //  if (topXL.eVal > 1e12 || dSlope >= 0.0) topXL.eVal = 1e12;
+  //  topXL.eVal1 = generateSingletDecoys2(params, decoys, topXL.score1, topXL.mass1, (int)topXL.precursor);
+  //  topXL.eVal2 = generateSingletDecoys2(params, decoys, topXL.score2, topXL.mass2, (int)topXL.precursor);
+  //} else topXL.eVal = 1e12;
 
   return true;
 }
@@ -508,38 +590,117 @@ bool KSpectrum::checkDecoy(KDatabase& db, string& dStr, kScoreCard& hit){
   return bDecoy;
 }
 
-void KSpectrum::checkScore(kScoreCard& s){
-  unsigned int i;
-  unsigned int j;
+void KSpectrum::checkScore(kScoreCard& s, ePSMList listID){
+  kPrecursor* pre=&precursor->at(s.precursor);
+  list<kScoreCard>* psmList;
+  if(listID==listSingle) psmList=&pre->topSingle;
+  else if(listID==listLoop) psmList=&pre->topLoop;
+  else psmList=&pre->topXL;
 
-  //edge case for "reversible" cross-links: check if already matches top hit identically
-  //note that such duplications still occur below the top score, but shouldn't influence the final result to the user
-  int k=0;
-  while(k<20 && s.simpleScore==topHit[k].simpleScore){
-    if(s.pep1==topHit[k].pep1 && s.pep2==topHit[k].pep2 && s.k1==topHit[k].k1 && s.k2==topHit[k].k2){
-      if(s.mods1->size()==topHit[k].mods1->size() && s.mods2->size()==topHit[k].mods2->size()){
-        for(i=0;i<s.mods1->size();i++){
-          if(s.mods1->at(i).mass!=topHit[k].mods1->at(i).mass || s.mods1->at(i).pos!=topHit[k].mods1->at(i).pos) break;
-        }
-        for(j=0;j<s.mods2->size();j++){
-          if(s.mods2->at(j).mass!=topHit[k].mods2->at(j).mass || s.mods2->at(j).pos!=topHit[k].mods2->at(j).pos) break;
-        }
-        if(i==s.mods1->size() && j==s.mods2->size()) return;
-      }
-    }
-    k++;
-  }
-
-  for(i=0;i<20;i++){
-    if(s.simpleScore > topHit[i].simpleScore) {
-      for(j=19;j>i;j--) {
-        topHit[j]=topHit[j-1];
-      }
-      topHit[i] = s;
-      lowScore=topHit[19].simpleScore;
+  //check bottom of list first
+  list<kScoreCard>::iterator it=psmList->end();
+  if(it== psmList->begin()){
+    //list is empty, add the item.
+    psmList->push_front(s);
+    return;
+  } else {
+    it--;
+    if(s.simpleScore<it->simpleScore){
+      if(psmList->size()<5) psmList->push_back(s);
       return;
     }
   }
+
+  //check from top of list
+  it=psmList->begin();
+  while(it!= psmList->end()){
+    if(s.simpleScore==it->simpleScore){
+      it->alternate.push_back(s);
+      return;
+    } else if(s.simpleScore>it->simpleScore) {
+      psmList->insert(it,s);
+      if(psmList->size()>5) {
+        psmList->pop_back();
+        if(listID==listXL) lowScore=psmList->back().simpleScore;
+      } else if(psmList->size()==5 && listID==listXL){
+        lowScore = psmList->back().simpleScore;
+      }
+      return;
+    }
+    it++;
+  }
+  //  if (s.simpleScore == it->simpleScore) {
+  //    it->alternate.push_back(s);
+  //    return;
+  //  }
+  //  psmList->push_front(s);
+  //  if (psmList->size() > 5) {
+  //    psmList->pop_back();
+  //    if (listID == listXL) lowScore = psmList->back().simpleScore;
+  //  } else if (psmList->size() == 5 && listID == listXL) {
+  //    lowScore = psmList->back().simpleScore;
+  //  }
+  //}
+
+  //unsigned int i;
+  //unsigned int j;
+
+  //if(iList>0){
+  //  if(iList==1){
+  //    if(s.simpleScore>topSingle.simpleScore) {
+  //      s.dScore=s.simpleScore-topSingle.simpleScore;
+  //      topSingle=s;
+  //    } else {
+  //      double d=topSingle.simpleScore-s.simpleScore;
+  //      if(d>0 && d<topSingle.dScore) topSingle.dScore=d;
+  //    }
+  //  } else if(iList==2){
+  //    if(s.simpleScore>topLoop.simpleScore) {
+  //      s.dScore = s.simpleScore - topLoop.simpleScore;
+  //      topLoop=s;
+  //    } else {
+  //      double d = topLoop.simpleScore - s.simpleScore;
+  //      if (d > 0 && d < topLoop.dScore) topLoop.dScore = d;
+  //    }
+  //  } else if(iList==3){
+  //    if(s.simpleScore>topXL.simpleScore) {
+  //      s.dScore = s.simpleScore - topXL.simpleScore;
+  //      topXL=s;
+  //    } else {
+  //      double d = topXL.simpleScore - s.simpleScore;
+  //      if (d > 0 && d < topXL.dScore) topXL.dScore = d;
+  //    }
+  //  }
+  //}
+
+  ////edge case for "reversible" cross-links: check if already matches top hit identically
+  ////note that such duplications still occur below the top score, but shouldn't influence the final result to the user
+  //int k=0;
+  //while(k<20 && s.simpleScore==topHit[k].simpleScore){
+  //  if(s.pep1==topHit[k].pep1 && s.pep2==topHit[k].pep2 && s.k1==topHit[k].k1 && s.k2==topHit[k].k2){
+  //    if(s.mods1.size()==topHit[k].mods1.size() && s.mods2.size()==topHit[k].mods2.size()){
+  //      for(i=0;i<s.mods1.size();i++){
+  //        if(s.mods1[i].mass!=topHit[k].mods1[i].mass || s.mods1[i].pos!=topHit[k].mods1[i].pos) break;
+  //      }
+  //      for(j=0;j<s.mods2.size();j++){
+  //        if(s.mods2[j].mass!=topHit[k].mods2[j].mass || s.mods2[j].pos!=topHit[k].mods2[j].pos) break;
+  //      }
+  //      if(i==s.mods1.size() && j==s.mods2.size()) return;
+  //    }
+  //  }
+  //  k++;
+  //}
+
+  //for(i=0;i<20;i++){
+  //  if(s.simpleScore > topHit[i].simpleScore) {
+  //    for(j=19;j>i;j--) {
+  //      topHit[j]=topHit[j-1];
+  //    }
+  //    topHit[i] = s;
+  //    lowScore=topHit[19].simpleScore;
+  //    return;
+  //  }
+  //}
 }
 
 
@@ -1114,11 +1275,11 @@ void KSpectrum::refreshScore(KDatabase& db, string& dStr){
       else if(c>0) continue;
 
       //Check modifications
-      if(topHit[b].mods1->size()<topHit[a].mods1->size()) goto swap_hit;
-      if(topHit[a].mods1->size()<topHit[b].mods1->size()) continue;
-      for(size_t d=0;d<topHit[a].mods1->size();d++){
-        if(topHit[b].mods1->at(d).pos<topHit[a].mods1->at(d).pos) goto swap_hit;
-        if(topHit[b].mods1->at(d).mass<topHit[a].mods1->at(d).mass) goto swap_hit;
+      if(topHit[b].mods1.size()<topHit[a].mods1.size()) goto swap_hit;
+      if(topHit[a].mods1.size()<topHit[b].mods1.size()) continue;
+      for(size_t d=0;d<topHit[a].mods1.size();d++){
+        if(topHit[b].mods1[d].pos<topHit[a].mods1[d].pos) goto swap_hit;
+        if(topHit[b].mods1[d].mass<topHit[a].mods1[d].mass) goto swap_hit;
       }
 
       //check link position (first peptide)
@@ -1138,11 +1299,11 @@ void KSpectrum::refreshScore(KDatabase& db, string& dStr){
         else if(c==0){
 
           //check modifications
-          if (topHit[b].mods2->size()<topHit[a].mods2->size()) goto swap_hit;
-          if (topHit[a].mods2->size()<topHit[b].mods2->size()) continue;
-          for (size_t d = 0; d<topHit[a].mods2->size(); d++){
-            if (topHit[b].mods2->at(d).pos<topHit[a].mods2->at(d).pos) goto swap_hit;
-            if (topHit[b].mods2->at(d).mass<topHit[a].mods2->at(d).mass) goto swap_hit;
+          if (topHit[b].mods2.size()<topHit[a].mods2.size()) goto swap_hit;
+          if (topHit[a].mods2.size()<topHit[b].mods2.size()) continue;
+          for (size_t d = 0; d<topHit[a].mods2.size(); d++){
+            if (topHit[b].mods2[d].pos<topHit[a].mods2[d].pos) goto swap_hit;
+            if (topHit[b].mods2[d].mass<topHit[a].mods2[d].mass) goto swap_hit;
           }
 
           //check link position

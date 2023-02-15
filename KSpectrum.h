@@ -124,7 +124,7 @@ public:
   bool  calcEValue          (kParams* params, KDecoys& decoys, KDatabase& db);
   void  clearPrecursors     ();
   bool  checkDecoy          (KDatabase& db, std::string& dStr, kScoreCard& hit);  //To be run AFTER analysis completes.
-  void  checkScore          (kScoreCard& s);
+  void  checkScore          (kScoreCard& s, ePSMList listID=listSingle);
   double  generateSingletDecoys2(kParams* params, KDecoys& decoys, double xcorr, double mass, int preIndex);
   bool  generateXcorrDecoys (kParams* params, KDecoys& decoys);
   void  linearRegression2   (double& slope, double& intercept, int&  iMaxXcorr, int& iStartXcorr, int& iNextXcorr, double& rSquared);
@@ -133,6 +133,10 @@ public:
   void  sortMZ              ();
   void  sortIntensityRev    () { sort(spec->begin(),spec->end(),compareIntensityRev); }
   void  kojakXCorr          (double* pdTempRawData, double* pdTmpFastXcorrData, float* pfFastXcorrData, kPreprocessStruct*& pPre);
+
+  kScoreCard            topSingle;
+  kScoreCard            topLoop;
+  kScoreCard            topXL;
 
 private:
 
@@ -156,6 +160,7 @@ private:
   std::vector<KTopPeps>*     singlets;
   std::vector<kSpecPoint>*   spec;
   kScoreCard            topHit[20];
+
   int                   xCorrArraySize;
 
   //Functions

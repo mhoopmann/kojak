@@ -21,11 +21,18 @@ limitations under the License.
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <list>
 #include <map>
 #include <vector>
 
 #include <iostream>
 #include <exception>
+
+enum ePSMList{
+  listSingle=0,
+  listLoop,
+  listXL
+};
 
 //FASTA database structure
 typedef struct kDB{
@@ -151,6 +158,7 @@ typedef struct kParams {
   int     topCount;
   int     truncate;
   bool    buildDecoy;
+  bool    diagHistogram;
   bool    diffModsOnXL;
   bool    dimers;
   bool    dimersXL;
@@ -211,6 +219,7 @@ typedef struct kParams {
     topCount=10;
     truncate=0;
     buildDecoy = false;
+    diagHistogram=false;
     diffModsOnXL=false;
     dimers=false;
     dimersXL=true;
@@ -278,6 +287,7 @@ typedef struct kParams {
     topCount=p.topCount;
     truncate=p.truncate;
     buildDecoy = p.buildDecoy;
+    diagHistogram=p.diagHistogram;
     diffModsOnXL=p.diffModsOnXL;
     dimers=p.dimers;
     dimersXL=p.dimersXL;
@@ -431,6 +441,7 @@ typedef struct kScoreCard{
   int     conFrag1;
   int     conFrag2;
   float   simpleScore;
+  double  dScore;
   double  eVal;
   double  eVal1;
   double  eVal2;
@@ -443,8 +454,11 @@ typedef struct kScoreCard{
   float  cpScore2;
   float  uScore1;
   float  uScore2;
-  std::vector<kPepMod>* mods1;
-  std::vector<kPepMod>* mods2;
+  //std::vector<kPepMod>* mods1;
+  //std::vector<kPepMod>* mods2;
+  std::vector<kPepMod> mods1;
+  std::vector<kPepMod> mods2;
+  std::vector<kScoreCard> alternate;
   kScoreCard(){
     linkable1=false;
     linkable2=false;
@@ -457,6 +471,7 @@ typedef struct kScoreCard{
     pep1=0;
     pep2=0;
     simpleScore=0;
+    dScore=0;
     eVal=0;
     eVal1=0;
     eVal2=0;
@@ -473,9 +488,10 @@ typedef struct kScoreCard{
     matches2=0;
     conFrag1=0;
     conFrag2=0;
-    mods1 = new std::vector<kPepMod>;
-    mods2 = new std::vector<kPepMod>;
+    //mods1 = new std::vector<kPepMod>;
+    //mods2 = new std::vector<kPepMod>;
   }
+  /*
   kScoreCard(const kScoreCard& p){
     linkable1=p.linkable1;
     linkable2=p.linkable2;
@@ -488,6 +504,7 @@ typedef struct kScoreCard{
     pep1=p.pep1;
     pep2=p.pep2;
     simpleScore=p.simpleScore;
+    dScore=p.dScore;
     eVal=p.eVal;
     eVal1=p.eVal1;
     eVal2=p.eVal2;
@@ -524,6 +541,7 @@ typedef struct kScoreCard{
       pep1=p.pep1;
       pep2=p.pep2;
       simpleScore=p.simpleScore;
+      dScore=p.dScore;
       eVal=p.eVal;
       eVal1 = p.eVal1;
       eVal2 = p.eVal2;
@@ -546,7 +564,8 @@ typedef struct kScoreCard{
       mods2 = new std::vector<kPepMod>(*p.mods2);
     }
     return *this;
-  }
+  }*/
+
 } kScoreCard;
 
 typedef struct kSingletScoreCard{
@@ -647,6 +666,9 @@ typedef struct kPrecursor{
   double  corr;
   char    label;
   double  monoMass;
+  std::list<kScoreCard> topSingle;
+  std::list<kScoreCard> topLoop;
+  std::list<kScoreCard> topXL;
   kPrecursor(){
     charge=0;
     corr=0;
@@ -716,6 +738,15 @@ typedef struct kResults{
   std::vector<kPepMod> mods1;
   std::vector<kPepMod> mods2;
 } kResults;
+
+typedef struct kDiag{
+  std::string sequence;
+  double simpleScore;
+  double cpScore;
+  double evalue;
+  double mass;
+  double xlMass;
+} kDiag;
 
 typedef struct kCKey{
   int key;

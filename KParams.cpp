@@ -337,9 +337,10 @@ void KParams::exportDefault(string ver){
   fprintf(f, "top_count = %d             #number of candidate alpha peptides from first pass to attempt to crosslink in second pass.\n", def.topCount);
   
   fprintf(f, "\n\n#\n# Diagnostics: Only recommended for advanced users. If enabled, a diagnostic XML file is output with the Kojak results.\n#\n");
-  fprintf(f, "# diagnostic = 502       #diagnose intermediate peptide calculations for any scan number.\n");
-  fprintf(f, "# diagnostic = 503       #list multiple MS2 scan numbers, one per line.\n");
-  fprintf(f, "# diagnostic = -1        #or specify -1 to diagnose all MS2 scans.\n");
+  fprintf(f, "# diagnostic = 502          #diagnose intermediate peptide calculations for any scan number.\n");
+  fprintf(f, "# diagnostic = 503          #list multiple MS2 scan numbers, one per line.\n");
+  fprintf(f, "# diagnostic = -1           #or specify -1 to diagnose all MS2 scans.\n");
+  fprintf(f, "# diagnostic_histogram = 1  #include score histogram with the diagnostics.\n");
 
   fclose(f);
 }
@@ -452,6 +453,11 @@ void KParams::parse(const char* cmd) {
     if (atoi(&values[0][0])==-1) params->diag->clear();
     params->diag->push_back(atoi(&values[0][0]));
     logParam("diagnostic",values[0]);
+
+  } else if (strcmp(param, "diagnostic_histogram") == 0) {  //any non-zero value means include the histogram in the diagnostics
+    if (atoi(values[1].c_str()) != 0) params->diagHistogram = true;
+    else params->diagHistogram = false;
+    logParam("diagnostic_histogram", values[0]);
 
   } else if(strcmp(param,"diff_mods_on_xl")==0){
     if(atoi(&values[0][0])!=0) params->diffModsOnXL=true;

@@ -844,8 +844,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
         //}
        
 
-        protSC.mods1->clear();
-        protSC.mods2->clear();
+        protSC.mods1.clear();
+        protSC.mods2.clear();
 
         //alphabetize cross-linked peptides before storing them; this prevents confusion with duplications downstream
         //instead of alphabetical, order them by mass (larger first), this has implications with downstream scoring...
@@ -876,7 +876,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.matches2 = tsc->matches;
           protSC.conFrag1 = conFrag;
           protSC.conFrag2 = tsc->conFrag;
-          for (x = 0; x<tsc->modLen; x++) protSC.mods2->push_back(tsc->mods[x]);
+          for (x = 0; x<tsc->modLen; x++) protSC.mods2.push_back(tsc->mods[x]);
           ret=true; //indicates where to put mods to pep2
         } else { //pep1 listed first
           protSC.k1 = tsc->k1;
@@ -897,7 +897,7 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
           protSC.matches2 = matches;
           protSC.conFrag1 = tsc->conFrag;
           protSC.conFrag2 = conFrag;
-          for (x = 0; x<tsc->modLen; x++) protSC.mods1->push_back(tsc->mods[x]);
+          for (x = 0; x<tsc->modLen; x++) protSC.mods1.push_back(tsc->mods[x]);
           ret=false; //indicates where to put mods to pep2
         }
         
@@ -925,8 +925,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
                 if(iset->nTermMass!=0){
                   mod.pos=-1;
                   mod.mass=iset->nTermMass;
-                  if (ret) protSC.mods1->push_back(mod);
-                  else protSC.mods2->push_back(mod);
+                  if (ret) protSC.mods1.push_back(mod);
+                  else protSC.mods2.push_back(mod);
                 }
                 if(fabs(iset->mods[j]-iset->nTermMass)<0.0001) continue;
               }
@@ -934,8 +934,8 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
                 if (iset->cTermMass != 0){
                   mod.pos = -2;
                   mod.mass = iset->cTermMass;
-                  if (ret) protSC.mods1->push_back(mod);
-                  else protSC.mods2->push_back(mod);
+                  if (ret) protSC.mods1.push_back(mod);
+                  else protSC.mods2.push_back(mod);
                 }
                 if (fabs(iset->mods[j] - iset->cTermMass)<0.0001) continue;
               }
@@ -944,13 +944,13 @@ bool KAnalysis::scoreSingletSpectra2(int index, int sIndex, double mass, double 
               //else mod.term = false;
               mod.pos = (char)j;
               mod.mass = iset->mods[j];
-              if(ret) protSC.mods1->push_back(mod);
-              else protSC.mods2->push_back(mod);
+              if(ret) protSC.mods1.push_back(mod);
+              else protSC.mods2.push_back(mod);
             }
           }
         }
         Threading::LockMutex(mutexSpecScore[index]);
-        s->checkScore(protSC);
+        s->checkScore(protSC,listXL);
         Threading::UnlockMutex(mutexSpecScore[index]);
         tsc++;
       }
@@ -1091,8 +1091,8 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
     if(sc.simpleScore<0.1)  continue;
 
     //maybe do all this only if the score is going to make the list? see singlets above
-    sc.mods1->clear();
-    sc.mods2->clear();
+    sc.mods1.clear();
+    sc.mods2.clear();
     sc.score1=sc.simpleScore;
     sc.cpScore1 = 0;
     sc.matches1=matches;
@@ -1114,7 +1114,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
             if (ions[iIndex][sIndex].nTermMass != 0){
               mod.pos = -1;
               mod.mass = ions[iIndex][sIndex].nTermMass;
-              sc.mods1->push_back(mod);
+              sc.mods1.push_back(mod);
             }
             if (fabs(ions[iIndex][sIndex].mods[i] - ions[iIndex][sIndex].nTermMass)<0.0001) continue;
           }
@@ -1122,7 +1122,7 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
             if (ions[iIndex][sIndex].cTermMass != 0){
               mod.pos = -2;
               mod.mass = ions[iIndex][sIndex].cTermMass;
-              sc.mods1->push_back(mod);
+              sc.mods1.push_back(mod);
             }
             if (fabs(ions[iIndex][sIndex].mods[i] - ions[iIndex][sIndex].cTermMass)<0.0001) continue;
           }
@@ -1131,12 +1131,13 @@ void KAnalysis::scoreSpectra(vector<int>& index, int sIndex, double modMass, int
           //else mod.term = false;
           mod.pos=(char)i;
           mod.mass=ions[iIndex][sIndex].mods[i];
-          sc.mods1->push_back(mod);
+          sc.mods1.push_back(mod);
         }
       }
     }
     Threading::LockMutex(mutexSpecScore[index[a]]);
-    spec->at(index[a]).checkScore(sc);
+    if(sc.k1>-1) spec->at(index[a]).checkScore(sc,listLoop);
+    else spec->at(index[a]).checkScore(sc, listSingle);
     Threading::UnlockMutex(mutexSpecScore[index[a]]);
   }
 }

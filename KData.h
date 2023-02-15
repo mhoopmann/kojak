@@ -160,10 +160,12 @@ private:
   static void collapseSpectrum(KSpectrum& s);
   static int  compareInt        (const void *p1, const void *p2);
   static int  compareMassList   (const void *p1, const void *p2);
+  void        convertToDiag(kScoreCard& sc, kDiag& d, KDatabase& db);
+  void        convertToResults(kScoreCard& sc, kResults& res, CnpxSpectrumQuery& sq, KDatabase& db, size_t index);
   static int  getCharge(KSpectrum& s, int index, int next);
   static double polynomialBestFit (std::vector<double>& x, std::vector<double>& y, std::vector<double>& coeff, int degree=2);
   bool        processPath       (const char* in_path, char* out_path);
-  std::string processPeptide    (kPeptide& pep, std::vector<kPepMod>* mod, KDatabase& db);
+  std::string processPeptide    (kPeptide& pep, std::vector<kPepMod>& mod, KDatabase& db);
   void        processProtein    (int pepIndex, int site, char linkSite, std::string& prot, std::string& sites, bool& decoy, KDatabase& db);
   void        writeMzIDDatabase (CMzIdentML& m, KDatabase& db);
   bool        writeMzIDEnzyme   (pxwBasicXMLTag t, CEnzymes& e);
