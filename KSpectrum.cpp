@@ -552,23 +552,23 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
       topHit[i].eVal2 = 1e12;
     }
   }
-  ////score topSingle,topLoop,topXL
-  //if(topSingle.simpleScore>0){
-  //  topSingle.eVal = pow(10.0, dSlope * topSingle.simpleScore + dIntercept);
-  //  if (topSingle.eVal > 1e12 || dSlope >= 0.0) topSingle.eVal = 1e12;
-  //} else topSingle.eVal=1e12;
+  //score topSingle,topLoop,topXL
+  if(topSingle.simpleScore>0){
+    topSingle.eVal = pow(10.0, dSlope * topSingle.simpleScore + dIntercept);
+    if (topSingle.eVal > 1e12 || dSlope >= 0.0) topSingle.eVal = 1e12;
+  } else topSingle.eVal=1e12;
 
-  //if (topLoop.simpleScore > 0) {
-  //  topLoop.eVal = pow(10.0, dSlope * topLoop.simpleScore + dIntercept);
-  //  if (topLoop.eVal > 1e12 || dSlope >= 0.0) topLoop.eVal = 1e12;
-  //} else topLoop.eVal = 1e12;
+  if (topLoop.simpleScore > 0) {
+    topLoop.eVal = pow(10.0, dSlope * topLoop.simpleScore + dIntercept);
+    if (topLoop.eVal > 1e12 || dSlope >= 0.0) topLoop.eVal = 1e12;
+  } else topLoop.eVal = 1e12;
 
-  //if (topXL.simpleScore > 0) {
-  //  topXL.eVal = pow(10.0, dSlope * topXL.simpleScore + dIntercept);
-  //  if (topXL.eVal > 1e12 || dSlope >= 0.0) topXL.eVal = 1e12;
-  //  topXL.eVal1 = generateSingletDecoys2(params, decoys, topXL.score1, topXL.mass1, (int)topXL.precursor);
-  //  topXL.eVal2 = generateSingletDecoys2(params, decoys, topXL.score2, topXL.mass2, (int)topXL.precursor);
-  //} else topXL.eVal = 1e12;
+  if (topXL.simpleScore > 0) {
+    topXL.eVal = pow(10.0, dSlope * topXL.simpleScore + dIntercept);
+    if (topXL.eVal > 1e12 || dSlope >= 0.0) topXL.eVal = 1e12;
+    topXL.eVal1 = generateSingletDecoys2(params, decoys, topXL.score1, topXL.mass1, (int)topXL.precursor);
+    topXL.eVal2 = generateSingletDecoys2(params, decoys, topXL.score2, topXL.mass2, (int)topXL.precursor);
+  } else topXL.eVal = 1e12;
 
   return true;
 }
