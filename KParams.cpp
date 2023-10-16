@@ -255,6 +255,7 @@ void KParams::exportDefault(string ver){
   fprintf(f, "export_percolator = %d                   #0=no, 1=yes\n", (int)def.exportPercolator);
   fprintf(f, "export_mzID = %d                         #0=no, 1=yes\n", (int)def.exportMzID);
   fprintf(f, "percolator_version = %.2lf\n", def.percVersion);
+  fprintf(f, "split_pepXML = %d                        #0=no, 1=yes\n", (int)def.splitPepXML);
   fprintf(f, "truncate_prot_names = %d                 #shorten protein names in output to this number of characters, 0 = off\n", def.truncate);
   
   fprintf(f, "\n\n#\n# Parameters describing data analyzed by Kojak\n#\n");
@@ -898,6 +899,13 @@ void KParams::parse(const char* cmd) {
   } else if(strcmp(param,"spectrum_processing")==0) {
     params->specProcess=atoi(&values[0][0]);
     xml.name = "spectrum_processing";
+    xml.value = values[0];
+    logParam(xml);
+
+  } else if (strcmp(param, "split_pepXML") == 0 || strcmp(param, "split_pepxml") == 0) {
+    if (atoi(&values[0][0]) != 0) params->splitPepXML = true;
+    else params->splitPepXML = false;
+    xml.name = "split_pepXML";
     xml.value = values[0];
     logParam(xml);
 

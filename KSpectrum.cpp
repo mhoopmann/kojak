@@ -507,6 +507,47 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
     }
   }
 
+  ////This code is meant to build the top-20 list of PSMs from all PSMs identified.
+  ////it is an alternative to the block of code above.
+  //vector<list<kScoreCard>*> psmLists;
+  //vector<list<kScoreCard>::iterator> psmIterators;
+  //vector<int> psmTypes;
+  //for (int a = 0; a < sizePrecursor(); a++) {
+  //  list<kScoreCard>* sc;
+  //  for (int b = 0; b < 3; b++) {
+  //    if (b == 0) sc = &getPrecursor2(a)->topSingle;
+  //    else if (b == 1) sc = &getPrecursor2(a)->topLoop;
+  //    else sc = &getPrecursor2(a)->topXL;
+  //    if (sc->size() > 0) {
+  //      psmLists.push_back(sc);
+  //      psmIterators.push_back(psmLists.back()->begin());
+  //      psmTypes.push_back(b);
+  //    }
+  //  }
+  //}
+  //int iTopCount = 0;
+  //size_t topPSM = 0;
+  //float topScore = 0;
+  //while (true) {
+  //  topScore = 0;
+  //  for (size_t a = 0; a < psmIterators.size(); a++) {
+  //    if (psmIterators[a] == psmLists[a]->end()) continue;
+  //    if (psmIterators[a]->simpleScore > topScore) {
+  //      topPSM = a;
+  //      topScore = psmIterators[a]->simpleScore;
+  //    }
+  //  }
+  //  if (topScore == 0) break;
+  //  topHit[iTopCount++] = *psmIterators[topPSM];
+  //  for (size_t a = 0; a < psmIterators[topPSM]->alternate.size(); a++) {
+  //    if (iTopCount == 20) break;
+  //    topHit[iTopCount] = psmIterators[topPSM]->alternate[a];
+  //    topHit[iTopCount++].dScore = psmIterators[topPSM]->dScore;
+  //  }
+  //  if (iTopCount == 20) break;
+  //}
+
+
   //reorder top scoring peptide so that ties always appear in the same order instead
   //of the order in which the search threads finished (which can change from run to run).
   string dStr = params->decoy;
@@ -552,6 +593,7 @@ bool KSpectrum::calcEValue(kParams* params, KDecoys& decoys, KDatabase& db) {
       topHit[i].eVal2 = 1e12;
     }
   }
+
   //score topSingle,topLoop,topXL
   if(topSingle.simpleScore>0){
     topSingle.eVal = pow(10.0, dSlope * topSingle.simpleScore + dIntercept);

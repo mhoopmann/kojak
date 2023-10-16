@@ -165,6 +165,7 @@ typedef struct kParams {
   bool    exportMzID;
   bool    exportPepXML;
   bool    exportPercolator;
+  bool    splitPepXML;
   bool    ionSeries[6];
   bool    monoLinksOnXL;
   bool    precursorRefinement;
@@ -226,6 +227,7 @@ typedef struct kParams {
     exportMzID=false;
     exportPepXML=true;
     exportPercolator=false;
+    splitPepXML=false;
     ionSeries[0]=false; //a-ions
     ionSeries[1]=true;  //b-ions
     ionSeries[2]=false; //c-ions
@@ -294,6 +296,7 @@ typedef struct kParams {
     exportMzID=p.exportMzID;
     exportPepXML=p.exportPepXML;
     exportPercolator=p.exportPercolator;
+    splitPepXML=p.splitPepXML;
     monoLinksOnXL=p.monoLinksOnXL;
     precursorRefinement=p.precursorRefinement;
     turbo=p.turbo;
@@ -365,6 +368,7 @@ typedef struct kParams {
       exportMzID = p.exportMzID;
       exportPepXML=p.exportPepXML;
       exportPercolator=p.exportPercolator;
+      splitPepXML=p.splitPepXML;
       monoLinksOnXL=p.monoLinksOnXL;
       precursorRefinement = p.precursorRefinement;
       turbo = p.turbo;

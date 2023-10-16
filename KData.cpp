@@ -2292,30 +2292,33 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     pa.summary_xml = pepXML_fileName;
     p.msms_pipeline_analysis.push_back(pa);
 
-    sprintf(fName, "%s.single.pep.xml", params->outFile);
-    pepXML_fileName_single = fName;
-    ft = fopen(fName, "wt");
-    if (ft == NULL) bBadFiles = true;
-    else fclose(ft);
-    pa.summary_xml = pepXML_fileName_single;
-    pSingle.msms_pipeline_analysis.push_back(pa);
+    if(params->splitPepXML){
+      sprintf(fName, "%s.single.pep.xml", params->outFile);
+      pepXML_fileName_single = fName;
+      ft = fopen(fName, "wt");
+      if (ft == NULL) bBadFiles = true;
+      else fclose(ft);
+      pa.summary_xml = pepXML_fileName_single;
+      pSingle.msms_pipeline_analysis.push_back(pa);
 
-    sprintf(fName, "%s.loop.pep.xml", params->outFile);
-    pepXML_fileName_loop = fName;
-    ft = fopen(fName, "wt");
-    if (ft == NULL) bBadFiles = true;
-    else fclose(ft);
-    pa.summary_xml = pepXML_fileName_loop;
-    pLoop.msms_pipeline_analysis.push_back(pa);
+      sprintf(fName, "%s.loop.pep.xml", params->outFile);
+      pepXML_fileName_loop = fName;
+      ft = fopen(fName, "wt");
+      if (ft == NULL) bBadFiles = true;
+      else fclose(ft);
+      pa.summary_xml = pepXML_fileName_loop;
+      pLoop.msms_pipeline_analysis.push_back(pa);
 
-    sprintf(fName, "%s.xl.pep.xml", params->outFile);
-    pepXML_fileName_xl = fName;
-    ft = fopen(fName, "wt");
-    if (ft == NULL) bBadFiles = true;
-    else fclose(ft);
-    pa.summary_xml = pepXML_fileName_xl;
-    pXL.msms_pipeline_analysis.push_back(pa);
+      sprintf(fName, "%s.xl.pep.xml", params->outFile);
+      pepXML_fileName_xl = fName;
+      ft = fopen(fName, "wt");
+      if (ft == NULL) bBadFiles = true;
+      else fclose(ft);
+      pa.summary_xml = pepXML_fileName_xl;
+      pXL.msms_pipeline_analysis.push_back(pa);
+    }
   }
+  
   
   if (params->diag->size()>0){ //create diagnostic file if needed
     sprintf(fName, "%s.diag.xml", params->outFile);
@@ -2637,7 +2640,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
 
       if(params->exportPepXML){
         outputNeoPepXML(sq,db,res);
-        if(scoreIndex==0){
+        if(params->splitPepXML && scoreIndex==0){
           if(spec[i]->topSingle.simpleScore>0) {
             kResults r;
             CnpxSpectrumQuery sq2;
@@ -2699,9 +2702,11 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   }
   if(params->exportPepXML){
     p.write(pepXML_fileName.c_str(),true);
-    pSingle.write(pepXML_fileName_single.c_str(),true);
-    pLoop.write(pepXML_fileName_loop.c_str(),true);
-    pXL.write(pepXML_fileName_xl.c_str(),true);
+    if(params->splitPepXML){
+      pSingle.write(pepXML_fileName_single.c_str(),true);
+      pLoop.write(pepXML_fileName_loop.c_str(),true);
+      pXL.write(pepXML_fileName_xl.c_str(),true);
+    }
     //p.closePepXML();
   }
   if (params->exportMzID){
@@ -2954,7 +2959,7 @@ int KData::processPrecursor(kMS2struct* s, int tIndex){
   }
 
   if (precursor<0){
-    //cout << "Warning: Precursor not found for " << scanNum << " " << mz << endl;
+    //cout << "Warning: Precursor not found for " << s->pls->getScanNumber() << " " << mz << endl;
     return ret;
   }
 
@@ -3039,7 +3044,6 @@ int KData::processPrecursor(kMS2struct* s, int tIndex){
     }
 
   } else {
-
     h[tIndex]->GoHardklor(hs, &sp);
 
     //If nothing was found, really narrow down the window and try again.
@@ -3285,7 +3289,7 @@ bool KData::readSpectra(){
     vMS1Buffer[a] = NULL;
   }
   vMS1Buffer.clear();
-  for (int a = 0; a<params->threads; a++) Threading::UnlockMutex(mutexHardklor[a]);
+  for (int a = 0; a<params->threads; a++)  Threading::UnlockMutex(mutexHardklor[a]);
 
   while (nextMS2<dMS2.size()) {
     dMS2[nextMS2]->thread = true;
