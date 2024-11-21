@@ -1398,7 +1398,7 @@ bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
     m_sir->name=str;
     m_sir->spectraDataRef=m_sd->id;
     cStr = str;
-    sprintf(str, "%s_%d", m_sd->id.c_str(), m_sil->spectrumIdentificationResult.size());
+    sprintf(str, "%s_%d", m_sd->id.c_str(), (int)m_sil->spectrumIdentificationResult.size());
     m_sir->id = str;
     m_sil->spectrumIdentificationResult.push_back(*m_sir);
     m_sir = &m_sil->spectrumIdentificationResult.back();
