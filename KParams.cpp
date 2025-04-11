@@ -896,6 +896,19 @@ void KParams::parse(const char* cmd) {
     xml.value = values[0];
     logParam(xml);
 
+  } else if (strcmp(param, "smart_filter") == 0) {
+    if (atoi(&values[0][0]) == 0) params->smartFilter = false;
+    else params->smartFilter = true;
+    xml.name = "smart_filter";
+    xml.value = values[0];
+    logParam(xml);
+
+  } else if (strcmp(param, "smart_list") == 0) {
+    params->smartList = values[0];
+    xml.name = "smart_list";
+    xml.value = values[0];
+    logParam(xml);
+
   } else if(strcmp(param,"spectrum_processing")==0) {
     params->specProcess=atoi(&values[0][0]);
     xml.name = "spectrum_processing";

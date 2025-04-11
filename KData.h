@@ -23,12 +23,13 @@ limitations under the License.
 #include "KParams.h"
 #include "KSpectrum.h"
 #include "MSReader.h"
-#include "mzIMLTools.h"
-#include "pepXMLWriter.h"
+//#include "mzIMLTools.h"
+//#include "pepXMLWriter.h"
 #include "NeoPepXMLParser.h"
 #include "Threading.h"
 #include "ThreadPool.h"
 #include <iostream>
+#include <algorithm>
 
 #include "CHardklor2.h"
 #include "CModelLibrary.h"
@@ -41,6 +42,12 @@ typedef struct kScanBin{
   int   index;
   float intensity;
 } kScanBin;
+
+typedef struct sSmartList {
+  int scanNumber = 0;
+  double mass = 0;
+  double linkMass = 0;
+}sSmartList;
 
 //=============================
 // Structures for threading
@@ -86,6 +93,10 @@ public:
   void      diagSinglet       ();
   bool      getBoundaries     (double mass1, double mass2, std::vector<int>& index, bool* buffer);
   bool      getBoundaries2    (double mass, double prec, std::vector<int>& index, bool* buffer);
+
+  bool      getSmartBoundaries(double mass, double prec, std::vector<int>& index, bool* buffer);
+  bool      getSmartBoundaries2(double mass, double prec, std::vector<int>& index, bool* buffer);
+
   int       getCounterMotif   (int motifIndex, int counterIndex);
   kLinker&  getLink           (int i);
   double    getMaxMass        ();
@@ -97,9 +108,9 @@ public:
   CnpxModificationInfo  makeModificationInfo(std::vector<kPepMod>& mods, std::string peptide, bool n15, bool nTerm, bool cTerm);
   void      outputDiagnostics (FILE* f, KSpectrum& s, KDatabase& db);
   bool      outputIntermediate(KDatabase& db);
-  bool      outputMzID        (CMzIdentML& m, KDatabase& db, KParams& par, kResults& r);
+  //bool      outputMzID        (CMzIdentML& m, KDatabase& db, KParams& par, kResults& r);
   bool      outputNeoPepXML   (CnpxSpectrumQuery& p, KDatabase& db, kResults& r);
-  bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
+  //bool      outputPepXML      (PXWSpectrumQuery& p, KDatabase& db, kResults& r);
   bool      outputPercolator  (FILE* f, KDatabase& db, kResults& r, int count);
   bool      outputResults     (KDatabase& db, KParams& par);
   bool      outputTxt         (FILE* f, KDatabase& db, std::vector<kResults>& r);
@@ -130,6 +141,10 @@ private:
   int                     motifCount;
   kXLTarget               xlTargets[128][5]; //capping analysis at 5 crosslinkers for now
   static KLog*            klog;
+
+  //Targeted Crosslinking
+  std::vector<kMass> smartMassList;
+  std::vector<kMass> smartMassListB;
 
   //Common memory to be shared by all threads during spectral processing
   static bool* memoryPool;          
@@ -167,10 +182,10 @@ private:
   bool        processPath       (const char* in_path, char* out_path);
   std::string processPeptide    (kPeptide& pep, std::vector<kPepMod>& mod, KDatabase& db);
   void        processProtein    (int pepIndex, int site, char linkSite, std::string& prot, std::string& sites, bool& decoy, KDatabase& db);
-  void        writeMzIDDatabase (CMzIdentML& m, KDatabase& db);
-  bool        writeMzIDEnzyme   (pxwBasicXMLTag t, CEnzymes& e);
-  void        writeMzIDPE       (CMzIdentML& m, CSpectrumIdentificationItem& m_sii, int pepID, KDatabase& db);
-  std::string writeMzIDSIP      (CMzIdentML& m, std::string& sRef, KParams& par);
+ // void        writeMzIDDatabase (CMzIdentML& m, KDatabase& db);
+ // bool        writeMzIDEnzyme   (pxwBasicXMLTag t, CEnzymes& e);
+ // void        writeMzIDPE       (CMzIdentML& m, CSpectrumIdentificationItem& m_sii, int pepID, KDatabase& db);
+ // std::string writeMzIDSIP      (CMzIdentML& m, std::string& sRef, KParams& par);
 
   //spectral processing functions
   static void averageScansCentroid(std::vector<MSToolkit::Spectrum*>& s, MSToolkit::Spectrum& avg, double min, double max);
@@ -186,6 +201,7 @@ private:
 
   //static functions
   static bool compareSpecPoint(const kSpecPoint& p1, const kSpecPoint& p2){ return p1.mass<p2.mass; }
+  static bool compareSmartList(const sSmartList& p1, const sSmartList& p2) { return p1.scanNumber < p2.scanNumber; }
   static int compareScanBinRev2(const void *p1, const void *p2);
 
  

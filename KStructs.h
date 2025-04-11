@@ -171,6 +171,7 @@ typedef struct kParams {
   bool    precursorRefinement;
   bool    turbo;
   bool    xcorr;
+  bool    smartFilter;
   double  binOffset;
   double  binSize;
   double  enrichment;
@@ -192,6 +193,7 @@ typedef struct kParams {
   char    outFile[1024];  //true output file with full path
   char    resPath[1024];
   std::string fullPath;
+  std::string smartList;
   std::vector<kMass>*    aaMass;
   std::vector<double>*   cleavageProducts;
   std::vector<int>*      diag;
@@ -238,6 +240,7 @@ typedef struct kParams {
     precursorRefinement=true;
     turbo=true;
     xcorr=false;
+    smartFilter = false;
     binSize=0.01;
     binOffset=0.0;
     enrichment=0;
@@ -259,6 +262,7 @@ typedef struct kParams {
     outFile[0]='\0';
     resPath[0]='\0';
     fullPath = "";
+    smartList = "";
     aaMass = new std::vector<kMass>;
     cleavageProducts = new std::vector<double>;
     diag = new std::vector<int>;
@@ -301,6 +305,7 @@ typedef struct kParams {
     precursorRefinement=p.precursorRefinement;
     turbo=p.turbo;
     xcorr=p.xcorr;
+    smartFilter = p.smartFilter;
     binOffset=p.binOffset;
     binSize=p.binSize;
     enrichment=p.enrichment;
@@ -321,6 +326,7 @@ typedef struct kParams {
     strcpy(outFile,p.outFile);
     strcpy(resPath, p.resPath);
     fullPath = p.fullPath;
+    smartList = p.smartList;
     aaMass = new std::vector<kMass>(*p.aaMass);
     cleavageProducts = new std::vector<double>(*p.cleavageProducts);
     diag = new std::vector<int>(*p.diag);
@@ -373,6 +379,7 @@ typedef struct kParams {
       precursorRefinement = p.precursorRefinement;
       turbo = p.turbo;
       xcorr=p.xcorr;
+      smartFilter = p.smartFilter;
       binOffset=p.binOffset;
       binSize=p.binSize;
       enrichment=p.enrichment;
@@ -393,6 +400,7 @@ typedef struct kParams {
       strcpy(outFile,p.outFile);
       strcpy(resPath, p.resPath);
       fullPath = p.fullPath;
+      smartList = p.smartList;
       delete aaMass;
       delete cleavageProducts;
       delete diag;

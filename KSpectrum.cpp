@@ -33,6 +33,7 @@ KSpectrum::KSpectrum(const int& i, const double& bs, const double& os){
   precursor = new vector<kPrecursor>;
   singlets = new vector<KTopPeps>;
   spec = new vector<kSpecPoint>;
+  alphaCandidates = new vector<double>;
   scanNumber = 0;
   rTime = 0;
   xCorrArraySize=0;
@@ -89,6 +90,7 @@ KSpectrum::KSpectrum(const KSpectrum& p){
   for(i=0;i<20;i++) topHit[i]=p.topHit[i];
   precursor = new vector<kPrecursor>(*p.precursor);
   singlets = new vector<KTopPeps>(*p.singlets);
+  alphaCandidates = new vector<double>(*p.alphaCandidates);
 
   binOffset = p.binOffset;
   binSize = p.binSize;
@@ -160,6 +162,7 @@ KSpectrum::~KSpectrum(){
   delete spec;
   delete precursor;
   delete singlets;
+  delete alphaCandidates;
   if(xCorrSparseArray!=NULL) free(xCorrSparseArray);
 
   int j;
@@ -188,6 +191,9 @@ KSpectrum& KSpectrum::operator=(const KSpectrum& p){
 
     delete singlets;
     singlets = new vector<KTopPeps>(*p.singlets);
+
+    delete alphaCandidates;
+    alphaCandidates = new vector<double>(*p.alphaCandidates);
 
     binOffset = p.binOffset;
     binSize = p.binSize;
@@ -1406,7 +1412,7 @@ void KSpectrum::kojakXCorr(double* pdTempRawData, double* pdTmpFastXcorrData, fl
 
   xCorrSparseArraySize=1;
 
-  double dTmp0 = pdCorrelationData[0].intensity - pdTmpFastXcorrData[0];
+  /*double dTmp0 = pdCorrelationData[0].intensity - pdTmpFastXcorrData[0];
   double dTmp1 = pdCorrelationData[1].intensity - pdTmpFastXcorrData[1];
   double dTmp2 = pdCorrelationData[2].intensity - pdTmpFastXcorrData[2];
   pfFastXcorrData[0] = (float)(dTmp0+dTmp1*0.5);
@@ -1417,7 +1423,24 @@ void KSpectrum::kojakXCorr(double* pdTempRawData, double* pdTmpFastXcorrData, fl
     dTmp2 = pdCorrelationData[i+1].intensity - pdTmpFastXcorrData[i+1];
     pfFastXcorrData[i]=(float)(dTmp1+(dTmp0+dTmp2)*0.5);
   }
-  pfFastXcorrData[xCorrArraySize-1] = (float)(dTmp2 + dTmp1*0.5);
+  pfFastXcorrData[xCorrArraySize-1] = (float)(dTmp2 + dTmp1*0.5);*/
+
+  //To me, a simpler, and faster?, way to do the calculations.
+  pfFastXcorrData[0] = 0;
+  for (i = 1;i < xCorrArraySize - 1;i++) {
+    dTmp = pdCorrelationData[i].intensity - pdTmpFastXcorrData[i];
+    pfFastXcorrData[i] = (float)dTmp;
+
+    //TODO: Parameterize this
+    // Allow user to set flanking peaks
+    if (true) {
+      iTmp = i - 1;
+      pfFastXcorrData[i] += (float)((pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp]) * 0.5);
+
+      iTmp = i + 1;
+      pfFastXcorrData[i] += (float)((pdCorrelationData[iTmp].intensity - pdTmpFastXcorrData[iTmp]) * 0.5);
+    }
+  }
 
   //MH: Fill sparse matrix
   for(i=0;i<xCorrArraySize;i++){

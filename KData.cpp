@@ -877,6 +877,152 @@ bool KData::getBoundaries2(double mass, double prec, vector<int>& index, bool* b
 
 }
 
+bool KData::getSmartBoundaries(double mass, double prec, vector<int>& index, bool* buffer) {
+  int sz = (int)smartMassList.size();
+  if (sz == 0) return false;
+  int lower = 0;
+  int mid = sz / 2;
+  int upper = sz;
+  int i;
+
+  vector<int> v;
+
+  double minMass = mass - (mass / 1000000 * prec);
+  double maxMass = mass + (mass / 1000000 * prec);
+
+  //binary search to closest mass
+  while (smartMassList[mid].mass<minMass || smartMassList[mid].mass>maxMass) {
+    if (lower >= upper) break;
+    if (mass < smartMassList[mid].mass) {
+      upper = mid - 1;
+      mid = (lower + upper) / 2;
+    } else {
+      lower = mid + 1;
+      mid = (lower + upper) / 2;
+    }
+    if (mid == sz) {
+      mid--;
+      break;
+    }
+  }
+
+  //Check that mass is correct
+  if (smartMassList[mid].mass<minMass || smartMassList[mid].mass>maxMass) return false;
+
+  v.push_back(smartMassList[mid].index);
+
+  //check left 
+  i = mid;
+  while (i > 0) {
+    i--;
+    if (smartMassList[i].mass < minMass) break;
+    v.push_back(smartMassList[i].index);
+  }
+
+  //check right
+  i = mid;
+  while (i < (sz - 1)) {
+    i++;
+    if (smartMassList[i].mass > maxMass) break;
+    v.push_back(smartMassList[i].index);
+  }
+
+  sz = (int)spec.size();
+  memset(buffer, false, sz);
+  for (i = 0; i < (int)v.size(); i++) buffer[v[i]] = true;
+  index.clear();
+  for (i = 0; i < sz; i++) {
+    if (buffer[i]) index.push_back(i);
+  }
+  return true;
+
+  //Sort indexes and copy to final array, removing duplicates.
+  //This may be a potentially slow step and should be profiled
+  qsort(&v[0], v.size(), sizeof(int), compareInt);
+  index.clear();
+  index.push_back(v[0]);
+  mid = (int)v.size();
+  for (i = 1;i < mid;i++) {
+    if (v[i] != v[i - 1]) index.push_back(v[i]);
+  }
+
+  return true;
+
+}
+
+bool KData::getSmartBoundaries2(double mass, double prec, vector<int>& index, bool* buffer) {
+  int sz = (int)smartMassListB.size();
+  if (sz == 0) return false;
+  int lower = 0;
+  int mid = sz / 2;
+  int upper = sz;
+  int i;
+
+  vector<int> v;
+
+  double minMass = mass - (mass / 1000000 * prec);
+  double maxMass = mass + (mass / 1000000 * prec);
+
+  //binary search to closest mass
+  while (smartMassListB[mid].mass<minMass || smartMassListB[mid].mass>maxMass) {
+    if (lower >= upper) break;
+    if (mass < smartMassListB[mid].mass) {
+      upper = mid - 1;
+      mid = (lower + upper) / 2;
+    } else {
+      lower = mid + 1;
+      mid = (lower + upper) / 2;
+    }
+    if (mid == sz) {
+      mid--;
+      break;
+    }
+  }
+
+  //Check that mass is correct
+  if (smartMassListB[mid].mass<minMass || smartMassListB[mid].mass>maxMass) return false;
+
+  v.push_back(smartMassListB[mid].index);
+
+  //check left 
+  i = mid;
+  while (i > 0) {
+    i--;
+    if (smartMassListB[i].mass < minMass) break;
+    v.push_back(smartMassListB[i].index);
+  }
+
+  //check right
+  i = mid;
+  while (i < (sz - 1)) {
+    i++;
+    if (smartMassListB[i].mass > maxMass) break;
+    v.push_back(smartMassListB[i].index);
+  }
+
+  sz = (int)spec.size();
+  memset(buffer, false, sz);
+  for (i = 0; i < (int)v.size(); i++) buffer[v[i]] = true;
+  index.clear();
+  for (i = 0; i < sz; i++) {
+    if (buffer[i]) index.push_back(i);
+  }
+  return true;
+
+  //Sort indexes and copy to final array, removing duplicates.
+  //This may be a potentially slow step and should be profiled
+  qsort(&v[0], v.size(), sizeof(int), compareInt);
+  index.clear();
+  index.push_back(v[0]);
+  mid = (int)v.size();
+  for (i = 1;i < mid;i++) {
+    if (v[i] != v[i - 1]) index.push_back(v[i]);
+  }
+
+  return true;
+
+}
+
 int KData::getCounterMotif(int motifIndex, int counterIndex){
   if (motifIndex>=motifCount) return -1;
   return motifs[motifIndex].counterMotif[counterIndex];
@@ -1371,265 +1517,265 @@ void KData::convertToResults(kScoreCard& sc, kResults& res, CnpxSpectrumQuery& s
 
 }
 
-bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
-  size_t i;
-
-  char str[256];
-  string cStr;
-
-  //Add/obtain the reference id for the psm data file.
-  CSpectraData* m_sd = m.dataCollection.inputs.addSpectraData(params->inFile);
-  CSearchDatabase* m_db = m.dataCollection.inputs.addSearchDatabase(params->dbFile);
-
-  //Only one spectrum identification list per kojak search, so here it is.
-  CSpectrumIdentificationList* m_sil = &m.dataCollection.analysisData.spectrumIdentificationList[0];
-  
-  //Only one spectrum identification protocol per kojak search
-  CSpectrumIdentificationProtocol* m_sip=&m.analysisProtocolCollection.spectrumIdentificationProtocol[0];
- 
-  //Create spectrum
-  CSpectrumIdentificationResult* m_sir;
-  if(false){ //if this is the same as the last spectrum
-    m_sir=&m_sil->spectrumIdentificationResult.back();
-  } else {
-    m_sir=new CSpectrumIdentificationResult();
-    sprintf(str, "scan=%d", r.scanNumber);
-    m_sir->spectrumID=r.scanID;
-    m_sir->name=str;
-    m_sir->spectraDataRef=m_sd->id;
-    cStr = str;
-    sprintf(str, "%s_%d", m_sd->id.c_str(), (int)m_sil->spectrumIdentificationResult.size());
-    m_sir->id = str;
-    m_sil->spectrumIdentificationResult.push_back(*m_sir);
-    m_sir = &m_sil->spectrumIdentificationResult.back();
-  }
-
-  //Declare the required classes
-  CPeptide m_p,m_p2;
-
-  //Get peptide #1 sequence and modifications
-  m_p.peptideSequence.text=r.peptide1;
-  for (i = 0; i < r.mods1.size(); i++){
-    CModification m_m;
-    sCvParam cv;
-    m_m.location = (int)r.mods1[i].pos + 1;
-    m_m.monoisotopicMassDelta = r.mods1[i].mass;
-    if (m_m.location>0) {
-      m_m.residues = r.peptide1[r.mods1[i].pos];
-      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues);
-    } else if(r.mods1[i].pos==-1){
-      m_m.residues=".";
-      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues,true);
-    } else {
-      m_m.residues=".";
-      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues,false,true);
-    }
-    m_m.cvParam.push_back(cv);
-    m_p.modification.push_back(m_m);
-  }
-  //add static mods, too
-  for (i = 0; i<r.peptide1.size(); i++){
-    if (aa.getFixedModMass(r.peptide1[i])>0) {
-      CModification m_m;
-      sCvParam cv;
-      m_m.location = (int)i + 1;
-      m_m.monoisotopicMassDelta = aa.getFixedModMass(r.peptide1[i]);
-      if (m_m.location>0) m_m.residues = r.peptide1[i];
-      else m_m.residues.clear();
-      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, m_m.location == 0);
-      m_m.cvParam.push_back(cv);
-      m_p.modification.push_back(m_m);
-    }
-  }
-
-  CSpectrumIdentificationItem m_sii;
-  sprintf(str, "%s_%d", m_sir->id.c_str(), (int)m_sir->spectrumIdentificationItem.size());
-  m_sii.id = str;
-  m_sii.calculatedMassToCharge = (r.psmMass + r.charge*1.007276466) / r.charge;
-  m_sii.chargeState = r.charge;
-  m_sii.experimentalMassToCharge = (r.obsMass + r.charge*1.007276466) / r.charge;
-  m_sii.rank = 1;
-
-  //add scores
-  m_sii.addPSMValue("Kojak", "kojak_score", r.score);
-  m_sii.addPSMValue("Kojak", "delta_score", r.scoreDelta);
-  m_sii.addPSMValue("Kojak", "ppm_error", r.ppm);
-  m_sii.addPSMValue("Kojak", "e-value", r.eVal);
-  m_sii.addPSMValue("Kojak", "ion_match", r.matches1 + r.matches2);
-  
-  if(r.type< 2){
-
-    if(r.type==1){ //loop link
-      CModification m_m;
-      sCvParam cv;
-      m_m.location = r.link1;
-      m_m.monoisotopicMassDelta = r.xlMass;
-      m_m.residues = r.peptide1[r.link1 - 1];
-      cv.cvRef = "PSI-MS";
-      cv.accession = "MS:1002509";
-      cv.name = "cross-link donor";
-      m_m.cvParam.push_back(cv);
-      m_p.modification.push_back(m_m);
-
-      m_m.clear();
-      m_m.location = r.link2;
-      m_m.monoisotopicMassDelta = 0;
-      m_m.residues = r.peptide1[r.link2 - 1];
-      cv.cvRef = "PSI-MS";
-      cv.accession = "MS:1002510";
-      cv.name = "cross-link acceptor";
-      m_m.cvParam.push_back(cv);
-      m_p.modification.push_back(m_m);
-
-      m_sii.addPSMValue("Kojak", "link", r.link1, "pep");
-      m_sii.addPSMValue("Kojak", "link", r.link2, "pep");
-    }
-
-    m_sii.addPSMValue("Kojak", "consecutive_ion_match", r.conFrag1);
-    m_sii.peptideRef = m.sequenceCollection.addPeptide(m_p);
-
-    //Add all proteins mapped by this peptide
-    writeMzIDPE(m,m_sii,r.pep1,db);
-    m_sir->spectrumIdentificationItem.push_back(m_sii);
-
-  } else if(r.type==2){
-    CModification m_m;
-    sCvParam cv;
-    
-    //Get peptide #2 sequence and modifications
-    m_p2.peptideSequence.text = r.peptide2;
-    for (i = 0; i < r.mods2.size(); i++){
-      m_m.clear();
-      m_m.location = (int)r.mods2[i].pos + 1;
-      m_m.monoisotopicMassDelta = r.mods2[i].mass;
-      if (m_m.location>0) {
-        m_m.residues = r.peptide2[r.mods2[i].pos];
-        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues);
-      } else if (r.mods2[i].pos == -1){
-        m_m.residues = ".";
-        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, true);
-      } else {
-        m_m.residues = ".";
-        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, false, true);
-      }
-      m_m.cvParam.push_back(cv);
-      m_p2.modification.push_back(m_m);
-    }
-    //add static mods, too
-    for (i = 0; i<r.peptide2.size(); i++){
-      if (aa.getFixedModMass(r.peptide2[i])>0) {
-        m_m.clear();
-        m_m.location = (int)i + 1;
-        m_m.monoisotopicMassDelta = aa.getFixedModMass(r.peptide2[i]);
-        if (m_m.location>0) m_m.residues = r.peptide2[i];
-        else m_m.residues.clear();
-        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, m_m.location == 0);
-        m_m.cvParam.push_back(cv);
-        m_p2.modification.push_back(m_m);
-      }
-    }
-
-    //Add cross-linker modifications
-    m_m.clear();
-    m_m.location=r.link1;
-    m_m.monoisotopicMassDelta=r.xlMass;
-    m_m.residues=r.peptide1[r.link1-1];
-    m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(r.xlMass,m_m.residues));
-    if(m_m.location==1 && m_m.cvParam[0].accession.compare("MS:1001460")==0){
-      m_m.cvParam.clear();
-      m_m.location=0;
-      m_m.residues.clear();
-      m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(r.xlMass, ".",true));
-    } else if (m_m.cvParam[0].accession.compare("MS:1001460") == 0){
-      m_m.cvParam.clear();
-      m_m.location+=1;
-      m_m.residues.clear();
-      m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(r.xlMass, ".", false, true));
-    }
-    m_p.modification.push_back(m_m);
-
-    m_m.clear();
-    m_m.location = r.link2;
-    m_m.monoisotopicMassDelta = 0;
-    m_m.residues = r.peptide2[r.link2 - 1];
-    m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(0, m_m.residues));
-    if (m_m.location == 1 && m_m.cvParam[0].accession.compare("MS:1001460") == 0){
-      m_m.cvParam.clear();
-      m_m.location = 0;
-      m_m.residues.clear();
-    } else if (m_m.cvParam[0].accession.compare("MS:1001460") == 0){
-      m_m.cvParam.clear();
-      m_m.location += 1;
-      m_m.residues.clear();
-    } else m_m.cvParam.clear();
-    m_p2.modification.push_back(m_m);
-
-    //Create identifier for this combination of linked peptides
-    string ID=r.peptide1;
-    string pRef1,pRef2,xlValue;
-    sprintf(str, "%d", r.link1);
-    ID+=str;
-    for (i = 0; i < r.mods1.size(); i++) {
-      sprintf(str, "[%d,%.2lf]", r.mods1[i].pos, r.mods1[i].mass);
-      ID += str;
-    }
-    ID += r.peptide2;
-    sprintf(str, "%d", r.link2);
-    ID += str;
-    for (i = 0; i < r.mods2.size(); i++) {
-      sprintf(str, "[%d,%.2lf]", r.mods2[i].pos, r.mods2[i].mass);
-      ID += str;
-    }
-    m.sequenceCollection.addXLPeptides(ID,m_p,m_p2,pRef1,pRef2,xlValue);
-
-    m_sii.peptideRef = pRef1;
-    m_sii.addCvParam("MS:1002511", "PSI-MS", "cross-link spectrum identification item", "", "", "", xlValue);
-    m_sii.addPSMValue("Kojak", "score", r.scoreA, "pep");
-    m_sii.addPSMValue("Kojak", "rank", r.rankA, "pep");
-    m_sii.addPSMValue("Kojak", "link", r.link1, "pep");
-    m_sii.addPSMValue("Kojak", "e-value", r.eVal1, "pep");
-    m_sii.addPSMValue("Kojak", "ion_match", r.matches1, "pep");
-    m_sii.addPSMValue("Kojak", "consecutive_ion_match", r.conFrag1, "pep");
-    writeMzIDPE(m, m_sii, r.pep1, db);
-    m_sir->spectrumIdentificationItem.push_back(m_sii);
-
-    //Add PSM
-    CSpectrumIdentificationItem m_sii2;
-    sprintf(str, "%s_%d", m_sir->id.c_str(), (int)m_sir->spectrumIdentificationItem.size());
-    m_sii2.id = str;
-    m_sii2.calculatedMassToCharge = (r.psmMass + r.charge*1.007276466) / r.charge;
-    m_sii2.chargeState = r.charge;
-    m_sii2.experimentalMassToCharge = (r.obsMass + r.charge*1.007276466) / r.charge;
-    m_sii2.rank = 1;
-
-    //add scores
-    m_sii2.addPSMValue("Kojak", "kojak_score", r.score);
-    m_sii2.addPSMValue("Kojak", "delta_score", r.scoreDelta);
-    m_sii2.addPSMValue("Kojak", "ppm_error", r.ppm);
-    m_sii2.addPSMValue("Kojak", "e-value", r.eVal);
-    m_sii2.addPSMValue("Kojak", "ion_match", r.matches1 + r.matches2);
-    //m_sii2.addPSMValue("Kojak", "consecutive_ion_match", (r.conFrag1 + r.conFrag2) / 2);
-    m_sii2.addPSMValue("Kojak", "score", r.scoreB, "pep");
-    m_sii2.addPSMValue("Kojak", "rank", r.rankB, "pep");
-    m_sii2.addPSMValue("Kojak", "link", r.link2, "pep");
-    m_sii2.addPSMValue("Kojak", "e-value", r.eVal2, "pep");
-    m_sii2.addPSMValue("Kojak", "ion_match", r.matches2, "pep");
-    m_sii2.addPSMValue("Kojak", "consecutive_ion_match", r.conFrag2, "pep");
-
-    m_sii2.peptideRef = pRef2;
-    m_sii2.addCvParam("MS:1002511", "PSI-MS", "cross-link spectrum identification item", "", "", "", xlValue);
-    writeMzIDPE(m, m_sii2, r.pep2, db);
-    m_sir->spectrumIdentificationItem.push_back(m_sii2);
-
-
-  } else {
-
-    //error: dimers not supported in mzID (or perhaps even in Kojak)
-  }
-
-  //m_sir->spectrumIdentificationItem.push_back(m_sii);
-  return true;
-}
+//bool KData::outputMzID(CMzIdentML& m, KDatabase& db, KParams& par, kResults& r){
+//  size_t i;
+//
+//  char str[256];
+//  string cStr;
+//
+//  //Add/obtain the reference id for the psm data file.
+//  CSpectraData* m_sd = m.dataCollection.inputs.addSpectraData(params->inFile);
+//  CSearchDatabase* m_db = m.dataCollection.inputs.addSearchDatabase(params->dbFile);
+//
+//  //Only one spectrum identification list per kojak search, so here it is.
+//  CSpectrumIdentificationList* m_sil = &m.dataCollection.analysisData.spectrumIdentificationList[0];
+//  
+//  //Only one spectrum identification protocol per kojak search
+//  CSpectrumIdentificationProtocol* m_sip=&m.analysisProtocolCollection.spectrumIdentificationProtocol[0];
+// 
+//  //Create spectrum
+//  CSpectrumIdentificationResult* m_sir;
+//  if(false){ //if this is the same as the last spectrum
+//    m_sir=&m_sil->spectrumIdentificationResult.back();
+//  } else {
+//    m_sir=new CSpectrumIdentificationResult();
+//    sprintf(str, "scan=%d", r.scanNumber);
+//    m_sir->spectrumID=r.scanID;
+//    m_sir->name=str;
+//    m_sir->spectraDataRef=m_sd->id;
+//    cStr = str;
+//    sprintf(str, "%s_%d", m_sd->id.c_str(), (int)m_sil->spectrumIdentificationResult.size());
+//    m_sir->id = str;
+//    m_sil->spectrumIdentificationResult.push_back(*m_sir);
+//    m_sir = &m_sil->spectrumIdentificationResult.back();
+//  }
+//
+//  //Declare the required classes
+//  CPeptide m_p,m_p2;
+//
+//  //Get peptide #1 sequence and modifications
+//  m_p.peptideSequence.text=r.peptide1;
+//  for (i = 0; i < r.mods1.size(); i++){
+//    CModification m_m;
+//    sCvParam cv;
+//    m_m.location = (int)r.mods1[i].pos + 1;
+//    m_m.monoisotopicMassDelta = r.mods1[i].mass;
+//    if (m_m.location>0) {
+//      m_m.residues = r.peptide1[r.mods1[i].pos];
+//      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues);
+//    } else if(r.mods1[i].pos==-1){
+//      m_m.residues=".";
+//      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues,true);
+//    } else {
+//      m_m.residues=".";
+//      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues,false,true);
+//    }
+//    m_m.cvParam.push_back(cv);
+//    m_p.modification.push_back(m_m);
+//  }
+//  //add static mods, too
+//  for (i = 0; i<r.peptide1.size(); i++){
+//    if (aa.getFixedModMass(r.peptide1[i])>0) {
+//      CModification m_m;
+//      sCvParam cv;
+//      m_m.location = (int)i + 1;
+//      m_m.monoisotopicMassDelta = aa.getFixedModMass(r.peptide1[i]);
+//      if (m_m.location>0) m_m.residues = r.peptide1[i];
+//      else m_m.residues.clear();
+//      cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, m_m.location == 0);
+//      m_m.cvParam.push_back(cv);
+//      m_p.modification.push_back(m_m);
+//    }
+//  }
+//
+//  CSpectrumIdentificationItem m_sii;
+//  sprintf(str, "%s_%d", m_sir->id.c_str(), (int)m_sir->spectrumIdentificationItem.size());
+//  m_sii.id = str;
+//  m_sii.calculatedMassToCharge = (r.psmMass + r.charge*1.007276466) / r.charge;
+//  m_sii.chargeState = r.charge;
+//  m_sii.experimentalMassToCharge = (r.obsMass + r.charge*1.007276466) / r.charge;
+//  m_sii.rank = 1;
+//
+//  //add scores
+//  m_sii.addPSMValue("Kojak", "kojak_score", r.score);
+//  m_sii.addPSMValue("Kojak", "delta_score", r.scoreDelta);
+//  m_sii.addPSMValue("Kojak", "ppm_error", r.ppm);
+//  m_sii.addPSMValue("Kojak", "e-value", r.eVal);
+//  m_sii.addPSMValue("Kojak", "ion_match", r.matches1 + r.matches2);
+//  
+//  if(r.type< 2){
+//
+//    if(r.type==1){ //loop link
+//      CModification m_m;
+//      sCvParam cv;
+//      m_m.location = r.link1;
+//      m_m.monoisotopicMassDelta = r.xlMass;
+//      m_m.residues = r.peptide1[r.link1 - 1];
+//      cv.cvRef = "PSI-MS";
+//      cv.accession = "MS:1002509";
+//      cv.name = "cross-link donor";
+//      m_m.cvParam.push_back(cv);
+//      m_p.modification.push_back(m_m);
+//
+//      m_m.clear();
+//      m_m.location = r.link2;
+//      m_m.monoisotopicMassDelta = 0;
+//      m_m.residues = r.peptide1[r.link2 - 1];
+//      cv.cvRef = "PSI-MS";
+//      cv.accession = "MS:1002510";
+//      cv.name = "cross-link acceptor";
+//      m_m.cvParam.push_back(cv);
+//      m_p.modification.push_back(m_m);
+//
+//      m_sii.addPSMValue("Kojak", "link", r.link1, "pep");
+//      m_sii.addPSMValue("Kojak", "link", r.link2, "pep");
+//    }
+//
+//    m_sii.addPSMValue("Kojak", "consecutive_ion_match", r.conFrag1);
+//    m_sii.peptideRef = m.sequenceCollection.addPeptide(m_p);
+//
+//    //Add all proteins mapped by this peptide
+//    writeMzIDPE(m,m_sii,r.pep1,db);
+//    m_sir->spectrumIdentificationItem.push_back(m_sii);
+//
+//  } else if(r.type==2){
+//    CModification m_m;
+//    sCvParam cv;
+//    
+//    //Get peptide #2 sequence and modifications
+//    m_p2.peptideSequence.text = r.peptide2;
+//    for (i = 0; i < r.mods2.size(); i++){
+//      m_m.clear();
+//      m_m.location = (int)r.mods2[i].pos + 1;
+//      m_m.monoisotopicMassDelta = r.mods2[i].mass;
+//      if (m_m.location>0) {
+//        m_m.residues = r.peptide2[r.mods2[i].pos];
+//        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues);
+//      } else if (r.mods2[i].pos == -1){
+//        m_m.residues = ".";
+//        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, true);
+//      } else {
+//        m_m.residues = ".";
+//        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, false, true);
+//      }
+//      m_m.cvParam.push_back(cv);
+//      m_p2.modification.push_back(m_m);
+//    }
+//    //add static mods, too
+//    for (i = 0; i<r.peptide2.size(); i++){
+//      if (aa.getFixedModMass(r.peptide2[i])>0) {
+//        m_m.clear();
+//        m_m.location = (int)i + 1;
+//        m_m.monoisotopicMassDelta = aa.getFixedModMass(r.peptide2[i]);
+//        if (m_m.location>0) m_m.residues = r.peptide2[i];
+//        else m_m.residues.clear();
+//        cv = m_sip->modificationParams.back().getModificationCvParam(m_m.monoisotopicMassDelta, m_m.residues, m_m.location == 0);
+//        m_m.cvParam.push_back(cv);
+//        m_p2.modification.push_back(m_m);
+//      }
+//    }
+//
+//    //Add cross-linker modifications
+//    m_m.clear();
+//    m_m.location=r.link1;
+//    m_m.monoisotopicMassDelta=r.xlMass;
+//    m_m.residues=r.peptide1[r.link1-1];
+//    m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(r.xlMass,m_m.residues));
+//    if(m_m.location==1 && m_m.cvParam[0].accession.compare("MS:1001460")==0){
+//      m_m.cvParam.clear();
+//      m_m.location=0;
+//      m_m.residues.clear();
+//      m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(r.xlMass, ".",true));
+//    } else if (m_m.cvParam[0].accession.compare("MS:1001460") == 0){
+//      m_m.cvParam.clear();
+//      m_m.location+=1;
+//      m_m.residues.clear();
+//      m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(r.xlMass, ".", false, true));
+//    }
+//    m_p.modification.push_back(m_m);
+//
+//    m_m.clear();
+//    m_m.location = r.link2;
+//    m_m.monoisotopicMassDelta = 0;
+//    m_m.residues = r.peptide2[r.link2 - 1];
+//    m_m.cvParam.push_back(m_sip->modificationParams.back().getModificationCvParam(0, m_m.residues));
+//    if (m_m.location == 1 && m_m.cvParam[0].accession.compare("MS:1001460") == 0){
+//      m_m.cvParam.clear();
+//      m_m.location = 0;
+//      m_m.residues.clear();
+//    } else if (m_m.cvParam[0].accession.compare("MS:1001460") == 0){
+//      m_m.cvParam.clear();
+//      m_m.location += 1;
+//      m_m.residues.clear();
+//    } else m_m.cvParam.clear();
+//    m_p2.modification.push_back(m_m);
+//
+//    //Create identifier for this combination of linked peptides
+//    string ID=r.peptide1;
+//    string pRef1,pRef2,xlValue;
+//    sprintf(str, "%d", r.link1);
+//    ID+=str;
+//    for (i = 0; i < r.mods1.size(); i++) {
+//      sprintf(str, "[%d,%.2lf]", r.mods1[i].pos, r.mods1[i].mass);
+//      ID += str;
+//    }
+//    ID += r.peptide2;
+//    sprintf(str, "%d", r.link2);
+//    ID += str;
+//    for (i = 0; i < r.mods2.size(); i++) {
+//      sprintf(str, "[%d,%.2lf]", r.mods2[i].pos, r.mods2[i].mass);
+//      ID += str;
+//    }
+//    m.sequenceCollection.addXLPeptides(ID,m_p,m_p2,pRef1,pRef2,xlValue);
+//
+//    m_sii.peptideRef = pRef1;
+//    m_sii.addCvParam("MS:1002511", "PSI-MS", "cross-link spectrum identification item", "", "", "", xlValue);
+//    m_sii.addPSMValue("Kojak", "score", r.scoreA, "pep");
+//    m_sii.addPSMValue("Kojak", "rank", r.rankA, "pep");
+//    m_sii.addPSMValue("Kojak", "link", r.link1, "pep");
+//    m_sii.addPSMValue("Kojak", "e-value", r.eVal1, "pep");
+//    m_sii.addPSMValue("Kojak", "ion_match", r.matches1, "pep");
+//    m_sii.addPSMValue("Kojak", "consecutive_ion_match", r.conFrag1, "pep");
+//    writeMzIDPE(m, m_sii, r.pep1, db);
+//    m_sir->spectrumIdentificationItem.push_back(m_sii);
+//
+//    //Add PSM
+//    CSpectrumIdentificationItem m_sii2;
+//    sprintf(str, "%s_%d", m_sir->id.c_str(), (int)m_sir->spectrumIdentificationItem.size());
+//    m_sii2.id = str;
+//    m_sii2.calculatedMassToCharge = (r.psmMass + r.charge*1.007276466) / r.charge;
+//    m_sii2.chargeState = r.charge;
+//    m_sii2.experimentalMassToCharge = (r.obsMass + r.charge*1.007276466) / r.charge;
+//    m_sii2.rank = 1;
+//
+//    //add scores
+//    m_sii2.addPSMValue("Kojak", "kojak_score", r.score);
+//    m_sii2.addPSMValue("Kojak", "delta_score", r.scoreDelta);
+//    m_sii2.addPSMValue("Kojak", "ppm_error", r.ppm);
+//    m_sii2.addPSMValue("Kojak", "e-value", r.eVal);
+//    m_sii2.addPSMValue("Kojak", "ion_match", r.matches1 + r.matches2);
+//    //m_sii2.addPSMValue("Kojak", "consecutive_ion_match", (r.conFrag1 + r.conFrag2) / 2);
+//    m_sii2.addPSMValue("Kojak", "score", r.scoreB, "pep");
+//    m_sii2.addPSMValue("Kojak", "rank", r.rankB, "pep");
+//    m_sii2.addPSMValue("Kojak", "link", r.link2, "pep");
+//    m_sii2.addPSMValue("Kojak", "e-value", r.eVal2, "pep");
+//    m_sii2.addPSMValue("Kojak", "ion_match", r.matches2, "pep");
+//    m_sii2.addPSMValue("Kojak", "consecutive_ion_match", r.conFrag2, "pep");
+//
+//    m_sii2.peptideRef = pRef2;
+//    m_sii2.addCvParam("MS:1002511", "PSI-MS", "cross-link spectrum identification item", "", "", "", xlValue);
+//    writeMzIDPE(m, m_sii2, r.pep2, db);
+//    m_sir->spectrumIdentificationItem.push_back(m_sii2);
+//
+//
+//  } else {
+//
+//    //error: dimers not supported in mzID (or perhaps even in Kojak)
+//  }
+//
+//  //m_sir->spectrumIdentificationItem.push_back(m_sii);
+//  return true;
+//}
 
 bool KData::outputNeoPepXML(CnpxSpectrumQuery& p, KDatabase& db, kResults& r){
   CnpxSearchHit sh;
@@ -1741,208 +1887,208 @@ bool KData::outputNeoPepXML(CnpxSpectrumQuery& p, KDatabase& db, kResults& r){
   return true;
 }
 
-bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
-
-  unsigned int i;
-  unsigned int j;
-
-  char c;
-  char n;
-  char score[32];
-
-  string peptide;
-  string protein;
-  string sequence;
-  string tStr;
-
-  kPeptide pep;
-  kScoreCard sc;
-  kScoreCard sc2;
-
-  PXWSearchHit sh;
-  PXWSearchHit shB;
-
-  int siteA;
-  int siteB;
-
-  sh.hit_rank=1;
-  sh.peptide=r.peptide1;
-  if(r.type==0){
-    sh.calc_neutral_pep_mass=r.psmMass;
-    sh.massdiff=r.psmMass-r.obsMass;
-  } else if(r.type==1){
-    sh.calc_neutral_pep_mass=r.psmMass;
-    sh.massdiff=r.psmMass-r.obsMass;
-  } else {
-    sh.calc_neutral_xl_mass=r.psmMass;
-    sh.xl_massdiff=r.psmMass-r.obsMass;
-    sh.calc_neutral_pep_mass=r.massA;
-    sh.massdiff=r.obsMass-r.massA;
-  }
-  
-  for(i=0;i<r.mods1.size();i++){
-    //if(sq.start_scan==31877) cout << r.mods1[i].mass << "\t" << (int)r.mods1[i].pos << "\t" << (int)r.mods1[i].term << endl;
-    if (r.mods1[i].pos == -1) sh.modInfo.mod_nterm_mass = r.mods1[i].mass;
-    else if (r.mods1[i].pos == -2) sh.modInfo.mod_cterm_mass = r.mods1[i].mass;
-    else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos],r.n15Pep1),r.mods1[i].mass,true);
-  }
-  if (r.nTerm1 && aa.getFixedModMass('$')!=0)sh.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
-  if (r.cTerm1 && aa.getFixedModMass('%')!=0)sh.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
-  sh.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
-  sh.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
-  if(sh.modInfo.mod_nterm_mass!=0) sh.modInfo.mod_nterm_mass+=1.00782503;
-  if(sh.modInfo.mod_cterm_mass!=0) sh.modInfo.mod_cterm_mass+=17.00273963;
-  for(i=0;i<r.peptide1.size();i++){
-    if(aa.getFixedModMass(r.peptide1[i])>0) {
-      sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i],r.n15Pep1),aa.getFixedModMass(r.peptide1[i]),false);
-    }
-  }
-
-  if(r.type>1){
-    shB.hit_rank=1;
-    shB.peptide=r.peptide2;
-    shB.calc_neutral_pep_mass=r.massB;
-    shB.massdiff=r.obsMass-r.massB;
-
-    for(i=0;i<r.mods2.size();i++){
-      if (r.mods2[i].pos == -1) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
-      else if (r.mods2[i].pos ==-2) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
-      else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos],r.n15Pep2),r.mods2[i].mass,true);
-    }
-    if (r.nTerm2 && aa.getFixedModMass('$')!=0)shB.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
-    if (r.cTerm2 && aa.getFixedModMass('%')!=0)shB.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
-    shB.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
-    shB.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
-    if (shB.modInfo.mod_nterm_mass != 0) shB.modInfo.mod_nterm_mass += 1.00782503;
-    if (shB.modInfo.mod_cterm_mass != 0) shB.modInfo.mod_cterm_mass += 17.00273963;
-    for(i=0;i<r.peptide2.size();i++){
-      if(aa.getFixedModMass(r.peptide2[i])>0) {
-        shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i],r.n15Pep2),aa.getFixedModMass(r.peptide2[i]),false);
-      }
-    }
-  }
-
-  if(r.type>0) {
-    if(r.type==1) {
-      sh.xlink_type="loop";
-      sprintf(score,"%d",r.link1);
-      sh.addXLScore("link",score);
-      sprintf(score,"%d",r.link2);
-      sh.addXLScore("link",score);
-    } else {
-      sh.xlink_type="xl";
-      sprintf(score,"%.4lf",r.scoreA);
-      sh.addXLScore("score",score);
-      sprintf(score,"%d",r.rankA);
-      sh.addXLScore("rank",score);
-      sprintf(score,"%d",r.link1);
-      sh.addXLScore("link",score);
-      sprintf(score, "%.3e", r.eVal1);
-      sh.addXLScore("e-value", score);
-      sprintf(score, "%d", r.matches1);
-      sh.addXLScore("ion_match", score);
-      sprintf(score, "%d", r.conFrag1);
-      sh.addXLScore("consecutive_ion_match", score);
-
-      shB.xlink_type="xl";
-      sprintf(score,"%.4lf",r.scoreB);
-      shB.addXLScore("score",score);
-      sprintf(score,"%d",r.rankB);
-      shB.addXLScore("rank",score);
-      sprintf(score,"%d",r.link2);
-      shB.addXLScore("link",score);
-      sprintf(score, "%.3e", r.eVal2);
-      shB.addXLScore("e-value", score);
-      sprintf(score, "%d", r.matches2);
-      shB.addXLScore("ion_match", score);
-      sprintf(score, "%d", r.conFrag2);
-      shB.addXLScore("consecutive_ion_match", score);
-    }
-    
-  }
-
-  sprintf(score,"%.4lf",r.score);
-  sh.addScore("kojak_score",score);
-  sprintf(score,"%.4lf",r.scoreDelta);
-  sh.addScore("delta_score",score);
-  sprintf(score,"%.4lf",r.ppm);
-  sh.addScore("ppm_error",score);
-  sprintf(score, "%.3e", r.eVal);
-  sh.addScore("e-value", score);
-  sprintf(score, "%d", r.matches1+r.matches2);
-  sh.addScore("ion_match", score);
-  if(r.type<2) sprintf(score, "%d", r.conFrag1);
-  else sprintf(score, "%d", (r.conFrag1 + r.conFrag2)/2);
-  sh.addScore("consecutive_ion_match", score);
-
-  //Get proteins
-  pep = db.getPeptide(r.pep1);
-  sh.num_tot_proteins=(int)pep.map->size();
-  for(j=0;j<pep.map->size();j++){
-    if (pep.n15 && db[pep.map->at(j).index].name.find(params->n15Label)==string::npos) {
-      sh.num_tot_proteins--;
-      continue;
-    }
-    if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
-      sh.num_tot_proteins--;
-      continue;
-    }
-    protein="";
-    for(i=0;i<db[pep.map->at(j).index].name.size();i++){
-      if(params->truncate>0 && i==params->truncate) break;
-      if (db[pep.map->at(j).index].name[i]==' ') break;
-      protein+=db[pep.map->at(j).index].name[i];
-    }
-    if(pep.map->at(j).start<1) n='-';
-    else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
-    if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
-    else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
-    siteA = pep.map->at(j).start+r.link1;
-    if(r.type==1){
-      siteB = pep.map->at(j).start+r.link2;
-      sh.addProtein(protein, c, n, (int)pep.map->at(j).start + 1,siteA, siteB);
-    } else {
-      sh.addProtein(protein, c, n, (int)pep.map->at(j).start + 1, siteA);
-    }
-  }
-
-  if(r.type>1){
-    pep = db.getPeptide(r.pep2);
-    shB.num_tot_proteins=(int)pep.map->size();
-    for(j=0;j<pep.map->size();j++){
-      if (pep.n15 && db[pep.map->at(j).index].name.find(params->n15Label) == string::npos) {
-        sh.num_tot_proteins--;
-        continue;
-      }
-      if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
-        sh.num_tot_proteins--;
-        continue;
-      }
-      protein="";
-      for(i=0;i<db[pep.map->at(j).index].name.size();i++){
-        if(params->truncate>0 && i==params->truncate) break;
-        if(db[pep.map->at(j).index].name[i]==' ') break;
-        protein+=db[pep.map->at(j).index].name[i];
-      }
-      if(pep.map->at(j).start<1) n='-';
-      else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
-      if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
-      else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
-      siteA = pep.map->at(j).start + r.link2;
-      shB.addProtein(protein, c, n, (int)pep.map->at(j).start+1,siteA);
-    }
-  }
-
-  if(r.type==0) {
-    sq.addSearchHit(&sh,NULL,NULL,NULL);
-  } else if(r.type==1) {
-    sq.addSearchHit(&sh,NULL,&r.xlLabel,&r.xlMass);
-  } else {
-    sq.addSearchHit(&sh,&shB,&r.xlLabel,&r.xlMass);
-  }
-
-  return true;
-}
+//bool KData::outputPepXML(PXWSpectrumQuery& sq, KDatabase& db, kResults& r){
+//
+//  unsigned int i;
+//  unsigned int j;
+//
+//  char c;
+//  char n;
+//  char score[32];
+//
+//  string peptide;
+//  string protein;
+//  string sequence;
+//  string tStr;
+//
+//  kPeptide pep;
+//  kScoreCard sc;
+//  kScoreCard sc2;
+//
+//  PXWSearchHit sh;
+//  PXWSearchHit shB;
+//
+//  int siteA;
+//  int siteB;
+//
+//  sh.hit_rank=1;
+//  sh.peptide=r.peptide1;
+//  if(r.type==0){
+//    sh.calc_neutral_pep_mass=r.psmMass;
+//    sh.massdiff=r.psmMass-r.obsMass;
+//  } else if(r.type==1){
+//    sh.calc_neutral_pep_mass=r.psmMass;
+//    sh.massdiff=r.psmMass-r.obsMass;
+//  } else {
+//    sh.calc_neutral_xl_mass=r.psmMass;
+//    sh.xl_massdiff=r.psmMass-r.obsMass;
+//    sh.calc_neutral_pep_mass=r.massA;
+//    sh.massdiff=r.obsMass-r.massA;
+//  }
+//  
+//  for(i=0;i<r.mods1.size();i++){
+//    //if(sq.start_scan==31877) cout << r.mods1[i].mass << "\t" << (int)r.mods1[i].pos << "\t" << (int)r.mods1[i].term << endl;
+//    if (r.mods1[i].pos == -1) sh.modInfo.mod_nterm_mass = r.mods1[i].mass;
+//    else if (r.mods1[i].pos == -2) sh.modInfo.mod_cterm_mass = r.mods1[i].mass;
+//    else sh.modInfo.addMod((int)r.mods1[i].pos+1,r.mods1[i].mass+aa.getAAMass(r.peptide1[r.mods1[i].pos],r.n15Pep1),r.mods1[i].mass,true);
+//  }
+//  if (r.nTerm1 && aa.getFixedModMass('$')!=0)sh.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
+//  if (r.cTerm1 && aa.getFixedModMass('%')!=0)sh.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
+//  sh.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
+//  sh.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
+//  if(sh.modInfo.mod_nterm_mass!=0) sh.modInfo.mod_nterm_mass+=1.00782503;
+//  if(sh.modInfo.mod_cterm_mass!=0) sh.modInfo.mod_cterm_mass+=17.00273963;
+//  for(i=0;i<r.peptide1.size();i++){
+//    if(aa.getFixedModMass(r.peptide1[i])>0) {
+//      sh.modInfo.addMod(i+1,aa.getAAMass(r.peptide1[i],r.n15Pep1),aa.getFixedModMass(r.peptide1[i]),false);
+//    }
+//  }
+//
+//  if(r.type>1){
+//    shB.hit_rank=1;
+//    shB.peptide=r.peptide2;
+//    shB.calc_neutral_pep_mass=r.massB;
+//    shB.massdiff=r.obsMass-r.massB;
+//
+//    for(i=0;i<r.mods2.size();i++){
+//      if (r.mods2[i].pos == -1) shB.modInfo.mod_nterm_mass = r.mods2[i].mass;
+//      else if (r.mods2[i].pos ==-2) shB.modInfo.mod_cterm_mass = r.mods2[i].mass;
+//      else shB.modInfo.addMod((int)r.mods2[i].pos+1,r.mods2[i].mass+aa.getAAMass(r.peptide2[r.mods2[i].pos],r.n15Pep2),r.mods2[i].mass,true);
+//    }
+//    if (r.nTerm2 && aa.getFixedModMass('$')!=0)shB.modInfo.mod_nterm_mass += aa.getFixedModMass('$');
+//    if (r.cTerm2 && aa.getFixedModMass('%')!=0)shB.modInfo.mod_cterm_mass += aa.getFixedModMass('%');
+//    shB.modInfo.mod_nterm_mass += aa.getFixedModMass('n');
+//    shB.modInfo.mod_cterm_mass += aa.getFixedModMass('c');
+//    if (shB.modInfo.mod_nterm_mass != 0) shB.modInfo.mod_nterm_mass += 1.00782503;
+//    if (shB.modInfo.mod_cterm_mass != 0) shB.modInfo.mod_cterm_mass += 17.00273963;
+//    for(i=0;i<r.peptide2.size();i++){
+//      if(aa.getFixedModMass(r.peptide2[i])>0) {
+//        shB.modInfo.addMod(i+1,aa.getAAMass(r.peptide2[i],r.n15Pep2),aa.getFixedModMass(r.peptide2[i]),false);
+//      }
+//    }
+//  }
+//
+//  if(r.type>0) {
+//    if(r.type==1) {
+//      sh.xlink_type="loop";
+//      sprintf(score,"%d",r.link1);
+//      sh.addXLScore("link",score);
+//      sprintf(score,"%d",r.link2);
+//      sh.addXLScore("link",score);
+//    } else {
+//      sh.xlink_type="xl";
+//      sprintf(score,"%.4lf",r.scoreA);
+//      sh.addXLScore("score",score);
+//      sprintf(score,"%d",r.rankA);
+//      sh.addXLScore("rank",score);
+//      sprintf(score,"%d",r.link1);
+//      sh.addXLScore("link",score);
+//      sprintf(score, "%.3e", r.eVal1);
+//      sh.addXLScore("e-value", score);
+//      sprintf(score, "%d", r.matches1);
+//      sh.addXLScore("ion_match", score);
+//      sprintf(score, "%d", r.conFrag1);
+//      sh.addXLScore("consecutive_ion_match", score);
+//
+//      shB.xlink_type="xl";
+//      sprintf(score,"%.4lf",r.scoreB);
+//      shB.addXLScore("score",score);
+//      sprintf(score,"%d",r.rankB);
+//      shB.addXLScore("rank",score);
+//      sprintf(score,"%d",r.link2);
+//      shB.addXLScore("link",score);
+//      sprintf(score, "%.3e", r.eVal2);
+//      shB.addXLScore("e-value", score);
+//      sprintf(score, "%d", r.matches2);
+//      shB.addXLScore("ion_match", score);
+//      sprintf(score, "%d", r.conFrag2);
+//      shB.addXLScore("consecutive_ion_match", score);
+//    }
+//    
+//  }
+//
+//  sprintf(score,"%.4lf",r.score);
+//  sh.addScore("kojak_score",score);
+//  sprintf(score,"%.4lf",r.scoreDelta);
+//  sh.addScore("delta_score",score);
+//  sprintf(score,"%.4lf",r.ppm);
+//  sh.addScore("ppm_error",score);
+//  sprintf(score, "%.3e", r.eVal);
+//  sh.addScore("e-value", score);
+//  sprintf(score, "%d", r.matches1+r.matches2);
+//  sh.addScore("ion_match", score);
+//  if(r.type<2) sprintf(score, "%d", r.conFrag1);
+//  else sprintf(score, "%d", (r.conFrag1 + r.conFrag2)/2);
+//  sh.addScore("consecutive_ion_match", score);
+//
+//  //Get proteins
+//  pep = db.getPeptide(r.pep1);
+//  sh.num_tot_proteins=(int)pep.map->size();
+//  for(j=0;j<pep.map->size();j++){
+//    if (pep.n15 && db[pep.map->at(j).index].name.find(params->n15Label)==string::npos) {
+//      sh.num_tot_proteins--;
+//      continue;
+//    }
+//    if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
+//      sh.num_tot_proteins--;
+//      continue;
+//    }
+//    protein="";
+//    for(i=0;i<db[pep.map->at(j).index].name.size();i++){
+//      if(params->truncate>0 && i==params->truncate) break;
+//      if (db[pep.map->at(j).index].name[i]==' ') break;
+//      protein+=db[pep.map->at(j).index].name[i];
+//    }
+//    if(pep.map->at(j).start<1) n='-';
+//    else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
+//    if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
+//    else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
+//    siteA = pep.map->at(j).start+r.link1;
+//    if(r.type==1){
+//      siteB = pep.map->at(j).start+r.link2;
+//      sh.addProtein(protein, c, n, (int)pep.map->at(j).start + 1,siteA, siteB);
+//    } else {
+//      sh.addProtein(protein, c, n, (int)pep.map->at(j).start + 1, siteA);
+//    }
+//  }
+//
+//  if(r.type>1){
+//    pep = db.getPeptide(r.pep2);
+//    shB.num_tot_proteins=(int)pep.map->size();
+//    for(j=0;j<pep.map->size();j++){
+//      if (pep.n15 && db[pep.map->at(j).index].name.find(params->n15Label) == string::npos) {
+//        sh.num_tot_proteins--;
+//        continue;
+//      }
+//      if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(j).index].name.find(params->n15Label) != string::npos) {
+//        sh.num_tot_proteins--;
+//        continue;
+//      }
+//      protein="";
+//      for(i=0;i<db[pep.map->at(j).index].name.size();i++){
+//        if(params->truncate>0 && i==params->truncate) break;
+//        if(db[pep.map->at(j).index].name[i]==' ') break;
+//        protein+=db[pep.map->at(j).index].name[i];
+//      }
+//      if(pep.map->at(j).start<1) n='-';
+//      else n=db[pep.map->at(j).index].sequence[pep.map->at(j).start-1];
+//      if(pep.map->at(j).stop+1==db[pep.map->at(j).index].sequence.size()) c='-';
+//      else c=db[pep.map->at(j).index].sequence[pep.map->at(j).stop+1];
+//      siteA = pep.map->at(j).start + r.link2;
+//      shB.addProtein(protein, c, n, (int)pep.map->at(j).start+1,siteA);
+//    }
+//  }
+//
+//  if(r.type==0) {
+//    sq.addSearchHit(&sh,NULL,NULL,NULL);
+//  } else if(r.type==1) {
+//    sq.addSearchHit(&sh,NULL,&r.xlLabel,&r.xlMass);
+//  } else {
+//    sq.addSearchHit(&sh,&shB,&r.xlLabel,&r.xlMass);
+//  }
+//
+//  return true;
+//}
 
 bool KData::outputPercolator(FILE* f, KDatabase& db, kResults& r, int count){
 
@@ -2081,7 +2227,7 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   string pepXML_fileName_loop;
   string pepXML_fileName_xl;
 
-  CMzIdentML mzID;
+  //CMzIdentML mzID;
   string analysisSoftware_ref;
   string sip_ref;
 
@@ -2126,16 +2272,16 @@ bool KData::outputResults(KDatabase& db, KParams& par){
   sprintf(fName,"%s.kojak.txt",params->outFile);
   fOut=fopen(fName,"wt");
   if(fOut==NULL) bBadFiles=true;
-  if(params->exportMzID){
-    analysisSoftware_ref = mzID.addAnalysisSoftware("Kojak", version);
-    writeMzIDDatabase(mzID,db);
-    sip_ref=writeMzIDSIP(mzID,analysisSoftware_ref,par);
-    CSpectraData* m_sd = mzID.dataCollection.inputs.addSpectraData(params->inFile);
-    CSearchDatabase* m_db = mzID.dataCollection.inputs.addSearchDatabase(params->dbFile);
-    CSpectrumIdentificationProtocol* m_sip = mzID.getSpectrumIdentificationProtocol(sip_ref);
-    CSpectrumIdentificationList* m_sil = NULL;
-    CSpectrumIdentification* si = mzID.addSpectrumIdentification(m_sd->id, m_db->id, m_sip->id, m_sil);
-  }
+  //if(params->exportMzID){
+  //  analysisSoftware_ref = mzID.addAnalysisSoftware("Kojak", version);
+  //  writeMzIDDatabase(mzID,db);
+  //  sip_ref=writeMzIDSIP(mzID,analysisSoftware_ref,par);
+  //  CSpectraData* m_sd = mzID.dataCollection.inputs.addSpectraData(params->inFile);
+  //  CSearchDatabase* m_db = mzID.dataCollection.inputs.addSearchDatabase(params->dbFile);
+  //  CSpectrumIdentificationProtocol* m_sip = mzID.getSpectrumIdentificationProtocol(sip_ref);
+  //  CSpectrumIdentificationList* m_sil = NULL;
+  //  CSpectrumIdentification* si = mzID.addSpectrumIdentification(m_sd->id, m_db->id, m_sip->id, m_sil);
+  //}
   if(params->exportPercolator) {
     sprintf(fName,"%s.perc.intra.pin",params->outFile);
     fIntra=fopen(fName,"wt");
@@ -2622,9 +2768,9 @@ bool KData::outputResults(KDatabase& db, KParams& par){
         }
       }
 
-      if(params->exportMzID){
-        outputMzID(mzID,db,par,res);
-      }
+      //if(params->exportMzID){
+      //  outputMzID(mzID,db,par,res);
+      //}
       
       if(params->exportPercolator) {
         switch(res.type){
@@ -2709,10 +2855,10 @@ bool KData::outputResults(KDatabase& db, KParams& par){
     }
     //p.closePepXML();
   }
-  if (params->exportMzID){
-    sprintf(fName, "%s.mzid", params->outFile);
-    mzID.writeFile(fName);
-  }
+  //if (params->exportMzID){
+  //  sprintf(fName, "%s.mzid", params->outFile);
+  //  mzID.writeFile(fName);
+  //}
   if (fDiag != NULL){
     fprintf(fDiag, "</kojak_analysis>\n");
     fclose(fDiag);
@@ -3326,21 +3472,103 @@ bool KData::readSpectra(){
   releaseHardklor();
   Threading::DestroyMutex(mutexLockMS1);
 
+
+  //Check for a smart xl list
+  if (!params->smartList.empty()) {
+    FILE* f = fopen(params->smartList.c_str(), "rt");
+    if (f == NULL) {
+      //handle error
+    }
+    //read in smart list
+    char* tok;
+    char str[2048];
+    vector<sSmartList> smartList;
+    while (!feof(f)) {
+      if (fgets(str, 2048, f) == NULL) continue;
+      if (strlen(str) < 2) continue;
+
+      sSmartList ssl;
+
+      //tokenize the line
+      tok = strtok(str, " \t\n\r");
+      if (tok != NULL) ssl.scanNumber = atoi(tok);
+      tok = strtok(NULL, " \t\n\r");
+      while(tok!=NULL) {
+        ssl.mass = atof(tok);
+        smartList.push_back(ssl);
+        tok = strtok(NULL, " \t\n\r");
+      }
+    }
+    fclose(f);
+
+    //sort smart list
+    sort(smartList.begin(), smartList.end(), compareSmartList);
+
+    //iterate over all spectra and the smartlist
+    size_t j = 0;
+    bool bStop = false;
+    for (size_t i = 0; i < spec.size(); i++) {
+      int sn = spec[i]->getScanNumber();
+      if (sn < smartList[j].scanNumber) continue;
+      while (smartList[j].scanNumber < sn) {
+        //warn that the scan number is not in the dataset?
+        j++;
+        if (j == smartList.size()) {
+          bStop = true;
+          break;
+        }
+      }
+      if (bStop) break;
+      while (sn == smartList[j].scanNumber) {
+        spec[i]->alphaCandidates->push_back(smartList[j].mass);
+        j++;
+        if (j == smartList.size()) {
+          bStop = true;
+          break;
+        }
+      }
+      if (bStop) break;
+    }
+  }
+
+
+
   //Build mass list - this orders all precursor masses, with an index pointing to the actual
   //array position for the spectrum. This is because all spectra will have more than 1
   //precursor mass
   kMass m;
   massList.clear();
+  smartMassList.clear();
   for (size_t i = 0; i<spec.size(); i++){
     m.index = (int)i;
-    for (int j = 0; j<spec[i]->sizePrecursor(); j++){
-      m.mass = spec[i]->getPrecursor(j).monoMass;
-      massList.push_back(m);
+    if (spec[i]->alphaCandidates->size() > 0) {
+      for (int j = 0;j < spec[i]->alphaCandidates->size();j++) {
+        m.mass = spec[i]->alphaCandidates->at(j);
+        smartMassList.push_back(m);
+        //cout << "SmartList: " << m.mass;
+        for (int k = 0; k < spec[i]->sizePrecursor(); k++) {
+          for (size_t x = 0;x < params->xLink->size();x++) {
+            //cout << "\txlink: " << params->xLink->at(x).label << " " << params->xLink->at(x).mass;
+            m.mass = spec[i]->getPrecursor(k).monoMass - (spec[i]->alphaCandidates->at(j) + params->xLink->at(x).mass);
+            smartMassListB.push_back(m);
+            //cout << "\tB: " << m.mass;
+          }
+        }
+        //cout << endl;
+      }
+      //if (spec[i]->getScanNumber() == 10463) exit(1);
+    } else {
+      for (int j = 0; j < spec[i]->sizePrecursor(); j++) {
+        m.mass = spec[i]->getPrecursor(j).monoMass;
+        massList.push_back(m);
+      }
     }
   }
 
   //sort mass list from low to high
   qsort(&massList[0], massList.size(), sizeof(kMass), compareMassList);
+  if(smartMassList.size()>0) qsort(&smartMassList[0], smartMassList.size(), sizeof(kMass), compareMassList);
+  if (smartMassListB.size() > 0) qsort(&smartMassListB[0], smartMassListB.size(), sizeof(kMass), compareMassList);
 
   if (bScans != NULL) delete[] bScans;
   bScans = new bool[spec.size()];
@@ -3370,7 +3598,16 @@ void KData::report(){
   sprintf(str, "%d spectra with sufficient data points (%d peaks) will be analyzed.",(int)spec.size(),params->minPeaks);
   klog->addMessage(str, true);
   cout << "  " << str << endl;
+  int count = 0;
+  for (size_t a = 0;a < spec.size();a++) {
+    if (spec[a]->alphaCandidates != NULL && spec[a]->alphaCandidates->size()>0) count++;
+  }
+  
+  sprintf(str, "%d spectra have predicted peptide masses.", count);
+  klog->addMessage(str, true);
+  cout << "  " << str << endl;
 }
+  
 
 void KData::setLinker(kLinker x){
   if(x.mono==0) link.push_back(x);
@@ -3992,202 +4229,202 @@ void KData::processProtein(int pepIndex, int site, char linkSite, string& prot, 
 
 }
 
-void KData::writeMzIDDatabase(CMzIdentML& m, KDatabase& db){
+//void KData::writeMzIDDatabase(CMzIdentML& m, KDatabase& db){
+//
+//  char outPath[1056];
+//  processPath(params->dbFile, outPath);
+//  string sDB = outPath;
+//  CSearchDatabase* m_db = m.dataCollection.inputs.addSearchDatabase(sDB);
+//
+//  for(int a=0;a<db.getProteinDBSize();a++){
+//    CDBSequence m_dbs;
+//    sCvParam cv;
+//
+//    string pName;
+//    string pDesc;
+//    if (db[a].name.find(' ') == string::npos){
+//      pName = db[a].name;
+//      pDesc.clear();
+//    } else {
+//      pName = db[a].name.substr(0, db[a].name.find(' '));
+//      pDesc = db[a].name.substr(db[a].name.find(' '), db[a].name.size());
+//    }
+//
+//    m_dbs.accession = pName;
+//    m_dbs.searchDatabaseRef = m_db->id;
+//    sSeq ss;
+//    ss.text = db[a].sequence;
+//    m_dbs.seq.push_back(ss);
+//   
+//    if(!pDesc.empty()){
+//      cv.cvRef = "PSI-MS";
+//      cv.accession = "MS:1001088";
+//      cv.name = "protein description";
+//      cv.value = pDesc;
+//      m_dbs.cvParam.push_back(cv);
+//    }
+//    cv.cvRef = "PSI-MS";
+//    cv.accession = "MS:1001344";
+//    cv.name = "AA sequence";
+//    cv.value.clear();
+//    m_dbs.cvParam.push_back(cv);
+//    m.sequenceCollection.addDBSequence(m_dbs);
+//  }
+//}
 
-  char outPath[1056];
-  processPath(params->dbFile, outPath);
-  string sDB = outPath;
-  CSearchDatabase* m_db = m.dataCollection.inputs.addSearchDatabase(sDB);
+//bool KData::writeMzIDEnzyme(pxwBasicXMLTag t, CEnzymes& e){
+//  char str[256];
+//  char* tok;
+//  string valueA,valueB;
+//
+//  strcpy(str,t.value.c_str());
+//  tok=strtok(str," \t\n\r");
+//  valueA=tok;
+//  tok=strtok(NULL," \t\n\r");
+//  if(tok!=NULL) valueB=tok;
+//
+//  if(valueA.compare("[KR]|{P}")==0 || valueA.compare("[RK]|{P}")==0){
+//    CEnzyme ez;
+//    ez.id="SIP0_E0";
+//    ez.name="trypsin";
+//    ez.missedCleavages=params->miscleave;
+//    CEnzymeName en;
+//    sCvParam cv;
+//    cv.accession="MS:1001251";
+//    cv.cvRef="PSI-MS";
+//    cv.name="Trypsin";
+//    en.cvParam.push_back(cv);
+//    ez.enzymeName.push_back(en);
+//    e.enzyme.push_back(ez);
+//    return true;
+//  } else if (valueA.compare("[KR]") == 0 || valueA.compare("[RK]") == 0){
+//    CEnzyme ez;
+//    ez.id = "SIP0_E0";
+//    ez.name = "trypsin/p";
+//    ez.missedCleavages = params->miscleave;
+//    CEnzymeName en;
+//    sCvParam cv;
+//    cv.accession = "MS:1001313";
+//    cv.cvRef = "PSI-MS";
+//    cv.name = "Trypsin/P";
+//    en.cvParam.push_back(cv);
+//    ez.enzymeName.push_back(en);
+//    e.enzyme.push_back(ez);
+//    return true;
+//  }
+//  return false;
+//}
 
-  for(int a=0;a<db.getProteinDBSize();a++){
-    CDBSequence m_dbs;
-    sCvParam cv;
+//void KData::writeMzIDPE(CMzIdentML& m, CSpectrumIdentificationItem& m_sii, int pepID, KDatabase& db){
+//  //Add all proteins mapped by this peptide
+//  kPeptide pep = db.getPeptide(pepID);
+//  for (size_t i = 0; i<pep.map->size(); i++){
+//    if (pep.n15 && db[pep.map->at(i).index].name.find(params->n15Label) == string::npos) continue;
+//    if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(i).index].name.find(params->n15Label) != string::npos) continue;
+//
+//    CDBSequence m_dbs;
+//    if (db[pep.map->at(i).index].name.find(' ') == string::npos){
+//      m_dbs = m.getDBSequenceByAcc(db[pep.map->at(i).index].name);
+//    } else {
+//      string pName = db[pep.map->at(i).index].name.substr(0, db[pep.map->at(i).index].name.find(' '));
+//      m_dbs = m.getDBSequenceByAcc(pName);
+//    }
+//    char pre;
+//    char post;
+//    bool isDecoy;
+//    if (pep.map->at(i).start<1) pre = '-';
+//    else pre = db[pep.map->at(i).index].sequence[pep.map->at(i).start - 1];
+//    if ((size_t)pep.map->at(i).stop + 1 == db[pep.map->at(i).index].sequence.size()) post = '-';
+//    else post = db[pep.map->at(i).index].sequence[(size_t)pep.map->at(i).stop + 1];
+//    isDecoy = db[pep.map->at(i).index].decoy;
+//
+//    m_sii.peptideEvidenceRef.push_back(m.addPeptideEvidence(m_dbs.id, m_sii.peptideRef, (int)pep.map->at(i).start + 1, (int)pep.map->at(i).stop + 1, pre, post, isDecoy));
+//  }
+//}
 
-    string pName;
-    string pDesc;
-    if (db[a].name.find(' ') == string::npos){
-      pName = db[a].name;
-      pDesc.clear();
-    } else {
-      pName = db[a].name.substr(0, db[a].name.find(' '));
-      pDesc = db[a].name.substr(db[a].name.find(' '), db[a].name.size());
-    }
-
-    m_dbs.accession = pName;
-    m_dbs.searchDatabaseRef = m_db->id;
-    sSeq ss;
-    ss.text = db[a].sequence;
-    m_dbs.seq.push_back(ss);
-   
-    if(!pDesc.empty()){
-      cv.cvRef = "PSI-MS";
-      cv.accession = "MS:1001088";
-      cv.name = "protein description";
-      cv.value = pDesc;
-      m_dbs.cvParam.push_back(cv);
-    }
-    cv.cvRef = "PSI-MS";
-    cv.accession = "MS:1001344";
-    cv.name = "AA sequence";
-    cv.value.clear();
-    m_dbs.cvParam.push_back(cv);
-    m.sequenceCollection.addDBSequence(m_dbs);
-  }
-}
-
-bool KData::writeMzIDEnzyme(pxwBasicXMLTag t, CEnzymes& e){
-  char str[256];
-  char* tok;
-  string valueA,valueB;
-
-  strcpy(str,t.value.c_str());
-  tok=strtok(str," \t\n\r");
-  valueA=tok;
-  tok=strtok(NULL," \t\n\r");
-  if(tok!=NULL) valueB=tok;
-
-  if(valueA.compare("[KR]|{P}")==0 || valueA.compare("[RK]|{P}")==0){
-    CEnzyme ez;
-    ez.id="SIP0_E0";
-    ez.name="trypsin";
-    ez.missedCleavages=params->miscleave;
-    CEnzymeName en;
-    sCvParam cv;
-    cv.accession="MS:1001251";
-    cv.cvRef="PSI-MS";
-    cv.name="Trypsin";
-    en.cvParam.push_back(cv);
-    ez.enzymeName.push_back(en);
-    e.enzyme.push_back(ez);
-    return true;
-  } else if (valueA.compare("[KR]") == 0 || valueA.compare("[RK]") == 0){
-    CEnzyme ez;
-    ez.id = "SIP0_E0";
-    ez.name = "trypsin/p";
-    ez.missedCleavages = params->miscleave;
-    CEnzymeName en;
-    sCvParam cv;
-    cv.accession = "MS:1001313";
-    cv.cvRef = "PSI-MS";
-    cv.name = "Trypsin/P";
-    en.cvParam.push_back(cv);
-    ez.enzymeName.push_back(en);
-    e.enzyme.push_back(ez);
-    return true;
-  }
-  return false;
-}
-
-void KData::writeMzIDPE(CMzIdentML& m, CSpectrumIdentificationItem& m_sii, int pepID, KDatabase& db){
-  //Add all proteins mapped by this peptide
-  kPeptide pep = db.getPeptide(pepID);
-  for (size_t i = 0; i<pep.map->size(); i++){
-    if (pep.n15 && db[pep.map->at(i).index].name.find(params->n15Label) == string::npos) continue;
-    if (!pep.n15 && strlen(params->n15Label)>0 && db[pep.map->at(i).index].name.find(params->n15Label) != string::npos) continue;
-
-    CDBSequence m_dbs;
-    if (db[pep.map->at(i).index].name.find(' ') == string::npos){
-      m_dbs = m.getDBSequenceByAcc(db[pep.map->at(i).index].name);
-    } else {
-      string pName = db[pep.map->at(i).index].name.substr(0, db[pep.map->at(i).index].name.find(' '));
-      m_dbs = m.getDBSequenceByAcc(pName);
-    }
-    char pre;
-    char post;
-    bool isDecoy;
-    if (pep.map->at(i).start<1) pre = '-';
-    else pre = db[pep.map->at(i).index].sequence[pep.map->at(i).start - 1];
-    if ((size_t)pep.map->at(i).stop + 1 == db[pep.map->at(i).index].sequence.size()) post = '-';
-    else post = db[pep.map->at(i).index].sequence[(size_t)pep.map->at(i).stop + 1];
-    isDecoy = db[pep.map->at(i).index].decoy;
-
-    m_sii.peptideEvidenceRef.push_back(m.addPeptideEvidence(m_dbs.id, m_sii.peptideRef, (int)pep.map->at(i).start + 1, (int)pep.map->at(i).stop + 1, pre, post, isDecoy));
-  }
-}
-
-std::string KData::writeMzIDSIP(CMzIdentML& m, string& sRef, KParams& par){
-  CSpectrumIdentificationProtocol* m_sip = m.analysisProtocolCollection.addSpectrumIdentificationProtocol(sRef);
-
-  sCvParam cv;
-  cv.accession="MS:1001494";
-  cv.cvRef="PSI-MS";
-  cv.name="no threshold";
-  m_sip->threshold.cvParam.push_back(cv);
-
-  //populate analysis software & protocol information if it is new
-  cv.accession = "MS:1001083";
-  cv.cvRef = "PSI-MS";
-  cv.name = "ms-ms search";
-  m_sip->searchType.cvParam=cv;
-
-  //special case for cross-linking
-  CAdditionalSearchParams m_asp;
-  cv.accession = "MS:1002494";
-  cv.cvRef = "PSI-MS";
-  cv.name = "cross-linking search";
-  m_asp.cvParam.push_back(cv);
-
-  CModificationParams m_mp; //what if there are no modifications in the search?
-  size_t i;
-  string cStr;
-  bool bTerm=false;
-  char site;
-  for(i=0;i<params->mods->size();i++){
-    cStr.clear();
-    site=(char)params->mods->at(i).index;
-    if (site == '$') cStr += 'n';
-    else if (site == '%') cStr += 'c';
-    else cStr += site;
-    if (site == 'n' || site == 'c') bTerm = true;
-    m_mp.addSearchModification(false, params->mods->at(i).mass, cStr,bTerm);
-  }
-  for (i = 0; i<params->fMods->size(); i++){
-    cStr.clear();
-    site = (char)params->fMods->at(i).index;
-    if (site == '$') cStr += 'n';
-    else if (site == '%') cStr += 'c';
-    else cStr += site;
-    if (site == 'n' || site == 'c') bTerm = true;
-    m_mp.addSearchModification(true, params->fMods->at(i).mass, cStr, bTerm);
-  }
-  
-  vector<string> tokens;
-  char str[1024];
-  char* tok;
-  //bool nTerm;
-  //bool cTerm;
-  for (i = 0; i<par.xmlParams.size(); i++){ //figure out how to write all parameters
-    sUserParam u;
-    u.name = par.xmlParams[i].name;
-    u.value = par.xmlParams[i].value;
-    m_asp.userParam.push_back(u);
-    if (par.xmlParams[i].name.compare("cross_link") == 0){
-      tokens.clear();
-      strcpy(str, par.xmlParams[i].value.c_str());
-      tok = strtok(str, " \t\n\r");
-      while (tok != NULL){
-        cStr = tok;
-        tokens.push_back(cStr);
-        tok = strtok(NULL, " \t\n\r");
-      }
-      m_mp.addSearchModificationXL(atof(tokens[2].c_str()), tokens[0], tokens[1]);
-    } else if(par.xmlParams[i].name.compare("enzyme")==0){
-      CEnzymes m_e;
-      if(writeMzIDEnzyme(par.xmlParams[i],m_e)){
-        m_sip->enzymes.push_back(m_e);
-      }
-    }
-  }
-  
-  m_sip->modificationParams.push_back(m_mp);
-  m_sip->additionalSearchParams.push_back(m_asp);
-
-  //  m.consolidateSpectrumIdentificationProtocol();
-  //  sip = m.getSpectrumIdentificationProtocol(si->spectrumIdentificationProtocolRef);
-  //}
-
-  return m_sip->id;
-}
+//std::string KData::writeMzIDSIP(CMzIdentML& m, string& sRef, KParams& par){
+//  CSpectrumIdentificationProtocol* m_sip = m.analysisProtocolCollection.addSpectrumIdentificationProtocol(sRef);
+//
+//  sCvParam cv;
+//  cv.accession="MS:1001494";
+//  cv.cvRef="PSI-MS";
+//  cv.name="no threshold";
+//  m_sip->threshold.cvParam.push_back(cv);
+//
+//  //populate analysis software & protocol information if it is new
+//  cv.accession = "MS:1001083";
+//  cv.cvRef = "PSI-MS";
+//  cv.name = "ms-ms search";
+//  m_sip->searchType.cvParam=cv;
+//
+//  //special case for cross-linking
+//  CAdditionalSearchParams m_asp;
+//  cv.accession = "MS:1002494";
+//  cv.cvRef = "PSI-MS";
+//  cv.name = "cross-linking search";
+//  m_asp.cvParam.push_back(cv);
+//
+//  CModificationParams m_mp; //what if there are no modifications in the search?
+//  size_t i;
+//  string cStr;
+//  bool bTerm=false;
+//  char site;
+//  for(i=0;i<params->mods->size();i++){
+//    cStr.clear();
+//    site=(char)params->mods->at(i).index;
+//    if (site == '$') cStr += 'n';
+//    else if (site == '%') cStr += 'c';
+//    else cStr += site;
+//    if (site == 'n' || site == 'c') bTerm = true;
+//    m_mp.addSearchModification(false, params->mods->at(i).mass, cStr,bTerm);
+//  }
+//  for (i = 0; i<params->fMods->size(); i++){
+//    cStr.clear();
+//    site = (char)params->fMods->at(i).index;
+//    if (site == '$') cStr += 'n';
+//    else if (site == '%') cStr += 'c';
+//    else cStr += site;
+//    if (site == 'n' || site == 'c') bTerm = true;
+//    m_mp.addSearchModification(true, params->fMods->at(i).mass, cStr, bTerm);
+//  }
+//  
+//  vector<string> tokens;
+//  char str[1024];
+//  char* tok;
+//  //bool nTerm;
+//  //bool cTerm;
+//  for (i = 0; i<par.xmlParams.size(); i++){ //figure out how to write all parameters
+//    sUserParam u;
+//    u.name = par.xmlParams[i].name;
+//    u.value = par.xmlParams[i].value;
+//    m_asp.userParam.push_back(u);
+//    if (par.xmlParams[i].name.compare("cross_link") == 0){
+//      tokens.clear();
+//      strcpy(str, par.xmlParams[i].value.c_str());
+//      tok = strtok(str, " \t\n\r");
+//      while (tok != NULL){
+//        cStr = tok;
+//        tokens.push_back(cStr);
+//        tok = strtok(NULL, " \t\n\r");
+//      }
+//      m_mp.addSearchModificationXL(atof(tokens[2].c_str()), tokens[0], tokens[1]);
+//    } else if(par.xmlParams[i].name.compare("enzyme")==0){
+//      CEnzymes m_e;
+//      if(writeMzIDEnzyme(par.xmlParams[i],m_e)){
+//        m_sip->enzymes.push_back(m_e);
+//      }
+//    }
+//  }
+//  
+//  m_sip->modificationParams.push_back(m_mp);
+//  m_sip->additionalSearchParams.push_back(m_asp);
+//
+//  //  m.consolidateSpectrumIdentificationProtocol();
+//  //  sip = m.getSpectrumIdentificationProtocol(si->spectrumIdentificationProtocolRef);
+//  //}
+//
+//  return m_sip->id;
+//}
 
 
 int KData::compareScanBinRev2(const void *p1, const void *p2){

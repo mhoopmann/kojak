@@ -77,6 +77,10 @@ public:
   int peakCounts;
 
 
+  //Targeted Crosslinking
+  std::vector<double>* alphaCandidates;
+
+
   //Accessors
   double              getBinOffset          ();
   int                 getCharge             ();
@@ -162,6 +166,7 @@ private:
   kScoreCard            topHit[20];
 
   int                   xCorrArraySize;
+
 
   //Functions
   void BinIons        (kPreprocessStruct *pPre);

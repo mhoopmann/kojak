@@ -19,7 +19,7 @@ limitations under the License.
 
 #include "KLog.h"
 #include "KStructs.h"
-#include "pepXMLWriter.h"
+//#include "pepXMLWriter.h"
 
 #ifdef _MSC_VER
 #include <direct.h>
@@ -42,6 +42,11 @@ typedef struct kPXLTable{
   std::vector<double> monoB;
   std::vector<double> cleavageMass;
 } kPXLTable;
+
+typedef struct pxwBasicXMLTag {
+  std::string name;
+  std::string value;
+} pxwBasicXMLTag;
 
 class KParams {
 public:
